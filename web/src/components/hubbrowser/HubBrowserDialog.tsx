@@ -27,6 +27,7 @@ import { api } from '../../api/client'
 import { useBrowseContents, useProjects } from '../../api/queries'
 import type { Item } from '../../api/types'
 import { iconForItem, typeTag } from '../icons'
+import { ItemIcon } from '../entityIcons'
 import { extOf, viewerKindFor } from '../viewers/kind'
 
 // HubBrowserDialog is the shared in-place hub browser: an overlay for picking a
@@ -411,7 +412,7 @@ function TreeRow({
         )}
       </Box>
       <Box sx={{ width: 20, flexShrink: 0, textAlign: 'center', color: selected ? 'primary.main' : 'text.secondary' }}>
-        <FontAwesomeIcon icon={iconForItem(item)} style={{ fontSize: 12 }} />
+        <ItemIcon item={item} style={{ fontSize: 12 }} />
       </Box>
       <Typography variant="body2" noWrap title={item.name} sx={{ fontWeight: selected ? 600 : 400 }}>
         {item.name}

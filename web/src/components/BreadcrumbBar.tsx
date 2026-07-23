@@ -1,7 +1,8 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faBuilding, faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import { faChevronRight } from '@fortawesome/free-solid-svg-icons'
 import { Box, Breadcrumbs, Link, Typography } from '@mui/material'
 import { useNav } from '../state/nav'
+import { HubIcon } from './entityIcons'
 
 interface Crumb {
   label: string
@@ -51,7 +52,7 @@ export function BreadcrumbBar({ onOpenHubs }: { onOpenHubs: () => void }) {
             const isLast = i === crumbs.length - 1
             const content = (
               <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                {c.icon && <FontAwesomeIcon icon={faBuilding} style={{ fontSize: 11 }} />}
+                {c.icon && <HubIcon style={{ fontSize: 11 }} />}
                 {c.label}
               </Box>
             )

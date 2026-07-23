@@ -1,5 +1,3 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faBuilding } from '@fortawesome/free-solid-svg-icons'
 import {
   Box,
   Button,
@@ -16,6 +14,7 @@ import {
 } from '@mui/material'
 import { useHubs } from '../api/queries'
 import { useNav } from '../state/nav'
+import { HubIcon } from './entityIcons'
 
 export function HubSwitcher({ open, onClose }: { open: boolean; onClose: () => void }) {
   const nav = useNav()
@@ -46,7 +45,7 @@ export function HubSwitcher({ open, onClose }: { open: boolean; onClose: () => v
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 34 }}>
-                  <FontAwesomeIcon icon={faBuilding} />
+                  <HubIcon />
                 </ListItemIcon>
                 <ListItemText primary={h.name} />
               </ListItemButton>

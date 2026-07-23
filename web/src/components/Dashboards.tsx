@@ -30,7 +30,7 @@ import { useGoToDocument } from '../state/goto'
 import { useNav } from '../state/nav'
 import { usePinToggle } from '../state/pins'
 import ActivityHeatmap from './ActivityHeatmap'
-import { iconForItem } from './icons'
+import { ItemIcon } from './entityIcons'
 
 // The hub- and project-level landing panes that fill the right slot of the
 // browser when no document is selected. The project pane carries real widgets
@@ -587,7 +587,7 @@ function PinsList({ pins, loading, onOpen }: { pins: Pin[]; loading: boolean; on
     <List dense disablePadding>
       {pins.map((p) => (
         <ListItemButton key={p.id} onClick={() => onOpen(p)} sx={{ borderRadius: 1, py: 0.25, gap: 1 }}>
-          <FontAwesomeIcon icon={iconForItem({ kind: p.kind })} style={{ fontSize: 13, width: 18, opacity: 0.7, flexShrink: 0 }} />
+          <ItemIcon item={{ kind: p.kind }} style={{ fontSize: 13, width: 18, opacity: 0.7, flexShrink: 0 }} />
           <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
             {p.name}
           </Typography>

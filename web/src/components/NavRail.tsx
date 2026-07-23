@@ -1,7 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import {
-  faBuilding,
   faDiagramProject,
   faFolderTree,
   faGear,
@@ -9,7 +8,9 @@ import {
   faStar,
 } from '@fortawesome/free-solid-svg-icons'
 import { Divider, IconButton, Paper, Stack, Tooltip } from '@mui/material'
+import type { ReactNode } from 'react'
 import { useNav } from '../state/nav'
+import { HubIcon } from './entityIcons'
 
 interface NavRailProps {
   onOpenHubs: () => void
@@ -36,7 +37,7 @@ export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps
       }}
     >
       <Stack spacing={1.5}>
-        <RailButton icon={faBuilding} label="Hubs" onClick={onOpenHubs} />
+        <RailButton glyph={<HubIcon style={{ fontSize: 18 }} />} label="Hubs" onClick={onOpenHubs} />
         <Divider flexItem sx={{ mx: 1 }} />
         <RailButton
           icon={faFolderTree}
@@ -69,13 +70,17 @@ export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps
   )
 }
 
+// A rail button takes either a FontAwesome `icon` or a pre-rendered `glyph`
+// (for the custom hub/project marks, which aren't FA IconDefinitions).
 function RailButton({
   icon,
+  glyph,
   label,
   active,
   onClick,
 }: {
-  icon: IconDefinition
+  icon?: IconDefinition
+  glyph?: ReactNode
   label: string
   active?: boolean
   onClick: () => void
@@ -92,7 +97,7 @@ function RailButton({
           bgcolor: active ? 'action.selected' : 'transparent',
         }}
       >
-        <FontAwesomeIcon icon={icon} style={{ fontSize: 18 }} />
+        {glyph ?? (icon && <FontAwesomeIcon icon={icon} style={{ fontSize: 18 }} />)}
       </IconButton>
     </Tooltip>
   )

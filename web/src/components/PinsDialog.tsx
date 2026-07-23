@@ -23,7 +23,7 @@ import { useProjects } from '../api/queries'
 import { usePinMutations, usePins } from '../api/queries'
 import type { Item, Pin } from '../api/types'
 import { useNav } from '../state/nav'
-import { iconForItem } from './icons'
+import { ItemIcon } from './entityIcons'
 
 // Groups for display, in order. Anything that isn't a project or folder is a
 // document.
@@ -150,10 +150,7 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                         }
                       >
                         <ListItemIcon sx={{ minWidth: 32 }}>
-                          <FontAwesomeIcon
-                            icon={iconForItem({ kind: pin.kind, subtype: undefined })}
-                            style={{ fontSize: 14 }}
-                          />
+                          <ItemIcon item={{ kind: pin.kind }} style={{ fontSize: 14 }} />
                         </ListItemIcon>
                         <ListItemText
                           primary={pin.name}

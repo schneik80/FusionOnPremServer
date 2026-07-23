@@ -15,7 +15,8 @@ import { thumbnailSrc } from '../api/thumbnails'
 import type { Item } from '../api/types'
 import { useNav } from '../state/nav'
 import { isPinnable } from '../state/pins'
-import { iconForItem, typeTag } from './icons'
+import { typeTag } from './icons'
+import { ItemIcon } from './entityIcons'
 import { useInView } from './useInView'
 
 interface ItemRowProps {
@@ -116,7 +117,7 @@ export function ItemRow({
               sx={{ width: 22, height: 22, objectFit: 'contain', borderRadius: 0.5, display: 'block' }}
             />
           ) : (
-            <FontAwesomeIcon icon={iconForItem(display)} style={{ fontSize: 15 }} />
+            <ItemIcon item={display} style={{ fontSize: 15 }} />
           )}
         </ListItemIcon>
         <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 0.75 }}>

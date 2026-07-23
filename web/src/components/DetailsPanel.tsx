@@ -47,7 +47,7 @@ import { documentState, documentStateLabel, type DocumentState } from '../api/do
 import { thumbnailSrc } from '../api/thumbnails'
 import { useNav } from '../state/nav'
 import { useGoToDocument } from '../state/goto'
-import { iconForItem } from './icons'
+import { ItemIcon } from './entityIcons'
 import { TAB_SLIDE_TIMEOUT } from './motion'
 import ActivityHeatmap from './ActivityHeatmap'
 import HistoryGraph from './HistoryGraph'
@@ -981,7 +981,7 @@ function NavRowIcon({
   }
   return (
     <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
-      <FontAwesomeIcon icon={iconForItem({ id: '', name: '', kind, isContainer: false } as Item)} style={{ fontSize: 16 }} />
+      <ItemIcon item={{ kind }} style={{ fontSize: 16 }} />
     </ListItemIcon>
   )
 }

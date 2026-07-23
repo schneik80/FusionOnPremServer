@@ -13,8 +13,7 @@ import { api } from '../api/client'
 import { thumbnailSrc } from '../api/thumbnails'
 import { ToolBtn } from './canvas/ToolBtn'
 import { useNav } from '../state/nav'
-import { iconForItem } from './icons'
-import type { Item } from '../api/types'
+import { ItemIcon } from './entityIcons'
 
 // A node in the relationship graph. navId (lineage/item id) drives navigation;
 // cvId (componentVersionId) drives the thumbnail; absent navId = not navigable.
@@ -292,10 +291,7 @@ function NodeBox({
             sx={{ maxWidth: '100%', maxHeight: 46, objectFit: 'contain', borderRadius: 0.5 }}
           />
         ) : (
-          <FontAwesomeIcon
-            icon={iconForItem({ id: '', name: '', kind: node.kind, isContainer: false } as Item)}
-            style={{ fontSize: 22, color: alpha(accent, 0.7) }}
-          />
+          <ItemIcon item={{ kind: node.kind }} style={{ fontSize: 22, color: alpha(accent, 0.7) }} />
         )}
       </Box>
       <Typography variant="caption" fontWeight={600} noWrap sx={{ width: '100%', textAlign: 'center', lineHeight: 1.2 }} title={node.name}>
