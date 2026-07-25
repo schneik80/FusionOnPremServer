@@ -32,6 +32,12 @@ type TaskDTO struct {
 	UpdatedAt   string       `json:"updatedAt"`
 	DocRefs     []string     `json:"docRefs"`
 	Rank        float64      `json:"rank"`
+	StartDate   string       `json:"startDate,omitempty"`
+	EndDate     string       `json:"endDate,omitempty"`
+	Progress    int          `json:"progress,omitempty"`
+	Milestone   bool         `json:"milestone,omitempty"`
+	DependsOn   []string     `json:"dependsOn"` // always [], never null (slices-never-nil)
+	Stage       string       `json:"stage,omitempty"`
 }
 
 // TaskCapsDTO tells the SPA what the caller may do with this project's
@@ -74,9 +80,18 @@ func taskDTO(t tasks.Task, projectID, hubID, projectName string) TaskDTO {
 		UpdatedAt:   fmtTime(t.UpdatedAt),
 		DocRefs:     t.DocRefs,
 		Rank:        t.Rank,
+		StartDate:   t.StartDate,
+		EndDate:     t.EndDate,
+		Progress:    t.Progress,
+		Milestone:   t.Milestone,
+		DependsOn:   t.DependsOn,
+		Stage:       t.Stage,
 	}
 	if dto.DocRefs == nil {
 		dto.DocRefs = []string{}
+	}
+	if dto.DependsOn == nil {
+		dto.DependsOn = []string{}
 	}
 	if t.Assignee != nil {
 		a := taskUserDTO(*t.Assignee)

@@ -236,6 +236,12 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 		DueDate     string      `json:"dueDate"`
 		Assignee    *taskUserIn `json:"assignee"`
 		DocRefs     []string    `json:"docRefs"`
+		StartDate   string      `json:"startDate"`
+		EndDate     string      `json:"endDate"`
+		Progress    int         `json:"progress"`
+		Milestone   bool        `json:"milestone"`
+		DependsOn   []string    `json:"dependsOn"`
+		Stage       string      `json:"stage"`
 	}
 	if !decodeTaskBody(w, r, &in) {
 		return
@@ -256,6 +262,12 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 		DueDate:     in.DueDate,
 		Assignee:    in.Assignee.ref(),
 		DocRefs:     in.DocRefs,
+		StartDate:   in.StartDate,
+		EndDate:     in.EndDate,
+		Progress:    in.Progress,
+		Milestone:   in.Milestone,
+		DependsOn:   in.DependsOn,
+		Stage:       in.Stage,
 	}, tasks.UserRef{ID: c.id.UserID, Name: c.name, Email: c.id.Email})
 	if err != nil {
 		s.taskError(w, r, err)
@@ -296,6 +308,13 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 		ClearDueDate  bool        `json:"clearDueDate"`
 		DocRefs       *[]string   `json:"docRefs"`
 		Rank          *float64    `json:"rank"`
+		StartDate     *string     `json:"startDate"`
+		EndDate       *string     `json:"endDate"`
+		ClearSchedule bool        `json:"clearSchedule"`
+		Progress      *int        `json:"progress"`
+		Milestone     *bool       `json:"milestone"`
+		DependsOn     *[]string   `json:"dependsOn"`
+		Stage         *string     `json:"stage"`
 	}
 	if !decodeTaskBody(w, r, &in) {
 		return
@@ -315,6 +334,13 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 		ClearDueDate:  in.ClearDueDate,
 		DocRefs:       in.DocRefs,
 		Rank:          in.Rank,
+		StartDate:     in.StartDate,
+		EndDate:       in.EndDate,
+		ClearSchedule: in.ClearSchedule,
+		Progress:      in.Progress,
+		Milestone:     in.Milestone,
+		DependsOn:     in.DependsOn,
+		Stage:         in.Stage,
 	})
 	if err != nil {
 		s.taskError(w, r, err)
@@ -364,6 +390,50 @@ func (s *Server) handleTaskDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+}
+
+// handleTasksShift moves a set of scheduled tasks by whole days in one
+// atomic store rewrite — the Gantt's stage-bar drag. One request instead of
+// N PATCHes: the per-session op limiter (burst 10) would 429 a larger stage,
+// and a partial failure would tear the stage apart.
+func (s *Server) handleTasksShift(w http.ResponseWriter, r *http.Request) {
+	c, ok := s.taskReq(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := s.reqCtx(r)
+	defer cancel()
+	if !s.taskCan(ctx, w, r, c, chat.CapPost) {
+		return
+	}
+	if !s.taskOpLim.Allow(c.sessID) {
+		writeError(w, http.StatusTooManyRequests, safeErrorMessage(http.StatusTooManyRequests))
+		return
+	}
+	var in struct {
+		TaskIDs []string `json:"taskIds"`
+		Days    int      `json:"days"`
+	}
+	if !decodeTaskBody(w, r, &in) {
+		return
+	}
+	shifted, err := s.tasks.ShiftTasks(c.projectID, in.TaskIDs, in.Days)
+	if err != nil {
+		s.taskError(w, r, err)
+		return
+	}
+	hubID, projectName, err := s.tasks.ProjectInfo(c.projectID)
+	if err != nil {
+		s.taskError(w, r, err)
+		return
+	}
+	out := struct {
+		Tasks []TaskDTO `json:"tasks"`
+	}{Tasks: make([]TaskDTO, 0, len(shifted))}
+	for _, t := range shifted {
+		out.Tasks = append(out.Tasks, taskDTO(t, c.projectID, hubID, projectName))
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // handleTasksMine lists the caller's tasks across every project on this

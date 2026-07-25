@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -279,5 +280,249 @@ func TestFutureVersionRefused(t *testing.T) {
 	}
 	if len(mine) != 0 {
 		t.Errorf("Mine = %v, want empty", mine)
+	}
+}
+
+// ---- schedule (Gantt) ----
+
+func TestScheduleCreateRoundTrip(t *testing.T) {
+	s, dir := newTestStore(t)
+	created, err := s.Create(projA, "h", "A", Draft{
+		Title: "planned", StartDate: "2026-08-03", EndDate: "2026-08-07",
+		Progress: 40, Stage: "  Design  ",
+	}, alice)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if created.StartDate != "2026-08-03" || created.EndDate != "2026-08-07" ||
+		created.Progress != 40 || created.Stage != "Design" {
+		t.Errorf("schedule fields: %+v", created)
+	}
+	// Milestone with only a start date: end mirrors start.
+	ms, err := s.Create(projA, "h", "A", Draft{Title: "ship", StartDate: "2026-09-01", Milestone: true}, alice)
+	if err != nil {
+		t.Fatalf("Create milestone: %v", err)
+	}
+	if !ms.Milestone || ms.EndDate != "2026-09-01" {
+		t.Errorf("milestone end not mirrored: %+v", ms)
+	}
+	dep, err := s.Create(projA, "h", "A", Draft{
+		Title: "follow-up", StartDate: "2026-08-10", EndDate: "2026-08-12",
+		DependsOn: []string{created.ID, created.ID, " "},
+	}, alice)
+	if err != nil {
+		t.Fatalf("Create with deps: %v", err)
+	}
+	if len(dep.DependsOn) != 1 || dep.DependsOn[0] != created.ID {
+		t.Errorf("deps not deduped/trimmed: %v", dep.DependsOn)
+	}
+	// Everything survives a reload from disk.
+	s2, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s2.Get(projA, dep.ID)
+	if err != nil {
+		t.Fatalf("Get after reload: %v", err)
+	}
+	if got.StartDate != "2026-08-10" || len(got.DependsOn) != 1 {
+		t.Errorf("schedule lost across reload: %+v", got)
+	}
+}
+
+func TestScheduleValidation(t *testing.T) {
+	s, _ := newTestStore(t)
+	cases := []Draft{
+		{Title: "ok", StartDate: "2026-08-03"},                                       // one-sided
+		{Title: "ok", EndDate: "2026-08-03"},                                         // one-sided
+		{Title: "ok", StartDate: "aug 3", EndDate: "2026-08-07"},                     // bad format
+		{Title: "ok", StartDate: "2026-08-03", EndDate: "2026-13-40"},                // bad format
+		{Title: "ok", StartDate: "2026-08-07", EndDate: "2026-08-03"},                // end < start
+		{Title: "ok", StartDate: "2026-08-03", EndDate: "2026-08-07", Progress: -1},  // progress
+		{Title: "ok", StartDate: "2026-08-03", EndDate: "2026-08-07", Progress: 101}, // progress
+		{Title: "ok", Milestone: true},                                               // milestone w/o dates
+		{Title: "ok", StartDate: "2026-08-03", EndDate: "2026-08-07", Stage: strings.Repeat("s", MaxStageRunes+1)},
+	}
+	for i, d := range cases {
+		if _, err := s.Create(projA, "h", "A", d, alice); !errors.Is(err, ErrInvalid) {
+			t.Errorf("case %d: err = %v, want ErrInvalid", i, err)
+		}
+	}
+}
+
+func TestDependsOnValidation(t *testing.T) {
+	s, _ := newTestStore(t)
+	t1, _ := s.Create(projA, "h", "A", Draft{Title: "one"}, alice)
+	if _, err := s.Create(projA, "h", "A", Draft{Title: "x", DependsOn: []string{"t999"}}, alice); !errors.Is(err, ErrInvalid) {
+		t.Errorf("unknown dep err = %v, want ErrInvalid", err)
+	}
+	tooMany := make([]string, MaxDependsOn+1)
+	for i := range tooMany {
+		tooMany[i] = fmt.Sprintf("t%d", i+1000) // distinct so dedupe can't save it
+	}
+	if _, err := s.Create(projA, "h", "A", Draft{Title: "x", DependsOn: tooMany}, alice); !errors.Is(err, ErrInvalid) {
+		t.Errorf("cap err = %v, want ErrInvalid", err)
+	}
+	self := []string{t1.ID}
+	if _, err := s.Update(projA, t1.ID, Patch{DependsOn: &self}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("self-dep err = %v, want ErrInvalid", err)
+	}
+}
+
+func TestDependsOnCycleRejected(t *testing.T) {
+	s, _ := newTestStore(t)
+	t1, _ := s.Create(projA, "h", "A", Draft{Title: "one"}, alice)
+	t2, _ := s.Create(projA, "h", "A", Draft{Title: "two", DependsOn: []string{t1.ID}}, alice)
+	t3, _ := s.Create(projA, "h", "A", Draft{Title: "three", DependsOn: []string{t2.ID}}, alice)
+
+	// Direct 2-node cycle: t1 -> t2 while t2 -> t1.
+	back := []string{t2.ID}
+	if _, err := s.Update(projA, t1.ID, Patch{DependsOn: &back}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("2-cycle err = %v, want ErrInvalid", err)
+	}
+	// 3-node cycle: t1 -> t3 -> t2 -> t1.
+	far := []string{t3.ID}
+	if _, err := s.Update(projA, t1.ID, Patch{DependsOn: &far}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("3-cycle err = %v, want ErrInvalid", err)
+	}
+	// A legitimate re-wire still works: t3 -> t1 (diamond, no cycle).
+	ok := []string{t2.ID, t1.ID}
+	got, err := s.Update(projA, t3.ID, Patch{DependsOn: &ok})
+	if err != nil {
+		t.Fatalf("valid deps rejected: %v", err)
+	}
+	if len(got.DependsOn) != 2 {
+		t.Errorf("deps = %v", got.DependsOn)
+	}
+}
+
+func TestUpdateScheduleAndClear(t *testing.T) {
+	s, _ := newTestStore(t)
+	created, _ := s.Create(projA, "h", "A", Draft{Title: "plan me"}, alice)
+
+	start, end, prog := "2026-08-03", "2026-08-07", 60
+	got, err := s.Update(projA, created.ID, Patch{StartDate: &start, EndDate: &end, Progress: &prog})
+	if err != nil {
+		t.Fatalf("Update schedule: %v", err)
+	}
+	if got.StartDate != start || got.EndDate != end || got.Progress != 60 {
+		t.Errorf("schedule not applied: %+v", got)
+	}
+	// Moving only one edge keeps the pair valid.
+	newEnd := "2026-08-10"
+	if _, err := s.Update(projA, created.ID, Patch{EndDate: &newEnd}); err != nil {
+		t.Fatalf("resize end: %v", err)
+	}
+	// One-sided invalid patch is rejected.
+	bad := "2026-08-20"
+	if _, err := s.Update(projA, created.ID, Patch{StartDate: &bad}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("start past end err = %v, want ErrInvalid", err)
+	}
+	// ClearSchedule drops dates+milestone but leaves progress.
+	got, err = s.Update(projA, created.ID, Patch{ClearSchedule: true})
+	if err != nil {
+		t.Fatalf("ClearSchedule: %v", err)
+	}
+	if got.StartDate != "" || got.EndDate != "" || got.Milestone {
+		t.Errorf("schedule not cleared: %+v", got)
+	}
+	if got.Progress != 60 {
+		t.Errorf("progress should survive clear: %+v", got)
+	}
+	// Empty DependsOn clears.
+	t2, _ := s.Create(projA, "h", "A", Draft{Title: "dep"}, alice)
+	deps := []string{t2.ID}
+	if _, err := s.Update(projA, created.ID, Patch{DependsOn: &deps}); err != nil {
+		t.Fatal(err)
+	}
+	none := []string{}
+	got, err = s.Update(projA, created.ID, Patch{DependsOn: &none})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.DependsOn) != 0 {
+		t.Errorf("deps not cleared: %v", got.DependsOn)
+	}
+	// Stage clears via empty string.
+	stage := "Build"
+	got, _ = s.Update(projA, created.ID, Patch{Stage: &stage})
+	if got.Stage != "Build" {
+		t.Errorf("stage = %q", got.Stage)
+	}
+	empty := ""
+	got, _ = s.Update(projA, created.ID, Patch{Stage: &empty})
+	if got.Stage != "" {
+		t.Errorf("stage not cleared: %q", got.Stage)
+	}
+}
+
+func TestDeletePrunesDependsOn(t *testing.T) {
+	s, dir := newTestStore(t)
+	t1, _ := s.Create(projA, "h", "A", Draft{Title: "one"}, alice)
+	t2, _ := s.Create(projA, "h", "A", Draft{Title: "two"}, alice)
+	t3, _ := s.Create(projA, "h", "A", Draft{Title: "three", DependsOn: []string{t1.ID, t2.ID}}, alice)
+
+	if err := s.Delete(projA, t2.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	got, _ := s.Get(projA, t3.ID)
+	if len(got.DependsOn) != 1 || got.DependsOn[0] != t1.ID {
+		t.Errorf("deps after prune = %v, want [%s]", got.DependsOn, t1.ID)
+	}
+	// Prune persisted, not just in memory.
+	s2, _ := NewStore(dir)
+	got, _ = s2.Get(projA, t3.ID)
+	if len(got.DependsOn) != 1 || got.DependsOn[0] != t1.ID {
+		t.Errorf("prune not persisted: %v", got.DependsOn)
+	}
+}
+
+func TestShiftTasks(t *testing.T) {
+	s, _ := newTestStore(t)
+	t1, _ := s.Create(projA, "h", "A", Draft{Title: "one", StartDate: "2026-08-03", EndDate: "2026-08-07"}, alice)
+	t2, _ := s.Create(projA, "h", "A", Draft{Title: "two", StartDate: "2026-08-28", EndDate: "2026-09-02"}, alice)
+	t3, _ := s.Create(projA, "h", "A", Draft{Title: "backlog"}, alice)
+
+	out, err := s.ShiftTasks(projA, []string{t1.ID, t2.ID}, 5)
+	if err != nil {
+		t.Fatalf("ShiftTasks: %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("shifted %d, want 2", len(out))
+	}
+	got1, _ := s.Get(projA, t1.ID)
+	if got1.StartDate != "2026-08-08" || got1.EndDate != "2026-08-12" {
+		t.Errorf("t1 = %s..%s", got1.StartDate, got1.EndDate)
+	}
+	got2, _ := s.Get(projA, t2.ID)
+	if got2.StartDate != "2026-09-02" || got2.EndDate != "2026-09-07" {
+		t.Errorf("t2 month-boundary = %s..%s", got2.StartDate, got2.EndDate)
+	}
+	// Negative shift moves earlier.
+	if _, err := s.ShiftTasks(projA, []string{t1.ID}, -5); err != nil {
+		t.Fatalf("negative shift: %v", err)
+	}
+	got1, _ = s.Get(projA, t1.ID)
+	if got1.StartDate != "2026-08-03" {
+		t.Errorf("t1 after -5 = %s", got1.StartDate)
+	}
+	// All-or-nothing: unscheduled member rejects the whole shift.
+	before, _ := s.Get(projA, t1.ID)
+	if _, err := s.ShiftTasks(projA, []string{t1.ID, t3.ID}, 1); !errors.Is(err, ErrInvalid) {
+		t.Errorf("unscheduled member err = %v, want ErrInvalid", err)
+	}
+	after, _ := s.Get(projA, t1.ID)
+	if after.StartDate != before.StartDate {
+		t.Error("partial shift applied despite rejection")
+	}
+	// Unknown ID, zero days, out-of-range days.
+	if _, err := s.ShiftTasks(projA, []string{"t999"}, 1); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown id err = %v, want ErrNotFound", err)
+	}
+	if _, err := s.ShiftTasks(projA, []string{t1.ID}, 0); !errors.Is(err, ErrInvalid) {
+		t.Errorf("zero days err = %v, want ErrInvalid", err)
+	}
+	if _, err := s.ShiftTasks(projA, []string{t1.ID}, MaxShiftDays+1); !errors.Is(err, ErrInvalid) {
+		t.Errorf("range err = %v, want ErrInvalid", err)
 	}
 }

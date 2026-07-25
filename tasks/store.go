@@ -162,7 +162,13 @@ func (s *Store) Create(projectID, hubID, projectName string, d Draft, createdBy 
 		d.Priority = "medium"
 	}
 	d.Title = strings.TrimSpace(d.Title)
-	if err := validateFields(d.Title, d.Description, d.Status, d.Priority, d.DueDate, d.DocRefs); err != nil {
+	d.Stage = strings.TrimSpace(d.Stage)
+	if d.Milestone && d.StartDate != "" {
+		// A milestone is a point in time; the form only asks for one date.
+		d.EndDate = d.StartDate
+	}
+	if err := validateFields(d.Title, d.Description, d.Status, d.Priority, d.DueDate, d.DocRefs,
+		scheduleFields{d.StartDate, d.EndDate, d.Progress, d.Milestone, d.Stage}); err != nil {
 		return Task{}, err
 	}
 	ps, err := s.project(projectID)
@@ -173,6 +179,12 @@ func (s *Store) Create(projectID, hubID, projectName string, d Draft, createdBy 
 	defer ps.mu.Unlock()
 	if len(ps.file.Tasks) >= MaxTasksPerProject {
 		return Task{}, fmt.Errorf("%w: project already has %d tasks", ErrInvalid, MaxTasksPerProject)
+	}
+	deps := normalizeDependsOn(d.DependsOn)
+	// A brand-new task can't be on anyone's dependsOn yet, so existence
+	// checks alone make a cycle impossible here.
+	if err := validateDependsOn(ps.file, "", deps); err != nil {
+		return Task{}, err
 	}
 	prev := cloneFile(ps.file)
 	now := time.Now().UTC()
@@ -190,6 +202,12 @@ func (s *Store) Create(projectID, hubID, projectName string, d Draft, createdBy 
 		UpdatedAt:   now,
 		DocRefs:     normalizeDocRefs(d.DocRefs),
 		Rank:        maxRankInStatus(ps.file, d.Status) + 1024,
+		StartDate:   d.StartDate,
+		EndDate:     d.EndDate,
+		Progress:    d.Progress,
+		Milestone:   d.Milestone,
+		DependsOn:   deps,
+		Stage:       d.Stage,
 	}
 	ps.file.NextTaskID++
 	ps.file.HubID = hubID
@@ -242,11 +260,47 @@ func (s *Store) Update(projectID, taskID string, p Patch) (Task, error) {
 	if p.DocRefs != nil {
 		docRefs = *p.DocRefs
 	}
-	if err := validateFields(title, desc, status, priority, due, docRefs); err != nil {
+	start, end, progress, milestone, stage := t.StartDate, t.EndDate, t.Progress, t.Milestone, t.Stage
+	if p.StartDate != nil {
+		start = *p.StartDate
+	}
+	if p.EndDate != nil {
+		end = *p.EndDate
+	}
+	if p.Progress != nil {
+		progress = *p.Progress
+	}
+	if p.Milestone != nil {
+		milestone = *p.Milestone
+	}
+	if p.Stage != nil {
+		stage = strings.TrimSpace(*p.Stage)
+	}
+	if p.ClearSchedule {
+		start, end, milestone = "", "", false
+	}
+	if milestone && start != "" {
+		end = start
+	}
+	deps := t.DependsOn
+	if p.DependsOn != nil {
+		deps = normalizeDependsOn(*p.DependsOn)
+	}
+	if err := validateFields(title, desc, status, priority, due, docRefs,
+		scheduleFields{start, end, progress, milestone, stage}); err != nil {
 		return Task{}, err
+	}
+	if p.DependsOn != nil {
+		if err := validateDependsOn(ps.file, t.ID, deps); err != nil {
+			return Task{}, err
+		}
 	}
 	prev := cloneFile(ps.file)
 	t.Title, t.Description, t.Priority, t.DueDate = title, desc, priority, due
+	t.StartDate, t.EndDate, t.Progress, t.Milestone, t.Stage = start, end, progress, milestone, stage
+	if p.DependsOn != nil {
+		t.DependsOn = deps
+	}
 	if p.DocRefs != nil {
 		t.DocRefs = normalizeDocRefs(docRefs)
 	}
@@ -294,6 +348,25 @@ func (s *Store) Delete(projectID, taskID string) error {
 	}
 	prev := cloneFile(ps.file)
 	ps.file.Tasks = append(ps.file.Tasks[:idx], ps.file.Tasks[idx+1:]...)
+	// Prune the deleted ID from every remaining dependsOn in the same
+	// rewrite, so "every dependency exists" stays true in the file and no
+	// reader ever has to defend against dangling IDs.
+	for _, t := range ps.file.Tasks {
+		if len(t.DependsOn) == 0 {
+			continue
+		}
+		kept := t.DependsOn[:0]
+		for _, dep := range t.DependsOn {
+			if dep != taskID {
+				kept = append(kept, dep)
+			}
+		}
+		if len(kept) == 0 {
+			t.DependsOn = nil
+		} else {
+			t.DependsOn = kept
+		}
+	}
 	if err := s.saveFile(projectID, ps.file); err != nil {
 		ps.file = prev
 		return err
@@ -301,9 +374,77 @@ func (s *Store) Delete(projectID, taskID string) error {
 	return nil
 }
 
+// ShiftTasks moves every listed task's schedule by days (negative = earlier)
+// in one atomic rewrite — the Gantt's stage-bar drag, where per-task PATCHes
+// would burst the rate limit and could partially fail. Due dates are
+// deadlines, not plans, and do not move. All-or-nothing: any unknown or
+// unscheduled task rejects the whole shift.
+func (s *Store) ShiftTasks(projectID string, taskIDs []string, days int) ([]Task, error) {
+	if days == 0 || days < -MaxShiftDays || days > MaxShiftDays {
+		return nil, fmt.Errorf("%w: shift must be within ±%d days and not zero", ErrInvalid, MaxShiftDays)
+	}
+	ids := normalizeDependsOn(taskIDs) // same trim+dedupe semantics
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("%w: no tasks to shift", ErrInvalid)
+	}
+	ps, err := s.project(projectID)
+	if err != nil {
+		return nil, err
+	}
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	shifted := make([]*Task, 0, len(ids))
+	for _, id := range ids {
+		t := findTask(ps.file, id)
+		if t == nil {
+			return nil, fmt.Errorf("%w: task %q", ErrNotFound, id)
+		}
+		if t.StartDate == "" {
+			return nil, fmt.Errorf("%w: task %q is not scheduled", ErrInvalid, id)
+		}
+		shifted = append(shifted, t)
+	}
+	prev := cloneFile(ps.file)
+	now := time.Now().UTC()
+	for _, t := range shifted {
+		t.StartDate = shiftDay(t.StartDate, days)
+		t.EndDate = shiftDay(t.EndDate, days)
+		t.UpdatedAt = now
+	}
+	if err := s.saveFile(projectID, ps.file); err != nil {
+		ps.file = prev
+		return nil, err
+	}
+	out := make([]Task, 0, len(shifted))
+	for _, t := range shifted {
+		out = append(out, copyTask(t))
+	}
+	return out, nil
+}
+
+// shiftDay moves a YYYY-MM-DD date by whole days in UTC (date-only math —
+// no wall-clock zone can make a day disappear).
+func shiftDay(day string, days int) string {
+	d, err := time.Parse("2006-01-02", day)
+	if err != nil {
+		return day
+	}
+	return d.AddDate(0, 0, days).Format("2006-01-02")
+}
+
 // ---- validation ----
 
-func validateFields(title, desc, status, priority, due string, docRefs []string) error {
+// scheduleFields is the schedule slice of a task for validation: dates are
+// both-or-neither, milestone implies a one-day schedule.
+type scheduleFields struct {
+	start     string
+	end       string
+	progress  int
+	milestone bool
+	stage     string
+}
+
+func validateFields(title, desc, status, priority, due string, docRefs []string, sched scheduleFields) error {
 	if title == "" {
 		return fmt.Errorf("%w: title is empty", ErrInvalid)
 	}
@@ -337,7 +478,95 @@ func validateFields(title, desc, status, priority, due string, docRefs []string)
 			return fmt.Errorf("%w: attachments must be fls:doc, fls:job or fls:batch tokens", ErrInvalid)
 		}
 	}
+	if (sched.start == "") != (sched.end == "") {
+		return fmt.Errorf("%w: startDate and endDate must be set together", ErrInvalid)
+	}
+	if sched.start != "" {
+		if _, err := time.Parse("2006-01-02", sched.start); err != nil {
+			return fmt.Errorf("%w: start date must be YYYY-MM-DD", ErrInvalid)
+		}
+		if _, err := time.Parse("2006-01-02", sched.end); err != nil {
+			return fmt.Errorf("%w: end date must be YYYY-MM-DD", ErrInvalid)
+		}
+		// Both dates share one format, so string order is date order.
+		if sched.end < sched.start {
+			return fmt.Errorf("%w: end date is before start date", ErrInvalid)
+		}
+	}
+	if sched.progress < 0 || sched.progress > 100 {
+		return fmt.Errorf("%w: progress must be between 0 and 100", ErrInvalid)
+	}
+	if sched.milestone {
+		if sched.start == "" {
+			return fmt.Errorf("%w: a milestone needs a schedule", ErrInvalid)
+		}
+		if sched.end != sched.start {
+			return fmt.Errorf("%w: a milestone's end date must equal its start date", ErrInvalid)
+		}
+	}
+	if utf8.RuneCountInString(sched.stage) > MaxStageRunes {
+		return fmt.Errorf("%w: stage exceeds %d characters", ErrInvalid, MaxStageRunes)
+	}
 	return nil
+}
+
+// validateDependsOn checks a task's (already normalized) predecessor list
+// against the project file: caller holds the project lock. Every ID must
+// name another existing task, and following dependsOn edges from the new
+// list must not lead back to the task itself.
+func validateDependsOn(pf *projectFile, selfID string, deps []string) error {
+	if len(deps) > MaxDependsOn {
+		return fmt.Errorf("%w: at most %d dependencies", ErrInvalid, MaxDependsOn)
+	}
+	for _, dep := range deps {
+		if dep == selfID {
+			return fmt.Errorf("%w: a task cannot depend on itself", ErrInvalid)
+		}
+		if findTask(pf, dep) == nil {
+			return fmt.Errorf("%w: dependency %q not found", ErrInvalid, dep)
+		}
+	}
+	if dependsOnCycle(pf, selfID, deps) {
+		return fmt.Errorf("%w: dependencies would form a cycle", ErrInvalid)
+	}
+	return nil
+}
+
+// dependsOnCycle reports whether following dependsOn edges — with selfID's
+// edges replaced by newDeps — leads back to selfID. Iterative DFS; the
+// project cap bounds the walk at human scale.
+func dependsOnCycle(pf *projectFile, selfID string, newDeps []string) bool {
+	seen := map[string]bool{selfID: true}
+	stack := append([]string(nil), newDeps...)
+	for len(stack) > 0 {
+		id := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if id == selfID {
+			return true
+		}
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		if t := findTask(pf, id); t != nil {
+			stack = append(stack, t.DependsOn...)
+		}
+	}
+	return false
+}
+
+// normalizeDependsOn trims, drops empties and dedupes while preserving
+// order (normalizeDocRefs sibling).
+func normalizeDependsOn(deps []string) []string {
+	out := make([]string, 0, len(deps))
+	seen := make(map[string]bool, len(deps))
+	for _, d := range deps {
+		if d = strings.TrimSpace(d); d != "" && !seen[d] {
+			seen[d] = true
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 func normalizeDocRefs(refs []string) []string {
@@ -378,6 +607,9 @@ func copyTask(t *Task) Task {
 	if out.DocRefs == nil {
 		out.DocRefs = []string{}
 	}
+	// DependsOn stays nil when empty (omitempty keeps old files byte-stable);
+	// the DTO layer guarantees [] on the wire.
+	out.DependsOn = append([]string(nil), t.DependsOn...)
 	return out
 }
 

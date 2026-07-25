@@ -635,7 +635,18 @@ export function useTaskMutations(projectId: string | null) {
       settle()
     },
   })
-  return { create, update, remove }
+  // shift moves a set of scheduled tasks by whole days in one atomic write
+  // (the Gantt stage-bar drag).
+  const shift = useMutation({
+    mutationFn: (args: { taskIds: string[]; days: number }) =>
+      api.taskShift(projectId!, args.taskIds, args.days),
+    onSuccess: (res) => {
+      for (const t of res.tasks) qc.setQueryData(['task', projectId, t.id], t)
+      void qc.invalidateQueries({ queryKey: ['tasks', projectId] })
+      void qc.invalidateQueries({ queryKey: ['tasksMine'] })
+    },
+  })
+  return { create, update, remove, shift }
 }
 
 // ---- production (jobs & batches) ----

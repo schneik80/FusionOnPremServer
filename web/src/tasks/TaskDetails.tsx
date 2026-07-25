@@ -126,6 +126,23 @@ export function TaskDetails({
             ) : undefined
           }
         />
+        <FieldRow
+          label="Schedule"
+          value={
+            task.startDate && task.endDate ? (
+              <Typography component="span" variant="body2">
+                {fmtDue(task.startDate)} → {fmtDue(task.endDate)}
+                {task.milestone ? ' (milestone)' : ''}
+                {task.stage ? ` · ${task.stage}` : ''}
+                {!task.milestone && (task.progress ?? 0) > 0 ? ` · ${task.progress}%` : ''}
+              </Typography>
+            ) : undefined
+          }
+        />
+        <FieldRow
+          label="Depends on"
+          value={task.dependsOn.length ? task.dependsOn.map((id) => `T-${id.replace(/^t/, '')}`).join(', ') : undefined}
+        />
         <FieldRow label="Created by" value={task.createdBy.name || task.createdBy.email} />
         <FieldRow label="Created" value={fmtChatTime(task.createdAt)} />
         <FieldRow label="Updated" value={fmtChatTime(task.updatedAt)} />

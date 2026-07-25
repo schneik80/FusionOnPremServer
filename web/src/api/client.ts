@@ -37,7 +37,7 @@ import type {
   ChatUnread,
   ChatUnreadList,
 } from '../chat/types'
-import type { MyTasks, Task, TaskDraft, TaskList, TaskPatch } from '../tasks/types'
+import type { MyTasks, Task, TaskDraft, TaskList, TaskPatch, TaskShiftResult } from '../tasks/types'
 import type {
   BatchDraft,
   BatchPatch,
@@ -394,6 +394,15 @@ export const api = {
     }),
 
   myTasks: () => request<MyTasks>('/api/tasks/mine'),
+
+  // taskShift moves a set of scheduled tasks by whole days in one atomic
+  // write (the Gantt stage-bar drag; per-task PATCHes would burst the
+  // server's op limiter).
+  taskShift: (projectId: string, taskIds: string[], days: number) =>
+    request<TaskShiftResult>(`/api/tasks/shift${qs({ projectId })}`, {
+      method: 'POST',
+      body: JSON.stringify({ taskIds, days }),
+    }),
 
   // Production: per-project job & batch tracker on the local store, chat-authz
   // roles. GET /api/production/job (singular) hydrates one job's full graph;

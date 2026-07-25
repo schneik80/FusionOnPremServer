@@ -23,6 +23,11 @@ const (
 	MaxDocRefs         = 20
 	MaxDocRefLen       = 2048
 	MaxTasksPerProject = 5000
+	MaxDependsOn       = 20
+	MaxStageRunes      = 100
+	// MaxShiftDays bounds a schedule shift (±10 years) so a bad client
+	// can't fling every bar out of any renderable range.
+	MaxShiftDays = 3650
 )
 
 var (
@@ -75,6 +80,11 @@ type UserRef struct {
 // Task is one task. ID is "t<num>" with a per-project counter (displayed as
 // "T-<num>"); Rank orders tasks within their status column on the Kanban
 // board (floats leave headroom for midpoint inserts).
+//
+// The schedule fields (StartDate…Stage) are optional additions that ride on
+// fileVersion 1: they're omitempty, so old files load with them unset and
+// new files stay readable by older builds — with the accepted residual that
+// an older binary's next rewrite silently drops them.
 type Task struct {
 	ID          string    `json:"id"`
 	Num         int64     `json:"num"`
@@ -89,6 +99,16 @@ type Task struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 	DocRefs     []string  `json:"docRefs"` // fls:doc?… tokens, rendered as document cards
 	Rank        float64   `json:"rank"`
+
+	// Schedule (Gantt view). StartDate/EndDate are set together or not at
+	// all — a task is "scheduled" iff both are present. DueDate stays an
+	// independent deadline. Progress 0 doubles as "unset" by design.
+	StartDate string   `json:"startDate,omitempty"` // YYYY-MM-DD
+	EndDate   string   `json:"endDate,omitempty"`   // YYYY-MM-DD; >= StartDate
+	Progress  int      `json:"progress,omitempty"`  // 0..100
+	Milestone bool     `json:"milestone,omitempty"` // scheduled with EndDate == StartDate
+	DependsOn []string `json:"dependsOn,omitempty"` // finish-to-start predecessor task IDs (this project)
+	Stage     string   `json:"stage,omitempty"`     // Gantt grouping; the stage bar is derived, never stored
 }
 
 // ProjectTask is a task annotated with its project, for cross-project
@@ -110,11 +130,20 @@ type Draft struct {
 	DueDate     string
 	Assignee    *UserRef
 	DocRefs     []string
+	StartDate   string
+	EndDate     string
+	Progress    int
+	Milestone   bool
+	DependsOn   []string
+	Stage       string
 }
 
 // Patch is the update payload: nil pointer = leave unchanged. JSON can't
 // cheaply distinguish null from absent, so clearing the optional fields is
-// explicit.
+// explicit. ClearSchedule clears StartDate, EndDate and Milestone together —
+// a one-sided schedule is an invalid state, so per-field clears would only
+// manufacture 400s. Progress has no clear flag (0 == unset); DependsOn and
+// Stage clear by setting empty (DocRefs/Description precedent).
 type Patch struct {
 	Title         *string
 	Description   *string
@@ -126,6 +155,13 @@ type Patch struct {
 	ClearDueDate  bool
 	DocRefs       *[]string
 	Rank          *float64
+	StartDate     *string
+	EndDate       *string
+	ClearSchedule bool
+	Progress      *int
+	Milestone     *bool
+	DependsOn     *[]string
+	Stage         *string
 }
 
 // projectFile mirrors tasks.json. The file self-describes hubId and

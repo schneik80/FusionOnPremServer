@@ -1,16 +1,23 @@
 import {
   Alert,
+  Autocomplete,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
+  FormControlLabel,
   MenuItem,
+  Slider,
   Stack,
+  Switch,
   TextField,
+  Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { useChatMembers, useTaskMutations } from '../api/queries'
+import { useChatMembers, useTaskMutations, useTasks } from '../api/queries'
 import {
   PRIORITIES,
   PRIORITY_LABEL,
@@ -46,6 +53,9 @@ export function TaskEditDialog({
 }) {
   const muts = useTaskMutations(projectId)
   const membersQ = useChatMembers(projectId, open)
+  // The project's tasks feed the dependency picker and the stage
+  // suggestions; the query is already warm from the tab.
+  const tasksQ = useTasks(open ? projectId : null, open)
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -53,6 +63,12 @@ export function TaskEditDialog({
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const [dueDate, setDueDate] = useState('')
   const [assigneeId, setAssigneeId] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [milestone, setMilestone] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [stage, setStage] = useState('')
+  const [dependsOn, setDependsOn] = useState<string[]>([])
 
   // Re-seed the form each time the dialog opens (it stays mounted across
   // opens in some hosts).
@@ -64,6 +80,12 @@ export function TaskEditDialog({
     setPriority(task?.priority ?? 'medium')
     setDueDate(task?.dueDate ?? '')
     setAssigneeId(task?.assignee?.id ?? '')
+    setStartDate(task?.startDate ?? '')
+    setEndDate(task?.endDate ?? '')
+    setMilestone(task?.milestone ?? false)
+    setProgress(task?.progress ?? 0)
+    setStage(task?.stage ?? '')
+    setDependsOn(task?.dependsOn ?? [])
     muts.create.reset()
     muts.update.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,6 +98,21 @@ export function TaskEditDialog({
 
   const pending = muts.create.isPending || muts.update.isPending
   const err = (task ? muts.update.error : muts.create.error) as Error | null
+
+  const projectTasks = tasksQ.data?.tasks ?? []
+  // Existing stage names, for the freeSolo suggestions.
+  const stageOptions = [...new Set(projectTasks.map((t) => t.stage).filter(Boolean))] as string[]
+  // Dependency options: every other task in the project.
+  const depOptions = projectTasks.filter((t) => t.id !== task?.id)
+  const depLabel = (id: string) => {
+    const t = projectTasks.find((x) => x.id === id)
+    return t ? `${taskDisplayId(t)} ${t.title}` : id
+  }
+
+  // A one-sided schedule is invalid — block Save and say why.
+  const effEnd = milestone && startDate ? startDate : endDate
+  const oneSided = !!startDate !== !!effEnd
+  const badOrder = !!startDate && !!effEnd && effEnd < startDate
 
   function resolveAssignee(): TaskUser | undefined {
     if (!assigneeId) return undefined
@@ -91,6 +128,7 @@ export function TaskEditDialog({
       onClose()
       onSaved?.(t)
     }
+    const scheduled = !!startDate && !!effEnd
     if (task) {
       muts.update.mutate(
         {
@@ -102,13 +140,34 @@ export function TaskEditDialog({
             priority,
             ...(dueDate ? { dueDate } : { clearDueDate: true }),
             ...(assignee ? { assignee } : { clearAssignee: true }),
+            // Unschedule = clear both date fields; the task returns to the
+            // Gantt backlog.
+            ...(scheduled
+              ? { startDate, endDate: effEnd, milestone }
+              : { clearSchedule: true }),
+            progress,
+            stage,
+            dependsOn,
           },
         },
         { onSuccess: done },
       )
     } else {
       muts.create.mutate(
-        { hubId, projectName, title, description, status, priority, dueDate, assignee },
+        {
+          hubId,
+          projectName,
+          title,
+          description,
+          status,
+          priority,
+          dueDate,
+          assignee,
+          ...(scheduled ? { startDate, endDate: effEnd, milestone } : {}),
+          progress,
+          stage,
+          dependsOn,
+        },
         { onSuccess: done },
       )
     }
@@ -201,13 +260,115 @@ export function TaskEditDialog({
               ))}
             </TextField>
           </Stack>
+
+          <Divider textAlign="left">
+            <Typography variant="caption" color="text.secondary">
+              Schedule
+            </Typography>
+          </Divider>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              label="Start date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              size="small"
+              sx={{ flex: 1 }}
+              InputLabelProps={{ shrink: true }}
+              error={oneSided && !startDate}
+            />
+            <TextField
+              label={milestone ? 'End date (milestone)' : 'End date'}
+              type="date"
+              value={milestone ? startDate : endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              size="small"
+              sx={{ flex: 1 }}
+              InputLabelProps={{ shrink: true }}
+              disabled={milestone}
+              error={(oneSided && !effEnd) || badOrder}
+              helperText={badOrder ? 'Ends before it starts' : undefined}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={milestone}
+                  onChange={(e) => setMilestone(e.target.checked)}
+                  disabled={!startDate}
+                />
+              }
+              label={<Typography variant="body2">Milestone</Typography>}
+              sx={{ flexShrink: 0, mr: 0 }}
+            />
+          </Stack>
+          {oneSided && (
+            <Typography variant="caption" color="text.secondary">
+              Set both dates to schedule the task, or clear both to keep it in the backlog.
+            </Typography>
+          )}
+          {!milestone && (
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography variant="body2" color="text.secondary" sx={{ width: 90, flexShrink: 0 }}>
+                Progress {progress}%
+              </Typography>
+              <Slider
+                size="small"
+                value={progress}
+                onChange={(_, v) => setProgress(v as number)}
+                step={5}
+                min={0}
+                max={100}
+                valueLabelDisplay="auto"
+              />
+            </Stack>
+          )}
+          <Stack direction="row" spacing={2}>
+            <Autocomplete
+              freeSolo
+              options={stageOptions}
+              value={stage}
+              onInputChange={(_, v) => setStage(v)}
+              size="small"
+              sx={{ flex: 1 }}
+              renderInput={(params) => (
+                <TextField {...params} label="Stage" placeholder="Group under a stage bar" />
+              )}
+            />
+            <Autocomplete
+              multiple
+              options={depOptions.map((t) => t.id)}
+              getOptionLabel={depLabel}
+              value={dependsOn}
+              onChange={(_, v) => setDependsOn(v)}
+              size="small"
+              sx={{ flex: 1.4 }}
+              renderTags={(value, getTagProps) =>
+                value.map((id, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={id}
+                    label={depLabel(id)}
+                    size="small"
+                  />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField {...params} label="Depends on" placeholder="Predecessor tasks" />
+              )}
+            />
+          </Stack>
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={pending}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={save} disabled={pending || !title.trim()}>
+        <Button
+          variant="contained"
+          onClick={save}
+          disabled={pending || !title.trim() || oneSided || badOrder}
+        >
           {task ? 'Save' : 'Create'}
         </Button>
       </DialogActions>

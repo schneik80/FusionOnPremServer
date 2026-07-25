@@ -100,6 +100,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/tasks", prot(s.handleTaskDelete))
 	mux.HandleFunc("GET /api/tasks/get", prot(s.handleTaskGet))
 	mux.HandleFunc("GET /api/tasks/mine", prot(s.handleTasksMine))
+	// /shift moves a set of scheduled tasks by N days in one atomic write
+	// (the Gantt stage-bar drag; per-task PATCHes would burst the limiter).
+	mux.HandleFunc("POST /api/tasks/shift", prot(s.handleTasksShift))
 
 	// Production (light MES job & batch tracker; local store, chat-authz
 	// roles). GET /api/production/job (singular) is one job's full graph;
