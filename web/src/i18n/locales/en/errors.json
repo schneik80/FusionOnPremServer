@@ -1,0 +1,7 @@
+{
+  "unauthorized": "You are not signed in.",
+  "forbidden": "You do not have access to this resource.",
+  "rate_limited": "Rate limited — please retry shortly.",
+  "upstream_timeout": "The upstream request timed out.",
+  "upstream_failed": "The upstream service reported an error."
+}

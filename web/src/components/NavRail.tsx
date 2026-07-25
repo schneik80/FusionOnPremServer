@@ -9,6 +9,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { Divider, IconButton, Paper, Stack, Tooltip } from '@mui/material'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNav } from '../state/nav'
 import { HubIcon } from './entityIcons'
 
@@ -19,6 +20,7 @@ interface NavRailProps {
 }
 
 export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps) {
+  const { t } = useTranslation('nav')
   const nav = useNav()
   return (
     <Paper
@@ -37,11 +39,11 @@ export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps
       }}
     >
       <Stack spacing={1.5}>
-        <RailButton glyph={<HubIcon style={{ fontSize: 18 }} />} label="Hubs" onClick={onOpenHubs} />
+        <RailButton glyph={<HubIcon style={{ fontSize: 18 }} />} label={t('hubs')} onClick={onOpenHubs} />
         <Divider flexItem sx={{ mx: 1 }} />
         <RailButton
           icon={faFolderTree}
-          label="Browser"
+          label={t('browser')}
           active={nav.app === 'browser'}
           onClick={() => {
             // Already browsing → back to the projects list (the old
@@ -52,19 +54,19 @@ export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps
         />
         <RailButton
           icon={faDiagramProject}
-          label="Production"
+          label={t('production')}
           active={nav.app === 'production'}
           onClick={() => nav.setApp('production')}
         />
         <RailButton
           icon={faListCheck}
-          label="Tasks"
+          label={t('tasks')}
           active={nav.app === 'tasks'}
           onClick={() => nav.setApp('tasks')}
         />
         <Divider flexItem sx={{ mx: 1 }} />
-        <RailButton icon={faStar} label="Pins" onClick={onOpenPins} />
-        <RailButton icon={faGear} label="Settings" onClick={onOpenSettings} />
+        <RailButton icon={faStar} label={t('pins')} onClick={onOpenPins} />
+        <RailButton icon={faGear} label={t('settings')} onClick={onOpenSettings} />
       </Stack>
     </Paper>
   )

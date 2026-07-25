@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { useMeta, useSetPort } from '../api/queries'
 import { useColorMode } from '../state/colorMode'
 
@@ -23,43 +24,44 @@ const MAX_PORT = 65535
 const RECONNECT_DELAY_MS = 2500
 
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation('settings')
   const { preference, setPreference } = useColorMode()
   const metaQ = useMeta()
   const meta = metaQ.data
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Settings</DialogTitle>
+      <DialogTitle>{t('title')}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={3} sx={{ py: 1 }}>
-          <Field label="Theme">
+          <Field label={t('theme.label')}>
             <ToggleButtonGroup
               size="small"
               exclusive
               value={preference}
               onChange={(_, v) => v && setPreference(v)}
             >
-              <ToggleButton value="light">Light</ToggleButton>
-              <ToggleButton value="dark">Dark</ToggleButton>
-              <ToggleButton value="system">System</ToggleButton>
+              <ToggleButton value="light">{t('theme.light')}</ToggleButton>
+              <ToggleButton value="dark">{t('theme.dark')}</ToggleButton>
+              <ToggleButton value="system">{t('theme.system')}</ToggleButton>
             </ToggleButtonGroup>
           </Field>
 
-          <Field label="Server port">
+          <Field label={t('port.label')}>
             <PortSetting open={open} />
           </Field>
 
-          <Field label="Region">
+          <Field label={t('region.label')}>
             <Typography variant="body2">{meta?.region ?? '—'}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Set at server startup (read-only).
+              {t('region.help')}
             </Typography>
           </Field>
 
-          <Field label="About">
+          <Field label={t('about.label')}>
             <Typography variant="body2">fusionlocalserver · {meta?.version ?? '—'}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Fusion open/insert and STEP download are not yet available in this build.
+              {t('about.buildNote')}
             </Typography>
           </Field>
         </Stack>
@@ -72,6 +74,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
 // lets the user change it. Applying persists the port and restarts the
 // listener, so we then redirect the browser to the new port.
 function PortSetting({ open }: { open: boolean }) {
+  const { t } = useTranslation('settings')
   const metaQ = useMeta()
   const meta = metaQ.data
   const setPort = useSetPort()
@@ -93,7 +96,7 @@ function PortSetting({ open }: { open: boolean }) {
       <>
         <Typography variant="body2">{meta.port}</Typography>
         <Typography variant="caption" color="text.secondary">
-          Fixed at startup (launched with <code>-addr</code> or in dev mode).
+          <Trans t={t} i18nKey="port.fixedAtStartup" components={{ cmd: <code /> }} />
         </Typography>
       </>
     )
@@ -102,11 +105,12 @@ function PortSetting({ open }: { open: boolean }) {
   if (reconnectTo) {
     return (
       <Alert severity="info" sx={{ py: 0.5 }}>
-        Server restarting. Reconnecting to{' '}
-        <Box component="a" href={reconnectTo} sx={{ wordBreak: 'break-all' }}>
-          {reconnectTo}
-        </Box>
-        …
+        <Trans
+          t={t}
+          i18nKey="port.restarting"
+          values={{ url: reconnectTo }}
+          components={{ lnk: <Box component="a" href={reconnectTo} sx={{ wordBreak: 'break-all' }} /> }}
+        />
       </Alert>
     )
   }
@@ -148,7 +152,7 @@ function PortSetting({ open }: { open: boolean }) {
           sx={{ width: 120 }}
         />
         <Button size="small" variant="outlined" disabled={!canApply} onClick={apply}>
-          {setPort.isPending ? 'Applying…' : 'Apply & restart'}
+          {setPort.isPending ? t('port.applying') : t('port.applyRestart')}
         </Button>
       </Stack>
       {setPort.error && (
@@ -157,8 +161,7 @@ function PortSetting({ open }: { open: boolean }) {
         </Typography>
       )}
       <Typography variant="caption" color="text.secondary">
-        {MIN_PORT}–{MAX_PORT}. Changing the port restarts the server; you'll reconnect
-        on the new port.
+        {t('port.rangeHelp', { min: MIN_PORT, max: MAX_PORT })}
       </Typography>
     </Stack>
   )

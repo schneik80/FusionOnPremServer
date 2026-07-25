@@ -1,0 +1,14 @@
+{
+  "taskStatus": {
+    "todo": "To do",
+    "inprogress": "In progress",
+    "blocked": "Blocked",
+    "done": "Done"
+  },
+  "taskPriority": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "urgent": "Urgent"
+  }
+}

@@ -2,6 +2,8 @@ import '@fontsource/montserrat/400.css'
 import '@fontsource/montserrat/500.css'
 import '@fontsource/montserrat/600.css'
 import '@fontsource/montserrat/700.css'
+// i18n must initialize before any component module evaluates useTranslation.
+import './i18n'
 
 import { QueryClient } from '@tanstack/react-query'
 import { ApiError } from './api/client'
@@ -12,6 +14,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { QUERY_CACHE_KEY } from './queryPersist'
 import { ColorModeProvider } from './state/colorMode'
+import { LocaleProvider } from './state/locale'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -66,7 +69,9 @@ createRoot(document.getElementById('root')!).render(
       }}
     >
       <ColorModeProvider>
-        <App />
+        <LocaleProvider>
+          <App />
+        </LocaleProvider>
       </ColorModeProvider>
     </PersistQueryClientProvider>
   </StrictMode>,

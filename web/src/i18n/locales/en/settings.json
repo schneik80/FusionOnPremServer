@@ -1,0 +1,28 @@
+{
+  "title": "Settings",
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "language": {
+    "label": "Language"
+  },
+  "port": {
+    "label": "Server port",
+    "applyRestart": "Apply & restart",
+    "applying": "Applying…",
+    "fixedAtStartup": "Fixed at startup (launched with <cmd>-addr</cmd> or in dev mode).",
+    "restarting": "Server restarting. Reconnecting to <lnk>{{url}}</lnk>…",
+    "rangeHelp": "{{min}}–{{max}}. Changing the port restarts the server; you'll reconnect on the new port."
+  },
+  "region": {
+    "label": "Region",
+    "help": "Set at server startup (read-only)."
+  },
+  "about": {
+    "label": "About",
+    "buildNote": "Fusion open/insert and STEP download are not yet available in this build."
+  }
+}
