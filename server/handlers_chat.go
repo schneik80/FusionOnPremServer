@@ -34,9 +34,10 @@ type chatCtx struct {
 	id        chat.Identity
 	sessID    string
 
-	store *chat.Store
-	hub   *chat.Hub
-	hubID string
+	store   *chat.Store
+	hub     *chat.Hub
+	hubID   string
+	hubRoot string // the session hub's profile dir; adoption's rename target
 }
 
 // chatReq gates a chat request: hub store set resolved, session + token
@@ -67,6 +68,7 @@ func (s *Server) chatReq(w http.ResponseWriter, r *http.Request) (chatCtx, bool)
 		store:     set.chat,
 		hub:       set.chatHub,
 		hubID:     set.hubID,
+		hubRoot:   set.root,
 	}, true
 }
 
@@ -81,6 +83,12 @@ func (s *Server) chatCan(ctx context.Context, w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusForbidden, safeErrorMessage(http.StatusForbidden))
 		return false
 	}
+	// An authz-passing chat access is the adoption trigger for chat data the
+	// layout migration quarantined (see chatadopt.go): the roster just proved
+	// the caller may see this project, so its parked directory moves into the
+	// session hub's profile before any store read. Nil-safe no-op when
+	// nothing is quarantined.
+	s.chatQuarantine.adopt(c.projectID, c.hubRoot, s.logger)
 	return true
 }
 

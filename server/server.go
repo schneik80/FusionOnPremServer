@@ -24,6 +24,7 @@ import (
 	"github.com/schneik80/fusionlocalserver/api"
 	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/config"
+	"github.com/schneik80/fusionlocalserver/internal/hubmigrate"
 	"github.com/schneik80/fusionlocalserver/pins"
 )
 
@@ -118,6 +119,12 @@ type Server struct {
 	// role to capabilities — one roster cache across every hub and feature.
 	hubs *hubStores
 
+	// chatQuarantine indexes chat project dirs the layout migration parked
+	// under hubs/_unassigned/chat/, adopted into a session hub on the first
+	// authz-passing chat access (see chatadopt.go). Nil when nothing is
+	// quarantined — the common case and the zero-request-cost fast path.
+	chatQuarantine *chatQuarantine
+
 	// chatAuthz + the per-session rate limiters are process-global (a session
 	// spans hubs across switches; the limits are per user, not per hub).
 	// chatKeepalive is the events stream's ping/entitlement-recheck cadence
@@ -175,6 +182,16 @@ func Run(opts Options) error {
 	// Promote any legacy single-file pins into hub-scoped files (idempotent).
 	if err := pins.MigrateLegacy(); err != nil {
 		logger.Warn("pins: legacy migration failed", "err", err)
+	}
+
+	// One-time relocation of the pre-hub-isolation layout into hubs/<slug>/
+	// profiles (idempotent, rename-based, fast-exits on hubs/.migrated).
+	// MUST run before hubStores first touches the tree, or the old layout
+	// would read as empty and fresh store dirs would shadow the real data.
+	if dir, derr := config.Dir(); derr == nil {
+		if merr := hubmigrate.Run(dir, logger); merr != nil {
+			logger.Error("hub migration: pass incomplete — unmigrated data stays at the old layout and is retried next start", "err", merr)
+		}
 	}
 
 	s := &Server{
@@ -235,6 +252,9 @@ func Run(opts Options) error {
 	} else {
 		s.hubs = newHubStores(dir, s.chatAuthz)
 		defer s.hubs.closeAll()
+		// Index whatever the migration quarantined so chat requests can adopt
+		// it (nil — no cost — when there is nothing to adopt).
+		s.chatQuarantine = loadChatQuarantine(dir)
 	}
 
 	// Backup engines are built on demand per hub from hubs/<slug>/backup.json
