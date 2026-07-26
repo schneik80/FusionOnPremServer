@@ -1,6 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faChevronDown,
   faMoon,
   faRightFromBracket,
   faSun,
@@ -18,58 +17,59 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { QUERY_CACHE_KEY } from '../queryPersist'
-import { useAuthMe, useHubs, useMeta } from '../api/queries'
+import { useAuthMe, useMeta } from '../api/queries'
 import { useColorMode } from '../state/colorMode'
-import { loadLastHub, useNav } from '../state/nav'
+import { saveLastHub } from '../state/hubKeys'
+import { useNav } from '../state/nav'
+import { teardownAndReload } from '../state/teardown'
 import { ProductionScreen } from '../production/ProductionScreen'
 import { TasksScreen } from '../tasks/TasksScreen'
 import { BreadcrumbBar } from './BreadcrumbBar'
 import { BrowserStage } from './BrowserStage'
-import { HubSwitcher } from './HubSwitcher'
 import { NavRail } from './NavRail'
 import { PinsDialog } from './PinsDialog'
-import { SettingsDialog } from './settings/SettingsDialog'
+import { SettingsDialog, type SettingsToolId } from './settings/SettingsDialog'
 import { UploadDialog } from './UploadDialog'
 import { UploadDropOverlay, UploadFooter } from './UploadFooter'
 
-type DialogKind = 'hubs' | 'pins' | 'settings' | null
+type DialogKind = 'pins' | 'settings' | null
 
 export function AppLayout() {
   const { t } = useTranslation('browse')
   const [dialog, setDialog] = useState<DialogKind>(null)
+  const [settingsTool, setSettingsTool] = useState<SettingsToolId | undefined>(undefined)
   const nav = useNav()
   const metaQ = useMeta()
   const authQ = useAuthMe()
-  const hubsQ = useHubs()
   const qc = useQueryClient()
   const { mode, toggle } = useColorMode()
 
-  // Restore the last-used hub once the hub list loads, but only if it's still
-  // one of the user's hubs (so a since-revoked hub or a different user on this
-  // browser falls back to picking manually).
-  useEffect(() => {
-    if (nav.hubId || !hubsQ.data) return
-    const saved = loadLastHub()
-    if (!saved) return
-    const hub = hubsQ.data.find((h) => h.id === saved.id)
-    if (hub) nav.selectHub(hub.id, hub.name)
-  }, [nav.hubId, hubsQ.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const openSettings = (tool?: SettingsToolId) => {
+    setSettingsTool(tool)
+    setDialog('settings')
+  }
 
-  // logout drops the server session and clears the persisted query cache (so a
-  // different user on this browser doesn't briefly see the prior user's data),
-  // then reloads at the root so the gate shows the login screen.
+  // The session is hub-locked before AppLayout mounts (Gate → HubGate), so
+  // keep nav and fls.lastHub aligned with the lock: seed an empty nav, and
+  // reset a permalink that names a DIFFERENT hub — its data could only 403
+  // (the wire hub must match the session hub). Replaces the old
+  // restore-last-hub effect; entering a hub now happens in the gate.
+  const lockedHubId = authQ.data?.selectedHubId
+  const lockedHubName = authQ.data?.selectedHubName ?? ''
+  useEffect(() => {
+    if (!lockedHubId) return
+    saveLastHub(lockedHubId, lockedHubName)
+    if (nav.hubId !== lockedHubId) nav.selectHub(lockedHubId, lockedHubName)
+  }, [lockedHubId, lockedHubName, nav.hubId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // logout drops the server session, then runs the shared client teardown
+  // (clear caches + reload at the root) so a different user on this browser
+  // doesn't briefly see the prior user's data.
   const logout = async () => {
     try {
       await api.logout()
     } finally {
-      qc.clear()
-      try {
-        localStorage.removeItem(QUERY_CACHE_KEY)
-      } catch {
-        /* storage unavailable — nothing to clear */
-      }
-      window.location.assign('/')
+      teardownAndReload(qc)
     }
   }
 
@@ -81,15 +81,15 @@ export function AppLayout() {
           <Box sx={{ width: 60, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
             <FusionLogo size={24} />
           </Box>
-          {/* Active hub name; clicking opens the hub switcher. */}
+          {/* The locked hub's name. Switching hubs is consolidated in
+              Settings → Connection; this label deep-links there. */}
           <Tooltip title={t('appLayout.changeHub')}>
             <Box
               component="button"
-              onClick={() => setDialog('hubs')}
+              onClick={() => openSettings('connection')}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 0.75,
                 minWidth: 0,
                 p: 0,
                 border: 0,
@@ -101,9 +101,8 @@ export function AppLayout() {
               }}
             >
               <Typography className="hubName" variant="h6" noWrap sx={{ fontWeight: 600 }}>
-                {nav.hubName ?? t('appLayout.selectHub')}
+                {nav.hubName ?? (lockedHubName || t('appLayout.selectHub'))}
               </Typography>
-              <FontAwesomeIcon icon={faChevronDown} style={{ fontSize: 11, opacity: 0.55 }} />
             </Box>
           </Tooltip>
           {metaQ.data && (
@@ -132,9 +131,8 @@ export function AppLayout() {
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <NavRail
-          onOpenHubs={() => setDialog('hubs')}
           onOpenPins={() => setDialog('pins')}
-          onOpenSettings={() => setDialog('settings')}
+          onOpenSettings={() => openSettings()}
         />
         {/* Both apps stay mounted (ProjectPanel philosophy): visiting Tasks
             must not lose the browser's drill-down state, and vice versa. */}
@@ -146,7 +144,7 @@ export function AppLayout() {
             minWidth: 0,
           }}
         >
-          <BreadcrumbBar onOpenHubs={() => setDialog('hubs')} />
+          <BreadcrumbBar />
           <BrowserStage />
         </Box>
         <Box
@@ -171,9 +169,12 @@ export function AppLayout() {
         </Box>
       </Box>
 
-      <HubSwitcher open={dialog === 'hubs'} onClose={() => setDialog(null)} />
       <PinsDialog open={dialog === 'pins'} onClose={() => setDialog(null)} />
-      <SettingsDialog open={dialog === 'settings'} onClose={() => setDialog(null)} />
+      <SettingsDialog
+        open={dialog === 'settings'}
+        initialTool={settingsTool}
+        onClose={() => setDialog(null)}
+      />
       <UploadDialog />
       <UploadFooter />
       <UploadDropOverlay />

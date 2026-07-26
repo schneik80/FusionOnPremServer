@@ -10,45 +10,21 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { Item } from '../api/types'
+import { saveLastHub } from './hubKeys'
 import { navToSearch, searchToNav, shouldPush } from './navUrl'
 
-// The last selected hub is remembered in localStorage (per browser) so a
-// reload/return lands back in the hub you were using. It is restored only after
-// the hub list loads and only if the saved hub is still in it (see AppLayout),
-// so it can't strand a user on a hub they no longer have.
-const HUB_STORAGE_KEY = 'fls.lastHub'
-
-interface SavedHub {
-  id: string
-  name: string
-}
-
-export function loadLastHub(): SavedHub | null {
-  try {
-    const raw = localStorage.getItem(HUB_STORAGE_KEY)
-    if (!raw) return null
-    const v = JSON.parse(raw) as SavedHub
-    return v && typeof v.id === 'string' ? v : null
-  } catch {
-    return null
-  }
-}
-
-function saveLastHub(id: string, name: string) {
-  try {
-    localStorage.setItem(HUB_STORAGE_KEY, JSON.stringify({ id, name }))
-  } catch {
-    /* storage unavailable (private mode / quota) — non-fatal */
-  }
-}
+// The session is locked to ONE hub server-side (POST /api/session/hub); nav's
+// hubId always mirrors that lock. The remembered last hub lives in
+// state/hubKeys.ts (fls.lastHub) — it feeds the HubGate auto-relock and the
+// per-hub client-setting keys, and selectHub keeps it in sync below.
 
 // The rail's top-level view: the document browser, or one of the cross-project
 // screens (Tasks, Production). All stay mounted (AppLayout display-toggles
 // them) so switching apps never loses browser drill-down or list state.
 export type AppKind = 'browser' | 'tasks' | 'production'
 
-// Navigation state for the three-column browser. The hub is chosen from the
-// rail/switcher; project lives in the Projects column; folderStack is the
+// Navigation state for the three-column browser. The hub mirrors the session's
+// hub lock (seeded by AppLayout); project lives in the Projects column; folderStack is the
 // drill-down path inside the Contents column (mirrored by the breadcrumb);
 // selected is the document whose Details panel is shown.
 export interface NavState {
@@ -109,8 +85,12 @@ function reducer(state: NavState, action: Action): NavState {
       return state.app === action.app ? state : { ...state, app: action.app }
     case 'selectHub':
       if (action.id === state.hubId) return state
-      // The cross-project screens are hub-independent (they span every project
-      // on this server), so switching hubs keeps the current app.
+      // Selecting a hub resets everything below it. The app is kept so a deep
+      // link like ?app=tasks&hub=… still lands on the Tasks screen once the
+      // lock-seed effect (AppLayout) aligns nav with the session hub. The
+      // cross-project screens are hub-scoped now (the server scopes /mine to
+      // the session hub) — an actual hub switch is a full reload via
+      // Settings → Connection, never an in-place selectHub.
       return { ...initialState, app: state.app, hubId: action.id, hubName: action.name }
     case 'selectProject':
       return { ...state, project: action.project, folderStack: [], selected: null, selectedTab: null }

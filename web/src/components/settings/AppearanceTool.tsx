@@ -63,6 +63,10 @@ export function AppearanceTool() {
           <ToggleButton value="dark">{t('theme.dark')}</ToggleButton>
           <ToggleButton value="system">{t('theme.system')}</ToggleButton>
         </ToggleButtonGroup>
+        {/* Theme + custom colors are per-hub (state/hubKeys.ts); language is global. */}
+        <Typography variant="caption" color="text.secondary">
+          {t('appearance.perHubNote')}
+        </Typography>
       </Field>
 
       <Field label={t('language.label')}>

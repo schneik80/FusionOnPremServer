@@ -32,7 +32,14 @@
       "textMuted": "Muted text",
       "accentHover": "Accent (hover)",
       "accent": "Accent"
-    }
+    },
+    "perHubNote": "Theme and custom colors are saved per hub — each hub can have its own look. Language applies everywhere."
+  },
+  "hub": {
+    "label": "Hub",
+    "switchWarning": "Switching hubs reloads the app and clears this browser's cached data. Data stored on this server is kept separately per hub, and you won't need to sign in again.",
+    "apply": "Switch hub",
+    "applying": "Switching…"
   },
   "port": {
     "label": "Server port",

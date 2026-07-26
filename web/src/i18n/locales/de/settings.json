@@ -32,7 +32,14 @@
       "textMuted": "Gedämpfter Text",
       "accentHover": "Akzent (Hover)",
       "accent": "Akzent"
-    }
+    },
+    "perHubNote": "Design und eigene Farben werden pro Hub gespeichert — jeder Hub kann sein eigenes Erscheinungsbild haben. Die Sprache gilt überall."
+  },
+  "hub": {
+    "label": "Hub",
+    "switchWarning": "Ein Hub-Wechsel lädt die App neu und leert die in diesem Browser zwischengespeicherten Daten. Auf diesem Server gespeicherte Daten bleiben pro Hub getrennt erhalten; eine erneute Anmeldung ist nicht erforderlich.",
+    "apply": "Hub wechseln",
+    "applying": "Wird gewechselt…"
   },
   "port": {
     "label": "Server-Port",

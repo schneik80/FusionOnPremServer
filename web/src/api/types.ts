@@ -21,6 +21,10 @@ export interface AuthUser {
 export interface AuthMe {
   authenticated: boolean
   user?: AuthUser
+  // The hub this session is locked to (POST /api/session/hub), absent until a
+  // hub is selected. Every data route 409s (code=hub_not_selected) until then.
+  selectedHubId?: string
+  selectedHubName?: string
 }
 
 export interface SetPortResponse {

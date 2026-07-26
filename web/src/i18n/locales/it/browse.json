@@ -8,7 +8,7 @@
     "signOut": "Esci"
   },
   "breadcrumb": {
-    "noHub": "Nessun hub selezionato — scegline uno dalla barra laterale"
+    "noHub": "Nessun hub selezionato."
   },
   "column": {
     "emptyDefault": "Niente qui"
@@ -34,8 +34,16 @@
     "pin": "Aggiungi ai preferiti",
     "unpin": "Rimuovi dai preferiti"
   },
-  "hubSwitcher": {
-    "title": "Cambia hub"
+  "hubGate": {
+    "title": "Scegli un hub",
+    "subtitle": "Questa app lavora con un hub alla volta. Scegli l'hub in cui lavorare — potrai cambiarlo in seguito in Impostazioni → Connessione.",
+    "revoked": "L'ultimo hub utilizzato ({{name}}) non è più disponibile per il tuo account. Scegli un altro hub.",
+    "enter": "Apri hub",
+    "entering": "Apertura…"
+  },
+  "hubList": {
+    "current": "Attuale",
+    "empty": "Il tuo account non è membro di alcun hub."
   },
   "pins": {
     "title": "Preferiti",
@@ -131,7 +139,8 @@
   "docCard": {
     "open": "Vai a questo documento",
     "locating": "Localizzazione…",
-    "locationUnavailable": "Posizione non disponibile"
+    "locationUnavailable": "Posizione non disponibile",
+    "otherHub": "In un altro hub"
   },
   "taskCard": {
     "open": "Apri questa attività",

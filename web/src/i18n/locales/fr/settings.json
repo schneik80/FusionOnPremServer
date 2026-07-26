@@ -32,7 +32,14 @@
       "textMuted": "Texte atténué",
       "accentHover": "Accent (survol)",
       "accent": "Accent"
-    }
+    },
+    "perHubNote": "Le thème et les couleurs personnalisées sont enregistrés par hub — chaque hub peut avoir sa propre apparence. La langue s'applique partout."
+  },
+  "hub": {
+    "label": "Hub",
+    "switchWarning": "Changer de hub recharge l'application et efface les données mises en cache dans ce navigateur. Les données stockées sur ce serveur restent séparées par hub, et vous n'aurez pas à vous reconnecter.",
+    "apply": "Changer de hub",
+    "applying": "Changement…"
   },
   "port": {
     "label": "Port du serveur",

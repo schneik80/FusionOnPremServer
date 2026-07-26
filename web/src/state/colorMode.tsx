@@ -8,8 +8,16 @@ import {
   type ReactNode,
 } from 'react'
 import type { ColorMode } from '../theme'
+import { resolveHubScopedKey } from './hubKeys'
 
-const STORAGE_KEY = 'fdc.colorMode'
+// The theme mode is a PER-HUB setting (each client hub keeps its own visual
+// identity — a deliberate anti-mixup cue). The provider resolves its storage
+// key once at mount from fls.lastHub: the hub isn't knowable through React
+// yet (authMe resolves async), but every hub change is a full reload that
+// saves fls.lastHub first, so a mount-time read is always current — see
+// resolveHubScopedKey. BASE_KEY doubles as the legacy global key scoped keys
+// seed from.
+const BASE_KEY = 'fdc.colorMode'
 
 interface ColorModeCtx {
   mode: ColorMode
@@ -27,15 +35,16 @@ function systemMode(): ColorMode {
     : 'light'
 }
 
-function loadPreference(): ColorMode | 'system' {
-  const v = localStorage.getItem(STORAGE_KEY)
+function loadPreference(key: string): ColorMode | 'system' {
+  const v = localStorage.getItem(key)
   if (v === 'light' || v === 'dark') return v
   return 'system'
 }
 
 export function ColorModeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ColorMode | 'system'>(
-    loadPreference,
+  const [storageKey] = useState(() => resolveHubScopedKey(BASE_KEY))
+  const [preference, setPreferenceState] = useState<ColorMode | 'system'>(() =>
+    loadPreference(storageKey),
   )
   const [system, setSystem] = useState<ColorMode>(systemMode)
 
@@ -47,11 +56,16 @@ export function ColorModeProvider({ children }: { children: ReactNode }) {
     return () => mql.removeEventListener('change', onChange)
   }, [])
 
-  const setPreference = useCallback((p: ColorMode | 'system') => {
-    setPreferenceState(p)
-    if (p === 'system') localStorage.removeItem(STORAGE_KEY)
-    else localStorage.setItem(STORAGE_KEY, p)
-  }, [])
+  const setPreference = useCallback(
+    (p: ColorMode | 'system') => {
+      setPreferenceState(p)
+      // 'system' is stored explicitly rather than removeItem'd: an absent
+      // scoped key would be re-seeded from the legacy global value on the
+      // next load, silently undoing the user's choice.
+      localStorage.setItem(storageKey, p)
+    },
+    [storageKey],
+  )
 
   const mode: ColorMode = preference === 'system' ? system : preference
 

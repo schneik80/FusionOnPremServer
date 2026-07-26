@@ -8,7 +8,7 @@
     "signOut": "Abmelden"
   },
   "breadcrumb": {
-    "noHub": "Kein Hub ausgewählt — wählen Sie einen in der Leiste"
+    "noHub": "Kein Hub ausgewählt."
   },
   "column": {
     "emptyDefault": "Nichts vorhanden"
@@ -34,8 +34,16 @@
     "pin": "Anheften",
     "unpin": "Lösen"
   },
-  "hubSwitcher": {
-    "title": "Hub wechseln"
+  "hubGate": {
+    "title": "Hub auswählen",
+    "subtitle": "Diese App arbeitet mit jeweils einem Hub. Wählen Sie den Hub, in dem Sie arbeiten möchten — ein Wechsel ist später unter Einstellungen → Verbindung möglich.",
+    "revoked": "Der zuletzt verwendete Hub ({{name}}) ist für Ihr Konto nicht mehr verfügbar. Wählen Sie einen anderen Hub.",
+    "enter": "Hub öffnen",
+    "entering": "Wird geöffnet…"
+  },
+  "hubList": {
+    "current": "Aktuell",
+    "empty": "Ihr Konto ist in keinem Hub Mitglied."
   },
   "pins": {
     "title": "Pins",
@@ -131,7 +139,8 @@
   "docCard": {
     "open": "Zu diesem Dokument wechseln",
     "locating": "Wird gesucht…",
-    "locationUnavailable": "Speicherort nicht verfügbar"
+    "locationUnavailable": "Speicherort nicht verfügbar",
+    "otherHub": "In einem anderen Hub"
   },
   "taskCard": {
     "open": "Diese Aufgabe öffnen",

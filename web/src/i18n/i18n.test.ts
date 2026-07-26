@@ -27,7 +27,7 @@ describe('i18n init', () => {
 
   it('missing keys fall back to English rather than leaking key names', () => {
     expect(i18n.t('settings:theme.light')).toBe('Light')
-    expect(i18n.t('nav:hubs')).toBe('Hubs')
+    expect(i18n.t('nav:pins')).toBe('Pins')
   })
 })
 

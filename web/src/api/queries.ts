@@ -74,6 +74,19 @@ export const useMeta = (): UseQueryResult<Meta> =>
 export const useAuthMe = (): UseQueryResult<AuthMe> =>
   useQuery({ queryKey: ['authMe'], queryFn: api.authMe, staleTime: 0, retry: false })
 
+// useSetSessionHub locks the session to one hub (POST /api/session/hub). The
+// response is the refreshed AuthMe, dropped straight into the authMe cache so
+// the hub gate re-renders locked without a refetch. Re-posting a different hub
+// IS the hub switch — that caller (Settings → Connection) follows success with
+// saveLastHub + teardownAndReload, so the cache write is moot there.
+export const useSetSessionHub = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (hubId: string) => api.sessionHub(hubId),
+    onSuccess: (me) => qc.setQueryData(['authMe'], me),
+  })
+}
+
 // Admin console queries are live server state: they only run while their tool
 // is actually visible (active = dialog open && tool selected) and never
 // persist (the 'admin' prefix is excluded from dehydration in main.tsx).

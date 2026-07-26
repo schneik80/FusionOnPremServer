@@ -7,6 +7,7 @@ import { api } from '../../api/client'
 import { useItemDetails, useItemLocation } from '../../api/queries'
 import { thumbnailSrc } from '../../api/thumbnails'
 import { useGoToDocument } from '../../state/goto'
+import { useNav } from '../../state/nav'
 import { iconForItem } from '../icons'
 import { viewerKindFor } from '../viewers/kind'
 import type { DocRef } from './docref'
@@ -23,8 +24,15 @@ import type { DocRef } from './docref'
 // paragraphs and chat text bodies are its two homes.
 export function DocumentCard({ docRef }: { docRef: DocRef }) {
   const { t } = useTranslation('browse')
-  const detailsQ = useItemDetails(docRef.hubId, docRef.itemId)
-  const locationQ = useItemLocation(docRef.hubId, docRef.itemId, true)
+  const nav = useNav()
+  // Hub isolation: the session (and every data route) is locked to nav's
+  // hub, so a token minted in a DIFFERENT hub must not fetch — the server
+  // would only 403 (hub_mismatch) — and can't be opened from here. It renders
+  // as a muted, inert card built from the names captured in the token.
+  const sameHub = nav.hubId !== null && docRef.hubId === nav.hubId
+  const otherHub = nav.hubId !== null && !sameHub
+  const detailsQ = useItemDetails(sameHub ? docRef.hubId : null, docRef.itemId)
+  const locationQ = useItemLocation(sameHub ? docRef.hubId : null, docRef.itemId, sameHub)
   const goTo = useGoToDocument()
   const [thumbFailed, setThumbFailed] = useState(false)
 
@@ -48,13 +56,16 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
     thumb = api.fileUrl(loc.projectAltId, docRef.itemId, name)
   }
 
-  const location = loc
-    ? [loc.projectName, ...loc.folderPath.map((f) => f.name)].join(' › ')
-    : locationQ.isLoading
-      ? t('docCard.locating')
-      : t('docCard.locationUnavailable')
+  const location = otherHub
+    ? t('docCard.otherHub')
+    : loc
+      ? [loc.projectName, ...loc.folderPath.map((f) => f.name)].join(' › ')
+      : locationQ.isLoading
+        ? t('docCard.locating')
+        : t('docCard.locationUnavailable')
 
   function open() {
+    if (otherHub) return
     void goTo({
       itemId: docRef.itemId,
       name,
@@ -63,19 +74,22 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
     })
   }
 
-  return (
-    <Tooltip title={t('docCard.open')}>
+  const card = (
       <Box
         component="span"
-        role="button"
-        tabIndex={0}
-        onClick={open}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            open()
-          }
-        }}
+        role={otherHub ? undefined : 'button'}
+        tabIndex={otherHub ? undefined : 0}
+        onClick={otherHub ? undefined : open}
+        onKeyDown={
+          otherHub
+            ? undefined
+            : (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  open()
+                }
+              }
+        }
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -90,7 +104,8 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
           // Shrink with the container (thread drawer, narrow panes): the cap
           // is the container width, and the text column ellipsizes.
           maxWidth: 'min(420px, 100%)',
-          cursor: 'pointer',
+          cursor: otherHub ? 'default' : 'pointer',
+          opacity: otherHub ? 0.55 : 1,
           verticalAlign: 'middle',
           // A card is a control, not text — clicking it must not smear a text
           // -selection highlight across the surrounding message.
@@ -99,10 +114,14 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
           // Hover keeps the paper background (the message row underneath
           // paints its own hover wash; changing ours too reads as a smeared
           // double highlight) — the border and jump icon carry the affordance.
-          '&:hover, &:focus-visible': {
-            borderColor: 'primary.main',
-            '& .doccard-go': { opacity: 1 },
-          },
+          ...(otherHub
+            ? {}
+            : {
+                '&:hover, &:focus-visible': {
+                  borderColor: 'primary.main',
+                  '& .doccard-go': { opacity: 1 },
+                },
+              }),
         }}
       >
         <Box
@@ -152,23 +171,27 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
             {location}
           </Typography>
         </Box>
-        <Box
-          component="span"
-          className="doccard-go"
-          sx={{
-            ml: 0.5,
-            color: 'primary.main',
-            opacity: 0,
-            transition: 'opacity 120ms',
-            flexShrink: 0,
-            display: 'inline-flex',
-          }}
-        >
-          <FontAwesomeIcon icon={faArrowUpRightFromSquare} style={{ fontSize: 12 }} />
-        </Box>
+        {!otherHub && (
+          <Box
+            component="span"
+            className="doccard-go"
+            sx={{
+              ml: 0.5,
+              color: 'primary.main',
+              opacity: 0,
+              transition: 'opacity 120ms',
+              flexShrink: 0,
+              display: 'inline-flex',
+            }}
+          >
+            <FontAwesomeIcon icon={faArrowUpRightFromSquare} style={{ fontSize: 12 }} />
+          </Box>
+        )}
       </Box>
-    </Tooltip>
   )
+
+  // No tooltip on the inert other-hub card — there is nothing to open.
+  return otherHub ? card : <Tooltip title={t('docCard.open')}>{card}</Tooltip>
 }
 
 // kindFromTypename maps the details query's GraphQL typename onto the app's

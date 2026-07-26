@@ -32,7 +32,14 @@
       "textMuted": "Texto esbatido",
       "accentHover": "Destaque (ao passar o cursor)",
       "accent": "Destaque"
-    }
+    },
+    "perHubNote": "O tema e as cores personalizadas são guardados por hub — cada hub pode ter o seu próprio aspeto. O idioma aplica-se em todo o lado."
+  },
+  "hub": {
+    "label": "Hub",
+    "switchWarning": "Mudar de hub recarrega a aplicação e limpa os dados em cache neste navegador. Os dados guardados neste servidor mantêm-se separados por hub e não será necessário iniciar sessão novamente.",
+    "apply": "Mudar de hub",
+    "applying": "A mudar…"
   },
   "port": {
     "label": "Porta do servidor",

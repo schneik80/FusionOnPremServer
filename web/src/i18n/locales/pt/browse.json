@@ -8,7 +8,7 @@
     "signOut": "Terminar sessão"
   },
   "breadcrumb": {
-    "noHub": "Nenhum hub selecionado — escolha um na barra lateral"
+    "noHub": "Nenhum hub selecionado."
   },
   "column": {
     "emptyDefault": "Nada aqui"
@@ -34,8 +34,16 @@
     "pin": "Afixar",
     "unpin": "Desafixar"
   },
-  "hubSwitcher": {
-    "title": "Mudar de hub"
+  "hubGate": {
+    "title": "Escolher um hub",
+    "subtitle": "Esta aplicação trabalha com um hub de cada vez. Escolha o hub em que pretende trabalhar — poderá mudar mais tarde em Definições → Ligação.",
+    "revoked": "O último hub utilizado ({{name}}) já não está disponível para a sua conta. Escolha outro hub.",
+    "enter": "Abrir hub",
+    "entering": "A abrir…"
+  },
+  "hubList": {
+    "current": "Atual",
+    "empty": "A sua conta não é membro de nenhum hub."
   },
   "pins": {
     "title": "Afixados",
@@ -131,7 +139,8 @@
   "docCard": {
     "open": "Ir para este documento",
     "locating": "A localizar…",
-    "locationUnavailable": "Localização indisponível"
+    "locationUnavailable": "Localização indisponível",
+    "otherHub": "Noutro hub"
   },
   "taskCard": {
     "open": "Abrir esta tarefa",

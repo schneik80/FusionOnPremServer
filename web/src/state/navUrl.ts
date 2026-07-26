@@ -5,7 +5,7 @@
 //
 // Field layout (all values encodeURIComponent'd, "~"-joined — URNs never
 // contain "~"):
-//   app=tasks|production              (cross-project screen; hub-independent, no other params)
+//   app=tasks|production              (cross-project screen; carries hub= only)
 //   hub=<hubId>~<hubName>
 //   proj=<projectId>~<projectName>
 //   f=<folderId>~<folderName>         (repeated, in drill order)
@@ -38,7 +38,12 @@ function dec(s: string): string[] {
 export function navToSearch(s: NavState): string {
   const p = new URLSearchParams()
   if (s.app === 'tasks' || s.app === 'production') {
-    p.set('app', s.app) // cross-project screens span all projects — nothing else to carry
+    p.set('app', s.app)
+    // The cross-project screens are hub-scoped like everything else (the
+    // session is locked to one hub), so the hub context stays in the URL —
+    // a permalink reopens in the same hub. Browser sub-state (project/folder/
+    // selection) is browser-only and stays out.
+    if (s.hubId) p.set('hub', enc(s.hubId, s.hubName ?? ''))
     return p.toString()
   }
   if (s.hubId) p.set('hub', enc(s.hubId, s.hubName ?? ''))

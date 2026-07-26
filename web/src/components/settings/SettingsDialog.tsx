@@ -19,7 +19,7 @@ import {
   ListItemButton,
   Typography,
 } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMeta } from '../../api/queries'
 import { AppearanceTool } from './AppearanceTool'
@@ -34,7 +34,10 @@ import { UptimeTool } from './UptimeTool'
 // the right. Each tool receives `active` (dialog open && tool selected) so
 // polling queries only run while their screen is actually visible.
 
-type ToolId = 'appearance' | 'connection' | 'uptime' | 'backups' | 'logs' | 'data'
+// Exported so callers can deep-link to a tool (the AppBar hub label opens
+// straight to Connection, where hub switching lives).
+export type SettingsToolId = 'appearance' | 'connection' | 'uptime' | 'backups' | 'logs' | 'data'
+type ToolId = SettingsToolId
 
 const TOOLS: { id: ToolId; icon: IconDefinition }[] = [
   { id: 'appearance', icon: faPalette },
@@ -45,11 +48,25 @@ const TOOLS: { id: ToolId; icon: IconDefinition }[] = [
   { id: 'data', icon: faDatabase },
 ]
 
-export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SettingsDialog({
+  open,
+  onClose,
+  initialTool,
+}: {
+  open: boolean
+  onClose: () => void
+  /** tool to land on when the dialog opens (deep link); undefined keeps the last one */
+  initialTool?: SettingsToolId
+}) {
   const { t } = useTranslation('settings')
   const metaQ = useMeta()
   const meta = metaQ.data
   const [tool, setTool] = useState<ToolId>('appearance')
+
+  // Jump to the requested tool each time the dialog opens with one.
+  useEffect(() => {
+    if (open && initialTool) setTool(initialTool)
+  }, [open, initialTool])
 
   const active = (id: ToolId) => open && tool === id
 

@@ -8,7 +8,7 @@
     "signOut": "Sign out"
   },
   "breadcrumb": {
-    "noHub": "No hub selected — choose one from the rail"
+    "noHub": "No hub selected."
   },
   "column": {
     "emptyDefault": "Nothing here"
@@ -34,8 +34,16 @@
     "pin": "Pin",
     "unpin": "Unpin"
   },
-  "hubSwitcher": {
-    "title": "Switch hub"
+  "hubGate": {
+    "title": "Choose a hub",
+    "subtitle": "This app works in one hub at a time. Pick the hub to work in — you can switch later in Settings → Connection.",
+    "revoked": "The hub you last used ({{name}}) is no longer available to your account. Choose another hub.",
+    "enter": "Enter hub",
+    "entering": "Entering…"
+  },
+  "hubList": {
+    "current": "Current",
+    "empty": "Your account is not a member of any hub."
   },
   "pins": {
     "title": "Pins",
@@ -131,7 +139,8 @@
   "docCard": {
     "open": "Go to this document",
     "locating": "Locating…",
-    "locationUnavailable": "Location unavailable"
+    "locationUnavailable": "Location unavailable",
+    "otherHub": "In another hub"
   },
   "taskCard": {
     "open": "Open this task",

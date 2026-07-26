@@ -1,11 +1,17 @@
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { useMeta, useSetPort } from '../../api/queries'
+import { useAuthMe, useMeta, useSetPort, useSetSessionHub } from '../../api/queries'
+import type { Item } from '../../api/types'
+import { saveLastHub } from '../../state/hubKeys'
+import { teardownAndReload } from '../../state/teardown'
+import { HubList } from '../HubList'
 import { Field } from './Field'
 
-// ConnectionTool: the server's network-facing settings — listen port (with
-// the restart/reconnect flow), the read-only APS region, and the build note.
+// ConnectionTool: the session's hub lock (the ONLY place hubs are switched),
+// the listen port (with the restart/reconnect flow), the read-only APS
+// region, and the build note.
 
 const MIN_PORT = 1024
 const MAX_PORT = 65535
@@ -21,6 +27,10 @@ export function ConnectionTool({ active }: { active: boolean }) {
 
   return (
     <Stack spacing={3}>
+      <Field label={t('hub.label')}>
+        <HubSetting />
+      </Field>
+
       <Field label={t('port.label')}>
         <PortSetting open={active} />
       </Field>
@@ -37,6 +47,74 @@ export function ConnectionTool({ active }: { active: boolean }) {
           {t('about.buildNote')}
         </Typography>
       </Field>
+    </Stack>
+  )
+}
+
+// HubSetting lists the user's hubs with the session's locked hub marked.
+// Picking a different one shows the port-change-style warning; Apply re-locks
+// the session (POST /api/session/hub — no re-OAuth), saves fls.lastHub so the
+// next mount's per-hub settings and auto-relock target the new hub, then runs
+// the shared teardown (clear caches + reload at the root).
+function HubSetting() {
+  const { t } = useTranslation('settings')
+  const qc = useQueryClient()
+  const authQ = useAuthMe()
+  const currentId = authQ.data?.selectedHubId ?? null
+  const [selected, setSelected] = useState<Item | null>(null)
+  const setHub = useSetSessionHub()
+
+  // The pending switch target: a selection that differs from the lock.
+  const target = selected && selected.id !== currentId ? selected : null
+
+  const apply = () => {
+    if (!target || setHub.isPending) return
+    const hub = target
+    setHub.mutate(hub.id, {
+      onSuccess: () => {
+        // Order matters: fls.lastHub must be saved BEFORE the reload — the
+        // per-hub client-setting keys are resolved from it at mount.
+        saveLastHub(hub.id, hub.name)
+        teardownAndReload(qc)
+      },
+    })
+  }
+
+  return (
+    <Stack spacing={1}>
+      <Box
+        sx={{
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          maxHeight: 240,
+          overflowY: 'auto',
+        }}
+      >
+        <HubList
+          selectedId={selected?.id ?? currentId}
+          currentId={currentId}
+          onSelect={setSelected}
+          disabled={setHub.isPending}
+        />
+      </Box>
+      {target && (
+        <>
+          <Alert severity="warning" sx={{ py: 0.5 }}>
+            {t('hub.switchWarning')}
+          </Alert>
+          <Box>
+            <Button size="small" variant="outlined" disabled={setHub.isPending} onClick={apply}>
+              {setHub.isPending ? t('hub.applying') : t('hub.apply')}
+            </Button>
+          </Box>
+        </>
+      )}
+      {setHub.error && (
+        <Typography variant="caption" color="error">
+          {(setHub.error as Error).message}
+        </Typography>
+      )}
     </Stack>
   )
 }

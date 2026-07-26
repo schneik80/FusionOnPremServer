@@ -70,6 +70,7 @@ import type {
   WhiteboardList,
   WhiteboardPatch,
 } from '../whiteboards/types'
+import { QUERY_CACHE_KEY } from '../queryPersist'
 
 export class ApiError extends Error {
   status: number
@@ -95,6 +96,24 @@ function redirectToLogin() {
   window.location.assign('/api/auth/login')
 }
 
+// resetForHubGate handles 409 code=hub_not_selected: the session lost its hub
+// lock (server restarted with a pre-hub persisted session, or a stale tab
+// outlived a switch). Drop the persisted query cache and reload at the root so
+// the HubGate can re-lock — the in-memory cache dies with the reload. Guarded
+// like redirectToLogin so a burst of parallel 409s navigates once. Never loops:
+// after the reload the gate blocks all data calls until a hub is locked again.
+let resettingHub = false
+function resetForHubGate() {
+  if (resettingHub) return
+  resettingHub = true
+  try {
+    localStorage.removeItem(QUERY_CACHE_KEY)
+  } catch {
+    /* storage unavailable — nothing to clear */
+  }
+  window.location.assign('/')
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Let the browser set the multipart boundary for FormData bodies (image
   // uploads); JSON calls get the explicit content-type.
@@ -118,6 +137,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // /api/auth/me probe never 401s (it returns 200 with authenticated:false),
     // so this can't loop on the login gate.
     if (res.status === 401) redirectToLogin()
+    // 409 hub_not_selected means the session has no hub lock — tear down and
+    // reload so the gate re-locks (mirrors the 401 posture). The code check
+    // keeps ordinary 409s (wiki stale-overwrite) untouched.
+    if (res.status === 409 && code === 'hub_not_selected') resetForHubGate()
     throw new ApiError(res.status, msg, code)
   }
   // 204/empty bodies shouldn't happen on our GET endpoints, but guard anyway.
@@ -140,6 +163,7 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
       /* non-JSON error body — keep the generic message */
     }
     if (res.status === 401) redirectToLogin()
+    if (res.status === 409 && code === 'hub_not_selected') resetForHubGate()
     throw new ApiError(res.status, msg, code)
   }
   return res.text()
@@ -160,6 +184,15 @@ export const api = {
   authMe: () => request<AuthMe>('/api/auth/me'),
 
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+
+  // sessionHub locks the session to one hub (validating APS membership
+  // server-side) and returns the refreshed AuthMe. Re-posting a different hub
+  // IS the hub switch — the caller then tears the client down (full reload).
+  sessionHub: (hubId: string) =>
+    request<AuthMe>('/api/session/hub', {
+      method: 'POST',
+      body: JSON.stringify({ hubId }),
+    }),
 
   // Admin console (Settings): process status + server log tail. The full log
   // downloads via /api/admin/log?download=1 (a navigation, not a fetch).

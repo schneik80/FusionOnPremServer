@@ -8,18 +8,18 @@ import {
   faStar,
 } from '@fortawesome/free-solid-svg-icons'
 import { Divider, IconButton, Paper, Stack, Tooltip } from '@mui/material'
-import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNav } from '../state/nav'
-import { HubIcon } from './entityIcons'
 
+// The rail carries the app switchers plus Pins/Settings. There is no hub
+// button anymore: the session is locked to one hub and switching lives in
+// Settings → Connection (the AppBar hub label deep-links there).
 interface NavRailProps {
-  onOpenHubs: () => void
   onOpenPins: () => void
   onOpenSettings: () => void
 }
 
-export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps) {
+export function NavRail({ onOpenPins, onOpenSettings }: NavRailProps) {
   const { t } = useTranslation('nav')
   const nav = useNav()
   return (
@@ -39,8 +39,6 @@ export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps
       }}
     >
       <Stack spacing={1.5}>
-        <RailButton glyph={<HubIcon style={{ fontSize: 18 }} />} label={t('hubs')} onClick={onOpenHubs} />
-        <Divider flexItem sx={{ mx: 1 }} />
         <RailButton
           icon={faFolderTree}
           label={t('browser')}
@@ -72,17 +70,13 @@ export function NavRail({ onOpenHubs, onOpenPins, onOpenSettings }: NavRailProps
   )
 }
 
-// A rail button takes either a FontAwesome `icon` or a pre-rendered `glyph`
-// (for the custom hub/project marks, which aren't FA IconDefinitions).
 function RailButton({
   icon,
-  glyph,
   label,
   active,
   onClick,
 }: {
-  icon?: IconDefinition
-  glyph?: ReactNode
+  icon: IconDefinition
   label: string
   active?: boolean
   onClick: () => void
@@ -99,7 +93,7 @@ function RailButton({
           bgcolor: active ? 'action.selected' : 'transparent',
         }}
       >
-        {glyph ?? (icon && <FontAwesomeIcon icon={icon} style={{ fontSize: 18 }} />)}
+        <FontAwesomeIcon icon={icon} style={{ fontSize: 18 }} />
       </IconButton>
     </Tooltip>
   )

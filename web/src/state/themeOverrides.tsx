@@ -7,12 +7,19 @@ import {
   type ReactNode,
 } from 'react'
 import type { ColorMode, ThemeOverride, ThemeTokens } from '../theme'
+import { resolveHubScopedKey } from './hubKeys'
 
 // Per-mode custom color overrides (Settings → Appearance → Custom colors).
 // Stored as { light?: {...}, dark?: {...} } so each theme keeps its own edits;
 // makeTheme merges the active mode's bag over the stock tokens.
+//
+// Overrides are a PER-HUB setting: the storage key is resolved once at mount
+// from fls.lastHub (the hub isn't knowable through React yet, and every hub
+// change is a full reload that saves fls.lastHub first — see
+// resolveHubScopedKey). BASE_KEY doubles as the legacy global key scoped keys
+// seed from.
 
-const STORAGE_KEY = 'fdc.themeOverrides'
+const BASE_KEY = 'fdc.themeOverrides'
 
 export type TokenKey = keyof ThemeTokens | 'accent'
 
@@ -33,9 +40,9 @@ interface ThemeOverridesCtx {
 
 const Ctx = createContext<ThemeOverridesCtx | null>(null)
 
-function load(): ThemeOverrides {
+function load(key: string): ThemeOverrides {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return {}
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
@@ -55,42 +62,51 @@ function load(): ThemeOverrides {
   }
 }
 
-function persist(next: ThemeOverrides) {
-  if (!next.light && !next.dark) localStorage.removeItem(STORAGE_KEY)
-  else localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+function persist(key: string, next: ThemeOverrides) {
+  // Always write, even when empty: removing an empty scoped key would get
+  // re-seeded from the legacy global overrides on the next load, resurrecting
+  // colors the user just cleared.
+  localStorage.setItem(key, JSON.stringify(next))
 }
 
 export function ThemeOverridesProvider({ children }: { children: ReactNode }) {
-  const [overrides, setOverrides] = useState<ThemeOverrides>(load)
+  const [storageKey] = useState(() => resolveHubScopedKey(BASE_KEY))
+  const [overrides, setOverrides] = useState<ThemeOverrides>(() => load(storageKey))
 
-  const setToken = useCallback((mode: ColorMode, key: TokenKey, value: string | null) => {
-    setOverrides((prev) => {
-      const bag: Record<string, string> = { ...(prev[mode] as Record<string, string> | undefined) }
-      if (value == null) delete bag[key]
-      else bag[key] = value
-      const next: ThemeOverrides = { ...prev }
-      if (Object.keys(bag).length) next[mode] = bag as ThemeOverride
-      else delete next[mode]
-      persist(next)
-      return next
-    })
-  }, [])
+  const setToken = useCallback(
+    (mode: ColorMode, key: TokenKey, value: string | null) => {
+      setOverrides((prev) => {
+        const bag: Record<string, string> = { ...(prev[mode] as Record<string, string> | undefined) }
+        if (value == null) delete bag[key]
+        else bag[key] = value
+        const next: ThemeOverrides = { ...prev }
+        if (Object.keys(bag).length) next[mode] = bag as ThemeOverride
+        else delete next[mode]
+        persist(storageKey, next)
+        return next
+      })
+    },
+    [storageKey],
+  )
 
-  const reset = useCallback((mode: ColorMode) => {
-    setOverrides((prev) => {
-      const next: ThemeOverrides = { ...prev }
-      delete next[mode]
-      persist(next)
-      return next
-    })
-  }, [])
+  const reset = useCallback(
+    (mode: ColorMode) => {
+      setOverrides((prev) => {
+        const next: ThemeOverrides = { ...prev }
+        delete next[mode]
+        persist(storageKey, next)
+        return next
+      })
+    },
+    [storageKey],
+  )
 
   const resetAll = useCallback(() => {
     setOverrides(() => {
-      persist({})
+      persist(storageKey, {})
       return {}
     })
-  }, [])
+  }, [storageKey])
 
   const value = useMemo(
     () => ({ overrides, setToken, reset, resetAll }),

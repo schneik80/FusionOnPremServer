@@ -11,15 +11,16 @@ interface Crumb {
   icon?: boolean
 }
 
-export function BreadcrumbBar({ onOpenHubs }: { onOpenHubs: () => void }) {
+export function BreadcrumbBar() {
   const { t } = useTranslation('browse')
   const nav = useNav()
 
   const crumbs: Crumb[] = []
   // Inside a project the hub crumb navigates back to the hub's projects list
-  // (clearProject); at the hub level it opens the hub switcher instead.
+  // (clearProject); at the hub level it is inert — the session is locked to
+  // this hub, and switching lives in Settings → Connection.
   if (nav.hubName)
-    crumbs.push({ label: nav.hubName, onClick: nav.project ? nav.clearProject : onOpenHubs, icon: true })
+    crumbs.push({ label: nav.hubName, onClick: nav.project ? nav.clearProject : undefined, icon: true })
   if (nav.project) crumbs.push({ label: nav.project.name, onClick: nav.gotoProjectRoot })
   nav.folderStack.forEach((f, i) =>
     crumbs.push({ label: f.name, onClick: () => nav.gotoFolder(i) }),
