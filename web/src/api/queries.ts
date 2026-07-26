@@ -16,6 +16,7 @@ import type {
   ComponentRef,
   Contents,
   Details,
+  DiskUsage,
   DrawingRef,
   GroupMember,
   Item,
@@ -148,6 +149,37 @@ export const useAdminBackupConfigSet = () => {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['adminBackups'] })
       void qc.invalidateQueries({ queryKey: ['adminBackupConfig'] })
+    },
+  })
+}
+
+// Data tool: disk usage (refetched after every destructive action below),
+// per-project app-data deletion, stale-artifact cleanup.
+export const useAdminDisk = (active: boolean): UseQueryResult<DiskUsage> =>
+  useQuery({
+    queryKey: ['adminDisk'],
+    queryFn: api.adminDisk,
+    enabled: active,
+    staleTime: 0,
+  })
+
+export const useAdminProjectDataDelete = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { projectId: string; apps: string[] }) =>
+      api.adminProjectDataDelete(v.projectId, v.apps),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['adminDisk'] })
+    },
+  })
+}
+
+export const useAdminCleanup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.adminCleanup,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['adminDisk'] })
     },
   })
 }

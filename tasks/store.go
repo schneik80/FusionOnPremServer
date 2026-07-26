@@ -67,6 +67,28 @@ func (s *Store) Reset() {
 	s.projects = make(map[string]*projectState)
 }
 
+// DeleteProject permanently removes one project's task data: the in-memory
+// state is evicted and the project directory deleted. A missing directory is
+// not an error (idempotent); the next access lazily recreates fresh state,
+// exactly like a project that never had tasks. Lock order is s.mu → ps.mu —
+// the same order chat's closeHandlesLocked established; nothing anywhere
+// acquires s.mu while holding a project mutex, so this cannot deadlock.
+// Holding the project mutex through the removal means no in-flight mutation
+// can rewrite tasks.json mid-delete.
+func (s *Store) DeleteProject(projectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ps, ok := s.projects[projectID]; ok {
+		delete(s.projects, projectID)
+		ps.mu.Lock()
+		defer ps.mu.Unlock()
+	}
+	if err := os.RemoveAll(s.projectDir(projectID)); err != nil {
+		return fmt.Errorf("tasks: deleting project data: %w", err)
+	}
+	return nil
+}
+
 // ---- reads ----
 
 // List returns copies of a project's tasks, never nil.

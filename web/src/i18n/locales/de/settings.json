@@ -120,6 +120,38 @@
     }
   },
   "data": {
-    "comingSoon": "Datenverwaltung ist bald verfügbar."
+    "usage": {
+      "title": "Speicherbelegung",
+      "project": "Projekt",
+      "total": "Gesamt",
+      "empty": "Auf diesem Server sind noch keine Projekt-App-Daten gespeichert.",
+      "pins": "Pins: {{size}}",
+      "other": "Sonstige Serverdateien (Protokoll, Sitzungen, TLS): {{size}}",
+      "grandTotal": "Gesamt auf der Festplatte: {{size}}"
+    },
+    "store": {
+      "chat": "Chat",
+      "tasks": "Aufgaben",
+      "production": "Produktion",
+      "whiteboards": "Whiteboards"
+    },
+    "delete": {
+      "action": "Löschen…",
+      "title": "Projekt-App-Daten löschen",
+      "warning": "Damit werden die ausgewählten App-Daten für \"{{name}}\" auf diesem Server dauerhaft gelöscht. Fusion-Dokumente und das Projekt selbst sind nicht betroffen — nur lokale Chat-, Aufgaben-, Produktions- und Whiteboard-Daten. Es gibt kein Rückgängig außer einer Sicherung.",
+      "appsLabel": "Zu löschende Daten",
+      "typeToConfirm": "Geben Sie <code>{{name}}</code> ein, um zu bestätigen.",
+      "confirmLabel": "Projektname",
+      "confirmButton": "Daten löschen",
+      "deleting": "Wird gelöscht…"
+    },
+    "cleanup": {
+      "title": "Aufräumen",
+      "hint": "Entfernt Restdateien früherer Versionen sowie Sicherungs-/Temporärdateien der Stores, die älter als 30 Tage sind. Live-Daten, Sitzungen und Zertifikate werden nie angetastet.",
+      "action": "Aufräumen",
+      "cleaning": "Wird aufgeräumt…",
+      "done": "{{items}} Einträge entfernt, {{size}} freigegeben.",
+      "nothing": "Nichts aufzuräumen."
+    }
   }
 }

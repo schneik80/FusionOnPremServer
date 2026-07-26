@@ -119,6 +119,12 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/backups/verify", prot(s.handleAdminBackupVerify))
 	mux.HandleFunc("POST /api/admin/backups/restore", prot(s.handleAdminBackupRestore))
 	mux.HandleFunc("GET /api/admin/fs/dirs", prot(s.handleAdminFsDirs))
+	// Data tool: disk usage across the local stores, per-project app-data
+	// deletion (typed confirmation in the UI), and allow-listed stale-artifact
+	// cleanup.
+	mux.HandleFunc("GET /api/admin/disk", prot(s.handleAdminDisk))
+	mux.HandleFunc("DELETE /api/admin/projects/data", prot(s.handleAdminProjectDataDelete))
+	mux.HandleFunc("POST /api/admin/cleanup", prot(s.handleAdminCleanup))
 
 	// Production (light MES job & batch tracker; local store, chat-authz
 	// roles). GET /api/production/job (singular) is one job's full graph;

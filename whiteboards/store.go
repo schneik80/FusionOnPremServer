@@ -65,6 +65,27 @@ func (s *Store) Reset() {
 	s.projects = make(map[string]*projectState)
 }
 
+// DeleteProject permanently removes one project's whiteboard data — metadata
+// and every board document: the in-memory state is evicted and the project
+// directory deleted. A missing directory is not an error (idempotent); the
+// next access lazily recreates fresh state. Lock order is s.mu → ps.mu (the
+// chat closeHandlesLocked order; no code path acquires s.mu while holding a
+// project mutex), and holding the project mutex through the removal means no
+// in-flight autosave can rewrite a document mid-delete.
+func (s *Store) DeleteProject(projectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ps, ok := s.projects[projectID]; ok {
+		delete(s.projects, projectID)
+		ps.mu.Lock()
+		defer ps.mu.Unlock()
+	}
+	if err := os.RemoveAll(s.projectDir(projectID)); err != nil {
+		return fmt.Errorf("whiteboards: deleting project data: %w", err)
+	}
+	return nil
+}
+
 // ---- reads ----
 
 // List returns copies of a project's board metadata, newest first. It never

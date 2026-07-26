@@ -174,3 +174,55 @@ func TestCorruptAndFutureVersion(t *testing.T) {
 		t.Fatalf("expected ErrFutureVersion")
 	}
 }
+
+func TestDeleteProject(t *testing.T) {
+	s := newStore(t)
+	b := mustBoard(t, s, "Doomed board")
+	if _, err := s.SaveSnapshot(testProject, b.ID, []byte(`{"shapes":[]}`), user()); err != nil {
+		t.Fatalf("SaveSnapshot: %v", err)
+	}
+	if _, err := s.Create("urn:other:project", testHub, "Other Project", Draft{Name: "Survivor"}, user()); err != nil {
+		t.Fatalf("Create other: %v", err)
+	}
+	dirA := filepath.Join(s.dir, sanitizeID(testProject))
+	if _, err := os.Stat(filepath.Join(dirA, "doc-"+b.ID+".json")); err != nil {
+		t.Fatalf("board document missing before delete: %v", err)
+	}
+
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	if _, err := os.Stat(dirA); !os.IsNotExist(err) {
+		t.Errorf("project dir still present after delete: %v", err)
+	}
+	s.mu.Lock()
+	_, cached := s.projects[testProject]
+	s.mu.Unlock()
+	if cached {
+		t.Error("project still in the in-memory map after delete")
+	}
+	if _, err := os.Stat(filepath.Join(s.dir, sanitizeID("urn:other:project"))); err != nil {
+		t.Errorf("other project dir was collateral damage: %v", err)
+	}
+
+	// Next access recreates fresh state lazily.
+	boards, err := s.List(testProject)
+	if err != nil {
+		t.Fatalf("List after delete: %v", err)
+	}
+	if len(boards) != 0 {
+		t.Errorf("List after delete = %d boards, want 0", len(boards))
+	}
+	reborn := mustBoard(t, s, "Reborn")
+	if reborn.ID != "w1" || reborn.Num != 1 {
+		t.Errorf("recreated board = %s/%d, want fresh w1/1", reborn.ID, reborn.Num)
+	}
+
+	// Idempotent: delete again, then with the dir already gone.
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Fatalf("second DeleteProject: %v", err)
+	}
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Errorf("DeleteProject on missing dir = %v, want nil", err)
+	}
+}

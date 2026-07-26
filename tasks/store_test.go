@@ -526,3 +526,76 @@ func TestShiftTasks(t *testing.T) {
 		t.Errorf("range err = %v, want ErrInvalid", err)
 	}
 }
+
+func TestDeleteProject(t *testing.T) {
+	s, dir := newTestStore(t)
+	if _, err := s.Create(projA, "hub1", "Project A", Draft{Title: "Keep me not"}, alice); err != nil {
+		t.Fatalf("Create A: %v", err)
+	}
+	if _, err := s.Create(projB, "hub1", "Project B", Draft{Title: "Survivor"}, bob); err != nil {
+		t.Fatalf("Create B: %v", err)
+	}
+	dirA := filepath.Join(dir, sanitizeID(projA))
+	if _, err := os.Stat(dirA); err != nil {
+		t.Fatalf("project A dir missing before delete: %v", err)
+	}
+
+	if err := s.DeleteProject(projA); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	if _, err := os.Stat(dirA); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("project A dir still present after delete: %v", err)
+	}
+	s.mu.Lock()
+	_, cached := s.projects[projA]
+	s.mu.Unlock()
+	if cached {
+		t.Error("project A still in the in-memory map after delete")
+	}
+	if _, err := os.Stat(filepath.Join(dir, sanitizeID(projB))); err != nil {
+		t.Errorf("project B dir was collateral damage: %v", err)
+	}
+
+	// Next access recreates fresh state lazily: empty list, counters reset.
+	list, err := s.List(projA)
+	if err != nil {
+		t.Fatalf("List after delete: %v", err)
+	}
+	if len(list) != 0 {
+		t.Errorf("List after delete = %d tasks, want 0", len(list))
+	}
+	created, err := s.Create(projA, "hub1", "Project A", Draft{Title: "Reborn"}, alice)
+	if err != nil {
+		t.Fatalf("Create after delete: %v", err)
+	}
+	if created.ID != "t1" || created.Num != 1 {
+		t.Errorf("recreated task = %s/%d, want fresh t1/1", created.ID, created.Num)
+	}
+
+	// Deleting again (dir present) and then once more (dir gone) both succeed.
+	if err := s.DeleteProject(projA); err != nil {
+		t.Fatalf("second DeleteProject: %v", err)
+	}
+	if err := s.DeleteProject(projA); err != nil {
+		t.Errorf("DeleteProject on missing dir = %v, want nil", err)
+	}
+	if err := s.DeleteProject("urn:project:never-existed"); err != nil {
+		t.Errorf("DeleteProject on unknown project = %v, want nil", err)
+	}
+}
+
+// TestDeleteProjectUncached deletes a project whose state is on disk but not
+// in the map (post-Reset) — the files must still go.
+func TestDeleteProjectUncached(t *testing.T) {
+	s, dir := newTestStore(t)
+	if _, err := s.Create(projA, "hub1", "Project A", Draft{Title: "On disk"}, alice); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	s.Reset()
+	if err := s.DeleteProject(projA); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, sanitizeID(projA))); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("project dir still present after uncached delete: %v", err)
+	}
+}

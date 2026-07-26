@@ -592,3 +592,53 @@ func TestFutureVersion(t *testing.T) {
 		t.Fatalf("expected ErrFutureVersion")
 	}
 }
+
+func TestDeleteProject(t *testing.T) {
+	s := newStore(t)
+	mustJob(t, s, "Doomed job")
+	if _, err := s.CreateJob("urn:other:project", testHub, "Other Project",
+		JobDraft{Name: "Survivor"}, user()); err != nil {
+		t.Fatalf("CreateJob other: %v", err)
+	}
+	dirA := filepath.Join(s.dir, sanitizeID(testProject))
+	if _, err := os.Stat(dirA); err != nil {
+		t.Fatalf("project dir missing before delete: %v", err)
+	}
+
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	if _, err := os.Stat(dirA); !os.IsNotExist(err) {
+		t.Errorf("project dir still present after delete: %v", err)
+	}
+	s.mu.Lock()
+	_, cached := s.projects[testProject]
+	s.mu.Unlock()
+	if cached {
+		t.Error("project still in the in-memory map after delete")
+	}
+	if _, err := os.Stat(filepath.Join(s.dir, sanitizeID("urn:other:project"))); err != nil {
+		t.Errorf("other project dir was collateral damage: %v", err)
+	}
+
+	// Next access recreates fresh state lazily.
+	jobs, err := s.ListJobs(testProject)
+	if err != nil {
+		t.Fatalf("ListJobs after delete: %v", err)
+	}
+	if len(jobs) != 0 {
+		t.Errorf("ListJobs after delete = %d jobs, want 0", len(jobs))
+	}
+	reborn := mustJob(t, s, "Reborn")
+	if reborn.Num != 1 {
+		t.Errorf("recreated job num = %d, want fresh 1", reborn.Num)
+	}
+
+	// Idempotent: delete again, then with the dir already gone.
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Fatalf("second DeleteProject: %v", err)
+	}
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Errorf("DeleteProject on missing dir = %v, want nil", err)
+	}
+}

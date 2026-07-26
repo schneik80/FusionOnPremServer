@@ -158,3 +158,73 @@ func TestEnsureRoot_ConcurrentSingleRoot(t *testing.T) {
 		t.Fatalf("want 1 channel, got %d", len(chans))
 	}
 }
+
+// TestDeleteProject covers the chat-specific delete concerns: the project's
+// open message-log append handle must close before the directory goes (no fd
+// leak, and Windows could not remove the dir otherwise), other projects
+// survive, and the next access rebuilds a fresh project from nothing.
+func TestDeleteProject(t *testing.T) {
+	dir := t.TempDir()
+	s := newStoreAt(t, dir)
+
+	root, err := s.EnsureRoot(testProject)
+	if err != nil {
+		t.Fatalf("EnsureRoot: %v", err)
+	}
+	// Posting opens the channel's O_APPEND handle — the state DeleteProject
+	// must tear down.
+	if _, _, err := s.CreateMessage(testProject, root.ID, "u1", "Alice", "c-1", "so long", 0); err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	const otherProject = "urn:project:other"
+	if _, err := s.EnsureRoot(otherProject); err != nil {
+		t.Fatalf("EnsureRoot other: %v", err)
+	}
+	dirA := filepath.Join(dir, sanitizeID(testProject))
+	if _, err := os.Stat(filepath.Join(dirA, "msg-"+root.ID+".jsonl")); err != nil {
+		t.Fatalf("message log missing before delete: %v", err)
+	}
+
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	if _, err := os.Stat(dirA); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("project dir still present after delete: %v", err)
+	}
+	s.mu.Lock()
+	_, cached := s.projects[testProject]
+	s.mu.Unlock()
+	if cached {
+		t.Error("project still in the in-memory map after delete")
+	}
+	if _, err := os.Stat(filepath.Join(dir, sanitizeID(otherProject), "meta.json")); err != nil {
+		t.Errorf("other project's meta was collateral damage: %v", err)
+	}
+
+	// Next access recreates from scratch: a new root channel, seq restarting
+	// at 1 — proof no stale channelState (or its dead handle) survived.
+	root2, err := s.EnsureRoot(testProject)
+	if err != nil {
+		t.Fatalf("EnsureRoot after delete: %v", err)
+	}
+	if root2.ID != "c1" {
+		t.Errorf("recreated root id = %s, want fresh c1", root2.ID)
+	}
+	m, created, err := s.CreateMessage(testProject, root2.ID, "u1", "Alice", "c-2", "hello again", 0)
+	if err != nil || !created {
+		t.Fatalf("CreateMessage after delete: %v (created=%v)", err, created)
+	}
+	if m.Seq != 1 {
+		t.Errorf("post-delete first message seq = %d, want 1", m.Seq)
+	}
+
+	// Idempotent: delete again, then with the dir already gone. Close (via
+	// the newStoreAt cleanup) must not double-close the deleted project's
+	// handle — DeleteProject nils it out.
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Fatalf("second DeleteProject: %v", err)
+	}
+	if err := s.DeleteProject(testProject); err != nil {
+		t.Errorf("DeleteProject on missing dir = %v, want nil", err)
+	}
+}

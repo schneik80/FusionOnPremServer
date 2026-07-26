@@ -147,6 +147,35 @@ func (s *Store) closeHandlesLocked() {
 	}
 }
 
+// DeleteProject permanently removes one project's chat data — channels,
+// message logs, read cursors: the project's open append handles are closed,
+// its in-memory state is evicted, and the project directory deleted. A
+// missing directory is not an error (idempotent); the next access lazily
+// recreates fresh state (EnsureRoot mints a new root channel). Lock order is
+// s.mu → ps.mu, the order closeHandlesLocked established; no code path
+// acquires s.mu while holding a project mutex, so this cannot deadlock.
+// Holding the project mutex through the removal means no in-flight append
+// can race the delete.
+func (s *Store) DeleteProject(projectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ps, ok := s.projects[projectID]; ok {
+		delete(s.projects, projectID)
+		ps.mu.Lock()
+		defer ps.mu.Unlock()
+		for _, cs := range ps.channels {
+			if cs.file != nil {
+				_ = cs.file.Close()
+				cs.file = nil
+			}
+		}
+	}
+	if err := os.RemoveAll(s.projectDir(projectID)); err != nil {
+		return fmt.Errorf("chat: deleting project data: %w", err)
+	}
+	return nil
+}
+
 // ---- channels ----
 
 // EnsureRoot loads (or initialises) the project's chat metadata and

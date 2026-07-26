@@ -99,7 +99,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           {tool === 'uptime' && <UptimeTool active={active('uptime')} />}
           {tool === 'backups' && <BackupsTool active={active('backups')} />}
           {tool === 'logs' && <LogsTool active={active('logs')} />}
-          {tool === 'data' && <DataTool />}
+          {tool === 'data' && <DataTool active={active('data')} />}
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 2, py: 1.5 }}>

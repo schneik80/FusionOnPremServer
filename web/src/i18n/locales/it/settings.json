@@ -120,6 +120,38 @@
     }
   },
   "data": {
-    "comingSoon": "La gestione dei dati sarà disponibile a breve."
+    "usage": {
+      "title": "Utilizzo del disco",
+      "project": "Progetto",
+      "total": "Totale",
+      "empty": "Su questo server non sono ancora memorizzati dati delle app di progetto.",
+      "pins": "Elementi fissati: {{size}}",
+      "other": "Altri file del server (log, sessioni, TLS): {{size}}",
+      "grandTotal": "Totale su disco: {{size}}"
+    },
+    "store": {
+      "chat": "Chat",
+      "tasks": "Attività",
+      "production": "Produzione",
+      "whiteboards": "Lavagne"
+    },
+    "delete": {
+      "action": "Elimina…",
+      "title": "Elimina i dati delle app del progetto",
+      "warning": "Questa operazione elimina definitivamente i dati delle app selezionati memorizzati su questo server per \"{{name}}\". I documenti Fusion e il progetto stesso non sono interessati — solo i dati locali di chat, attività, produzione e lavagne. Non è possibile annullare se non con un backup.",
+      "appsLabel": "Dati da eliminare",
+      "typeToConfirm": "Digitare <code>{{name}}</code> per confermare.",
+      "confirmLabel": "Nome del progetto",
+      "confirmButton": "Elimina dati",
+      "deleting": "Eliminazione…"
+    },
+    "cleanup": {
+      "title": "Pulizia",
+      "hint": "Rimuove i file residui delle versioni precedenti e i file di backup/temporanei degli store più vecchi di 30 giorni. I dati attivi, le sessioni e i certificati non vengono mai toccati.",
+      "action": "Pulisci",
+      "cleaning": "Pulizia in corso…",
+      "done": "Rimossi {{items}} elementi, liberando {{size}}.",
+      "nothing": "Niente da pulire."
+    }
   }
 }

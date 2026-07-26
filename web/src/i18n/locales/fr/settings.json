@@ -120,6 +120,38 @@
     }
   },
   "data": {
-    "comingSoon": "La gestion des données arrive bientôt."
+    "usage": {
+      "title": "Utilisation du disque",
+      "project": "Projet",
+      "total": "Total",
+      "empty": "Aucune donnée d'application de projet n'est encore stockée sur ce serveur.",
+      "pins": "Épingles : {{size}}",
+      "other": "Autres fichiers du serveur (journal, sessions, TLS) : {{size}}",
+      "grandTotal": "Total sur le disque : {{size}}"
+    },
+    "store": {
+      "chat": "Discussion",
+      "tasks": "Tâches",
+      "production": "Production",
+      "whiteboards": "Tableaux blancs"
+    },
+    "delete": {
+      "action": "Supprimer…",
+      "title": "Supprimer les données d'application du projet",
+      "warning": "Cette action supprime définitivement les données d'application sélectionnées stockées sur ce serveur pour \"{{name}}\". Les documents Fusion et le projet lui-même ne sont pas affectés — uniquement les données locales de discussion, tâches, production et tableaux blancs. Aucune annulation possible en dehors d'une sauvegarde.",
+      "appsLabel": "Données à supprimer",
+      "typeToConfirm": "Saisissez <code>{{name}}</code> pour confirmer.",
+      "confirmLabel": "Nom du projet",
+      "confirmButton": "Supprimer les données",
+      "deleting": "Suppression…"
+    },
+    "cleanup": {
+      "title": "Nettoyage",
+      "hint": "Supprime les fichiers résiduels des versions antérieures ainsi que les fichiers de sauvegarde/temporaires des magasins datant de plus de 30 jours. Les données actives, les sessions et les certificats ne sont jamais touchés.",
+      "action": "Nettoyer",
+      "cleaning": "Nettoyage…",
+      "done": "{{items}} éléments supprimés, {{size}} libérés.",
+      "nothing": "Rien à nettoyer."
+    }
   }
 }

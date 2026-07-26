@@ -14,9 +14,11 @@ import type {
   BackupVerifyReport,
   BOMRow,
   Classify,
+  CleanupResult,
   ComponentRef,
   Contents,
   Details,
+  DiskUsage,
   DrawingRef,
   FsDirs,
   GroupMember,
@@ -27,6 +29,7 @@ import type {
   PhysicalProperties,
   PermLayer,
   Pin,
+  ProjectDataDeleteResult,
   ProjectGroup,
   SetPortResponse,
   Thumbnail,
@@ -195,6 +198,19 @@ export const api = {
     }),
 
   adminFsDirs: (path?: string) => request<FsDirs>(`/api/admin/fs/dirs${qs({ path })}`),
+
+  // Data tool: disk usage across the local stores, per-project app-data
+  // deletion (the UI carries the typed confirmation), and allow-listed
+  // stale-artifact cleanup.
+  adminDisk: () => request<DiskUsage>('/api/admin/disk'),
+
+  adminProjectDataDelete: (projectId: string, apps: string[]) =>
+    request<ProjectDataDeleteResult>(
+      `/api/admin/projects/data${qs({ projectId, apps: apps.join(',') })}`,
+      { method: 'DELETE' },
+    ),
+
+  adminCleanup: () => request<CleanupResult>('/api/admin/cleanup', { method: 'POST' }),
 
   setPort: (port: number) =>
     request<SetPortResponse>('/api/settings/port', {

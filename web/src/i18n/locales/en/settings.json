@@ -120,6 +120,38 @@
     }
   },
   "data": {
-    "comingSoon": "Data management is coming soon."
+    "usage": {
+      "title": "Disk usage",
+      "project": "Project",
+      "total": "Total",
+      "empty": "No project app data is stored on this server yet.",
+      "pins": "Pins: {{size}}",
+      "other": "Other server files (log, sessions, TLS): {{size}}",
+      "grandTotal": "Total on disk: {{size}}"
+    },
+    "store": {
+      "chat": "Chat",
+      "tasks": "Tasks",
+      "production": "Production",
+      "whiteboards": "Whiteboards"
+    },
+    "delete": {
+      "action": "Delete…",
+      "title": "Delete project app data",
+      "warning": "This permanently deletes the selected app data stored on this server for \"{{name}}\". Fusion documents and the project itself are not affected — only local chat, task, production and whiteboard data. There is no undo beyond a backup.",
+      "appsLabel": "Data to delete",
+      "typeToConfirm": "Type <code>{{name}}</code> to confirm.",
+      "confirmLabel": "Project name",
+      "confirmButton": "Delete data",
+      "deleting": "Deleting…"
+    },
+    "cleanup": {
+      "title": "Cleanup",
+      "hint": "Removes leftover files from earlier builds and store backup/temp files older than 30 days. Live data, sessions and certificates are never touched.",
+      "action": "Clean up",
+      "cleaning": "Cleaning up…",
+      "done": "Removed {{items}} items, freeing {{size}}.",
+      "nothing": "Nothing to clean up."
+    }
   }
 }

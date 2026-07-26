@@ -120,6 +120,38 @@
     }
   },
   "data": {
-    "comingSoon": "A gestão de dados estará disponível em breve."
+    "usage": {
+      "title": "Utilização do disco",
+      "project": "Projeto",
+      "total": "Total",
+      "empty": "Este servidor ainda não armazena dados de aplicações de projeto.",
+      "pins": "Itens afixados: {{size}}",
+      "other": "Outros ficheiros do servidor (registo, sessões, TLS): {{size}}",
+      "grandTotal": "Total no disco: {{size}}"
+    },
+    "store": {
+      "chat": "Chat",
+      "tasks": "Tarefas",
+      "production": "Produção",
+      "whiteboards": "Quadros brancos"
+    },
+    "delete": {
+      "action": "Eliminar…",
+      "title": "Eliminar dados de aplicações do projeto",
+      "warning": "Isto elimina permanentemente os dados de aplicações selecionados armazenados neste servidor para \"{{name}}\". Os documentos do Fusion e o próprio projeto não são afetados — apenas os dados locais de chat, tarefas, produção e quadros brancos. Não há como anular além de uma cópia de segurança.",
+      "appsLabel": "Dados a eliminar",
+      "typeToConfirm": "Escreva <code>{{name}}</code> para confirmar.",
+      "confirmLabel": "Nome do projeto",
+      "confirmButton": "Eliminar dados",
+      "deleting": "A eliminar…"
+    },
+    "cleanup": {
+      "title": "Limpeza",
+      "hint": "Remove ficheiros restantes de compilações anteriores e ficheiros de cópia/temporários dos arquivos com mais de 30 dias. Os dados ativos, as sessões e os certificados nunca são tocados.",
+      "action": "Limpar",
+      "cleaning": "A limpar…",
+      "done": "Removidos {{items}} itens, libertando {{size}}.",
+      "nothing": "Nada para limpar."
+    }
   }
 }

@@ -65,6 +65,27 @@ func (s *Store) Reset() {
 	s.projects = make(map[string]*projectState)
 }
 
+// DeleteProject permanently removes one project's production data — jobs,
+// steps, batches, the lot: the in-memory state is evicted and the project
+// directory deleted. A missing directory is not an error (idempotent); the
+// next access lazily recreates fresh state. Lock order is s.mu → ps.mu (the
+// chat closeHandlesLocked order; no code path acquires s.mu while holding a
+// project mutex), and holding the project mutex through the removal means no
+// in-flight mutation can rewrite production.json mid-delete.
+func (s *Store) DeleteProject(projectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ps, ok := s.projects[projectID]; ok {
+		delete(s.projects, projectID)
+		ps.mu.Lock()
+		defer ps.mu.Unlock()
+	}
+	if err := os.RemoveAll(s.projectDir(projectID)); err != nil {
+		return fmt.Errorf("production: deleting project data: %w", err)
+	}
+	return nil
+}
+
 // ---- reads ----
 
 // ListJobs returns copies of a project's jobs, never nil, newest first.

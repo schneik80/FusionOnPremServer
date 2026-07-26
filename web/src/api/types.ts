@@ -102,6 +102,47 @@ export interface FsDirs {
   dirs: string[]
 }
 
+// DiskProject mirrors server.DiskProjectDTO: one project's (or, for the pins
+// pseudo-store, one hub file's) slice of a store's disk usage. The identity
+// fields come from the self-describing envelope file; when it is unreadable
+// only the dir slug remains.
+export interface DiskProject {
+  dir: string
+  projectId?: string
+  projectName?: string
+  hubId?: string
+  bytes: number
+}
+
+// DiskStore mirrors server.DiskStoreDTO: one store's total + breakdown.
+export interface DiskStore {
+  name: string // chat | tasks | production | whiteboards | pins
+  bytes: number
+  projects: DiskProject[]
+}
+
+// DiskUsage mirrors server.DiskUsageDTO (GET /api/admin/disk). otherBytes is
+// everything under the config dir outside the stores (log, sessions, TLS,
+// stale artifacts).
+export interface DiskUsage {
+  stores: DiskStore[]
+  otherBytes: number
+  totalBytes: number
+}
+
+// ProjectDataDeleteResult mirrors server.ProjectDataDeleteDTO
+// (DELETE /api/admin/projects/data): per requested app, whether its data is
+// now gone (true also when there was nothing to delete — idempotent).
+export interface ProjectDataDeleteResult {
+  deleted: Record<string, boolean>
+}
+
+// CleanupResult mirrors server.CleanupResultDTO (POST /api/admin/cleanup).
+export interface CleanupResult {
+  removed: string[]
+  bytesFreed: number
+}
+
 export type ItemKind =
   | 'hub'
   | 'project'
