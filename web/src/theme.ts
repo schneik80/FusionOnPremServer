@@ -29,18 +29,26 @@ const light = {
 
 export type ColorMode = 'light' | 'dark'
 
+// ThemeTokens is the shape of one mode's token bag; ThemeOverride is a user's
+// partial customization of it (Settings → Appearance → Custom colors), which
+// may also replace the accent color.
+export type ThemeTokens = typeof dark
+export type ThemeOverride = Partial<ThemeTokens> & { accent?: string }
+
 // Montserrat carries no CJK/Arabic glyphs; system-ui and the Noto/Segoe
 // entries let the OS supply coverage for scripts we don't bundle, instead
 // of falling through to an unmanaged default.
 const fontFamily =
   '"Montserrat", system-ui, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif'
 
-export function makeTheme(mode: ColorMode): Theme {
-  const t = mode === 'dark' ? dark : light
+export function makeTheme(mode: ColorMode, overrides?: ThemeOverride): Theme {
+  const { accent: accentOverride, ...tokenOverrides } = overrides ?? {}
+  const t = { ...(mode === 'dark' ? dark : light), ...tokenOverrides }
+  const ac = accentOverride ?? accent
   return createTheme({
     palette: {
       mode,
-      primary: { main: accent, dark: t.accentHover, contrastText: '#ffffff' },
+      primary: { main: ac, dark: t.accentHover, contrastText: '#ffffff' },
       background: { default: t.bgPrimary, paper: t.bgPanel },
       text: { primary: t.textPrimary, secondary: t.textSecondary },
       divider: t.border,
@@ -90,7 +98,7 @@ export function makeTheme(mode: ColorMode): Theme {
             '&:hover': { backgroundColor: t.bgHover },
             '&.Mui-selected': {
               backgroundColor: t.bgHover,
-              borderLeft: `3px solid ${accent}`,
+              borderLeft: `3px solid ${ac}`,
             },
             '&.Mui-selected:hover': { backgroundColor: t.bgHover },
           },
@@ -106,3 +114,7 @@ export function makeTheme(mode: ColorMode): Theme {
 // Custom token bag exposed to components that need raw palette values beyond
 // MUI's semantic slots (e.g. muted text for type tags).
 export const tokens = { dark, light }
+
+// The stock accent, exported so the Appearance tool can show it as the
+// default swatch value beside the mode token bags.
+export const defaultAccent = accent

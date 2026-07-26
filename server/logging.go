@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gopkg.in/natefinch/lumberjack.v2"
+
 	"github.com/schneik80/fusionlocalserver/api"
 	"github.com/schneik80/fusionlocalserver/config"
 )
@@ -34,8 +36,18 @@ func setupLogging(verbose bool) (*slog.Logger, func()) {
 	closer := func() {}
 	f, path, ferr := openLogFile()
 	if ferr == nil {
-		sinks = append(sinks, f)
-		closer = func() { _ = f.Close() }
+		// Rotate at 10 MB, keep 3 compressed generations: server.log had
+		// grown unbounded (23 MB observed) with no cap. An existing
+		// oversized file rotates on its first post-upgrade size trip.
+		lj := &lumberjack.Logger{
+			Filename:   path,
+			MaxSize:    10, // MB
+			MaxBackups: 3,
+			Compress:   true,
+		}
+		_ = f.Close() // lumberjack owns the handle from here
+		sinks = append(sinks, lj)
+		closer = func() { _ = lj.Close() }
 	}
 	out := io.MultiWriter(sinks...)
 

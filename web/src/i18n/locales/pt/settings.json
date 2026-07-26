@@ -1,5 +1,13 @@
 {
   "title": "Definições",
+  "tools": {
+    "appearance": "Aspeto",
+    "connection": "Ligação",
+    "uptime": "Atividade",
+    "backups": "Cópias de segurança",
+    "logs": "Registos",
+    "data": "Dados"
+  },
   "theme": {
     "label": "Tema",
     "light": "Claro",
@@ -8,6 +16,23 @@
   },
   "language": {
     "label": "Idioma"
+  },
+  "appearance": {
+    "customColors": "Cores personalizadas",
+    "customColorsHint": "As cores personalizam-se por tema — claro e escuro editam-se separadamente; mude o tema acima para editar o outro.",
+    "resetAll": "Repor tudo",
+    "resetToken": "Repor o valor predefinido",
+    "token": {
+      "bgPrimary": "Fundo",
+      "bgPanel": "Fundo dos painéis",
+      "bgHover": "Fundo ao passar o cursor",
+      "border": "Contornos e separadores",
+      "textPrimary": "Texto principal",
+      "textSecondary": "Texto secundário",
+      "textMuted": "Texto esbatido",
+      "accentHover": "Destaque (ao passar o cursor)",
+      "accent": "Destaque"
+    }
   },
   "port": {
     "label": "Porta do servidor",
@@ -24,5 +49,25 @@
   "about": {
     "label": "Acerca de",
     "buildNote": "Abrir/inserir no Fusion e a transferência de STEP ainda não estão disponíveis nesta compilação."
+  },
+  "uptime": {
+    "startedAt": "Iniciado",
+    "uptime": "Tempo de atividade",
+    "requests": "Pedidos servidos",
+    "appVersion": "Versão da aplicação",
+    "goVersion": "Versão do Go",
+    "logSize": "Tamanho do registo"
+  },
+  "logs": {
+    "refresh": "Atualizar",
+    "openFull": "Abrir o registo completo",
+    "path": "{{path}} · {{size}}",
+    "empty": "O registo está vazio."
+  },
+  "backups": {
+    "comingSoon": "As cópias de segurança estarão disponíveis em breve."
+  },
+  "data": {
+    "comingSoon": "A gestão de dados estará disponível em breve."
   }
 }

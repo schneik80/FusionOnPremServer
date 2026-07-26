@@ -28,6 +28,18 @@ export interface SetPortResponse {
   restarting: boolean
 }
 
+// AdminStatus mirrors server.AdminStatusDTO (GET /api/admin/status): process
+// uptime, counters and log-file facts for the Settings console.
+export interface AdminStatus {
+  startedAt: string
+  uptimeSeconds: number
+  requestsServed: number
+  version: string
+  goVersion: string
+  logPath: string
+  logSizeBytes: number
+}
+
 export type ItemKind =
   | 'hub'
   | 'project'

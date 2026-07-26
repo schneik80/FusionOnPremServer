@@ -1,5 +1,13 @@
 {
   "title": "Configuración",
+  "tools": {
+    "appearance": "Apariencia",
+    "connection": "Conexión",
+    "uptime": "Actividad",
+    "backups": "Copias de seguridad",
+    "logs": "Registros",
+    "data": "Datos"
+  },
   "theme": {
     "label": "Tema",
     "light": "Claro",
@@ -8,6 +16,23 @@
   },
   "language": {
     "label": "Idioma"
+  },
+  "appearance": {
+    "customColors": "Colores personalizados",
+    "customColorsHint": "Los colores se personalizan por tema: claro y oscuro se editan por separado; cambie el tema arriba para editar el otro.",
+    "resetAll": "Restablecer todo",
+    "resetToken": "Restablecer al valor predeterminado",
+    "token": {
+      "bgPrimary": "Fondo",
+      "bgPanel": "Fondo de paneles",
+      "bgHover": "Fondo al pasar el cursor",
+      "border": "Bordes y separadores",
+      "textPrimary": "Texto principal",
+      "textSecondary": "Texto secundario",
+      "textMuted": "Texto atenuado",
+      "accentHover": "Acento (al pasar el cursor)",
+      "accent": "Acento"
+    }
   },
   "port": {
     "label": "Puerto del servidor",
@@ -24,5 +49,25 @@
   "about": {
     "label": "Acerca de",
     "buildNote": "Abrir/insertar en Fusion y la descarga STEP aún no están disponibles en esta compilación."
+  },
+  "uptime": {
+    "startedAt": "Iniciado",
+    "uptime": "Tiempo de actividad",
+    "requests": "Solicitudes atendidas",
+    "appVersion": "Versión de la aplicación",
+    "goVersion": "Versión de Go",
+    "logSize": "Tamaño del registro"
+  },
+  "logs": {
+    "refresh": "Actualizar",
+    "openFull": "Abrir registro completo",
+    "path": "{{path}} · {{size}}",
+    "empty": "El registro está vacío."
+  },
+  "backups": {
+    "comingSoon": "Las copias de seguridad estarán disponibles próximamente."
+  },
+  "data": {
+    "comingSoon": "La gestión de datos estará disponible próximamente."
   }
 }

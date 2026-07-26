@@ -29,7 +29,7 @@ import { BrowserStage } from './BrowserStage'
 import { HubSwitcher } from './HubSwitcher'
 import { NavRail } from './NavRail'
 import { PinsDialog } from './PinsDialog'
-import { SettingsDialog } from './SettingsDialog'
+import { SettingsDialog } from './settings/SettingsDialog'
 import { UploadDialog } from './UploadDialog'
 import { UploadDropOverlay, UploadFooter } from './UploadFooter'
 

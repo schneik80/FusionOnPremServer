@@ -1,5 +1,13 @@
 {
   "title": "Impostazioni",
+  "tools": {
+    "appearance": "Aspetto",
+    "connection": "Connessione",
+    "uptime": "Attività",
+    "backups": "Backup",
+    "logs": "Log",
+    "data": "Dati"
+  },
   "theme": {
     "label": "Tema",
     "light": "Chiaro",
@@ -8,6 +16,23 @@
   },
   "language": {
     "label": "Lingua"
+  },
+  "appearance": {
+    "customColors": "Colori personalizzati",
+    "customColorsHint": "I colori si personalizzano per tema: chiaro e scuro si modificano separatamente; cambia il tema qui sopra per modificare l'altro.",
+    "resetAll": "Ripristina tutto",
+    "resetToken": "Ripristina il valore predefinito",
+    "token": {
+      "bgPrimary": "Sfondo",
+      "bgPanel": "Sfondo dei pannelli",
+      "bgHover": "Sfondo al passaggio del mouse",
+      "border": "Bordi e separatori",
+      "textPrimary": "Testo principale",
+      "textSecondary": "Testo secondario",
+      "textMuted": "Testo attenuato",
+      "accentHover": "Accento (al passaggio del mouse)",
+      "accent": "Accento"
+    }
   },
   "port": {
     "label": "Porta del server",
@@ -24,5 +49,25 @@
   "about": {
     "label": "Informazioni",
     "buildNote": "L'apertura/inserimento in Fusion e il download STEP non sono ancora disponibili in questa build."
+  },
+  "uptime": {
+    "startedAt": "Avviato",
+    "uptime": "Tempo di attività",
+    "requests": "Richieste servite",
+    "appVersion": "Versione dell'app",
+    "goVersion": "Versione di Go",
+    "logSize": "Dimensione del log"
+  },
+  "logs": {
+    "refresh": "Aggiorna",
+    "openFull": "Apri il log completo",
+    "path": "{{path}} · {{size}}",
+    "empty": "Il log è vuoto."
+  },
+  "backups": {
+    "comingSoon": "I backup saranno disponibili a breve."
+  },
+  "data": {
+    "comingSoon": "La gestione dei dati sarà disponibile a breve."
   }
 }

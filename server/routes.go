@@ -104,6 +104,11 @@ func (s *Server) routes() http.Handler {
 	// (the Gantt stage-bar drag; per-task PATCHes would burst the limiter).
 	mux.HandleFunc("POST /api/tasks/shift", prot(s.handleTasksShift))
 
+	// Admin console (Settings dialog tools). Standard authenticated-session
+	// gating; destructive tools confirm in the UI.
+	mux.HandleFunc("GET /api/admin/status", prot(s.handleAdminStatus))
+	mux.HandleFunc("GET /api/admin/log", prot(s.handleAdminLog))
+
 	// Production (light MES job & batch tracker; local store, chat-authz
 	// roles). GET /api/production/job (singular) is one job's full graph;
 	// GET /api/production/jobs is the project list. Steps, edges, and

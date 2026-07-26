@@ -5,6 +5,7 @@
 
 import type {
   ActivityReport,
+  AdminStatus,
   AuthMe,
   BOMRow,
   Classify,
@@ -115,6 +116,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
+// requestText is the raw-text sibling of request<T> for endpoints that answer
+// text/plain (the admin log tail). Same error envelope + 401 handling.
+async function requestText(path: string, init?: RequestInit): Promise<string> {
+  const res = await fetch(path, { credentials: 'same-origin', ...init })
+  if (!res.ok) {
+    let msg = `request failed (HTTP ${res.status})`
+    let code: string | undefined
+    try {
+      const body = (await res.json()) as { error?: string; code?: string }
+      if (body?.error) msg = body.error
+      if (body?.code) code = body.code
+    } catch {
+      /* non-JSON error body — keep the generic message */
+    }
+    if (res.status === 401) redirectToLogin()
+    throw new ApiError(res.status, msg, code)
+  }
+  return res.text()
+}
+
 const qs = (params: Record<string, string | undefined>): string => {
   const sp = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
@@ -130,6 +151,13 @@ export const api = {
   authMe: () => request<AuthMe>('/api/auth/me'),
 
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+
+  // Admin console (Settings): process status + server log tail. The full log
+  // downloads via /api/admin/log?download=1 (a navigation, not a fetch).
+  adminStatus: () => request<AdminStatus>('/api/admin/status'),
+
+  adminLogTail: (tailBytes = 65536) =>
+    requestText(`/api/admin/log${qs({ tailBytes: String(tailBytes) })}`),
 
   setPort: (port: number) =>
     request<SetPortResponse>('/api/settings/port', {

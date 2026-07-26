@@ -7,6 +7,7 @@ import {
 import { api, ApiError } from './client'
 import type {
   ActivityReport,
+  AdminStatus,
   AuthMe,
   BOMRow,
   Classify,
@@ -69,6 +70,26 @@ export const useMeta = (): UseQueryResult<Meta> =>
 // "not authenticated" answer should render the login screen immediately.
 export const useAuthMe = (): UseQueryResult<AuthMe> =>
   useQuery({ queryKey: ['authMe'], queryFn: api.authMe, staleTime: 0, retry: false })
+
+// Admin console queries are live server state: they only run while their tool
+// is actually visible (active = dialog open && tool selected) and never
+// persist (the 'admin' prefix is excluded from dehydration in main.tsx).
+export const useAdminStatus = (active: boolean): UseQueryResult<AdminStatus> =>
+  useQuery({
+    queryKey: ['adminStatus'],
+    queryFn: api.adminStatus,
+    enabled: active,
+    staleTime: 0,
+    refetchInterval: active ? 30_000 : false,
+  })
+
+export const useAdminLogTail = (active: boolean): UseQueryResult<string> =>
+  useQuery({
+    queryKey: ['adminLogTail'],
+    queryFn: () => api.adminLogTail(),
+    enabled: active,
+    staleTime: 0,
+  })
 
 // useSetPort persists a new listen port and triggers a server restart. There's
 // nothing to invalidate — the server rebinds and the caller reconnects on the

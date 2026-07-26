@@ -1,5 +1,13 @@
 {
   "title": "Paramètres",
+  "tools": {
+    "appearance": "Apparence",
+    "connection": "Connexion",
+    "uptime": "Disponibilité",
+    "backups": "Sauvegardes",
+    "logs": "Journaux",
+    "data": "Données"
+  },
   "theme": {
     "label": "Thème",
     "light": "Clair",
@@ -8,6 +16,23 @@
   },
   "language": {
     "label": "Langue"
+  },
+  "appearance": {
+    "customColors": "Couleurs personnalisées",
+    "customColorsHint": "Les couleurs se personnalisent par thème — clair et sombre se modifient séparément ; changez de thème ci-dessus pour modifier l'autre.",
+    "resetAll": "Tout réinitialiser",
+    "resetToken": "Rétablir la valeur par défaut",
+    "token": {
+      "bgPrimary": "Arrière-plan",
+      "bgPanel": "Arrière-plan des panneaux",
+      "bgHover": "Arrière-plan au survol",
+      "border": "Bordures et séparateurs",
+      "textPrimary": "Texte principal",
+      "textSecondary": "Texte secondaire",
+      "textMuted": "Texte atténué",
+      "accentHover": "Accent (survol)",
+      "accent": "Accent"
+    }
   },
   "port": {
     "label": "Port du serveur",
@@ -24,5 +49,25 @@
   "about": {
     "label": "À propos",
     "buildNote": "L'ouverture/insertion dans Fusion et le téléchargement STEP ne sont pas encore disponibles dans cette version."
+  },
+  "uptime": {
+    "startedAt": "Démarré",
+    "uptime": "Durée de fonctionnement",
+    "requests": "Requêtes traitées",
+    "appVersion": "Version de l'application",
+    "goVersion": "Version de Go",
+    "logSize": "Taille du journal"
+  },
+  "logs": {
+    "refresh": "Actualiser",
+    "openFull": "Ouvrir le journal complet",
+    "path": "{{path}} · {{size}}",
+    "empty": "Le journal est vide."
+  },
+  "backups": {
+    "comingSoon": "Les sauvegardes arrivent bientôt."
+  },
+  "data": {
+    "comingSoon": "La gestion des données arrive bientôt."
   }
 }

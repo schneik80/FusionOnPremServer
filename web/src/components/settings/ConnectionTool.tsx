@@ -1,23 +1,11 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Stack,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { useMeta, useSetPort } from '../api/queries'
-import { LOCALE_LABEL, type Locale } from '../i18n'
-import { useColorMode } from '../state/colorMode'
-import { useLocale } from '../state/locale'
+import { useMeta, useSetPort } from '../../api/queries'
+import { Field } from './Field'
+
+// ConnectionTool: the server's network-facing settings — listen port (with
+// the restart/reconnect flow), the read-only APS region, and the build note.
 
 const MIN_PORT = 1024
 const MAX_PORT = 65535
@@ -26,68 +14,30 @@ const MAX_PORT = 65535
 // acking, so a short pause lets the new listener come up before we navigate.
 const RECONNECT_DELAY_MS = 2500
 
-export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ConnectionTool({ active }: { active: boolean }) {
   const { t } = useTranslation('settings')
-  const { preference, setPreference } = useColorMode()
-  const { locale, setLocale, available } = useLocale()
   const metaQ = useMeta()
   const meta = metaQ.data
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>{t('title')}</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={3} sx={{ py: 1 }}>
-          <Field label={t('theme.label')}>
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={preference}
-              onChange={(_, v) => v && setPreference(v)}
-            >
-              <ToggleButton value="light">{t('theme.light')}</ToggleButton>
-              <ToggleButton value="dark">{t('theme.dark')}</ToggleButton>
-              <ToggleButton value="system">{t('theme.system')}</ToggleButton>
-            </ToggleButtonGroup>
-          </Field>
+    <Stack spacing={3}>
+      <Field label={t('port.label')}>
+        <PortSetting open={active} />
+      </Field>
 
-          <Field label={t('language.label')}>
-            <TextField
-              select
-              size="small"
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-              sx={{ width: 200 }}
-            >
-              {available.map((l) => (
-                <MenuItem key={l} value={l}>
-                  {LOCALE_LABEL[l]}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Field>
+      <Field label={t('region.label')}>
+        <Typography variant="body2">{meta?.region ?? '—'}</Typography>
+        <Typography variant="caption" color="text.secondary">
+          {t('region.help')}
+        </Typography>
+      </Field>
 
-          <Field label={t('port.label')}>
-            <PortSetting open={open} />
-          </Field>
-
-          <Field label={t('region.label')}>
-            <Typography variant="body2">{meta?.region ?? '—'}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {t('region.help')}
-            </Typography>
-          </Field>
-
-          <Field label={t('about.label')}>
-            {/* eslint-disable-next-line i18next/no-literal-string -- product name */}
-          <Typography variant="body2">fusionlocalserver · {meta?.version ?? '—'}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {t('about.buildNote')}
-            </Typography>
-          </Field>
-        </Stack>
-      </DialogContent>
-    </Dialog>
+      <Field label={t('about.label')}>
+        <Typography variant="caption" color="text.secondary">
+          {t('about.buildNote')}
+        </Typography>
+      </Field>
+    </Stack>
   )
 }
 
@@ -185,16 +135,5 @@ function PortSetting({ open }: { open: boolean }) {
         {t('port.rangeHelp', { min: MIN_PORT, max: MAX_PORT })}
       </Typography>
     </Stack>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <Box>
-      <Typography variant="subtitle2" gutterBottom>
-        {label}
-      </Typography>
-      <Stack spacing={0.5}>{children}</Stack>
-    </Box>
   )
 }

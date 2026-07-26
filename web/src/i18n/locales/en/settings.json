@@ -1,5 +1,13 @@
 {
   "title": "Settings",
+  "tools": {
+    "appearance": "Appearance",
+    "connection": "Connection",
+    "uptime": "Uptime",
+    "backups": "Backups",
+    "logs": "Logs",
+    "data": "Data"
+  },
   "theme": {
     "label": "Theme",
     "light": "Light",
@@ -8,6 +16,23 @@
   },
   "language": {
     "label": "Language"
+  },
+  "appearance": {
+    "customColors": "Custom colors",
+    "customColorsHint": "Colors are customized per theme — light and dark are edited separately; switch the theme above to edit the other one.",
+    "resetAll": "Reset all",
+    "resetToken": "Reset to default",
+    "token": {
+      "bgPrimary": "Background",
+      "bgPanel": "Panel background",
+      "bgHover": "Hover background",
+      "border": "Borders & dividers",
+      "textPrimary": "Primary text",
+      "textSecondary": "Secondary text",
+      "textMuted": "Muted text",
+      "accentHover": "Accent (hover)",
+      "accent": "Accent"
+    }
   },
   "port": {
     "label": "Server port",
@@ -24,5 +49,25 @@
   "about": {
     "label": "About",
     "buildNote": "Fusion open/insert and STEP download are not yet available in this build."
+  },
+  "uptime": {
+    "startedAt": "Started",
+    "uptime": "Uptime",
+    "requests": "Requests served",
+    "appVersion": "App version",
+    "goVersion": "Go version",
+    "logSize": "Log size"
+  },
+  "logs": {
+    "refresh": "Refresh",
+    "openFull": "Open full log",
+    "path": "{{path}} · {{size}}",
+    "empty": "The log is empty."
+  },
+  "backups": {
+    "comingSoon": "Backups are coming soon."
+  },
+  "data": {
+    "comingSoon": "Data management is coming soon."
   }
 }

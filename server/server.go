@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -61,6 +62,11 @@ type Server struct {
 	opts   Options
 	logger *slog.Logger
 	region string // resolved APS region ("" == US)
+
+	// startedAt anchors the Uptime admin tool; requestCount is a plain
+	// served-requests counter (both process-lifetime, not persisted).
+	startedAt    time.Time
+	requestCount atomic.Int64
 
 	// APS app credentials, used by the login/callback handlers and per-session
 	// token refresh. clientSecret is empty for public (PKCE) clients.
@@ -189,6 +195,7 @@ func Run(opts Options) error {
 		pending:          NewPendingStore(pendingTTL),
 		portConfigurable: !opts.Dev,
 		restartCh:        make(chan struct{}, 1),
+		startedAt:        time.Now(),
 		thumbs:           newThumbCache(512, 10*time.Minute),
 		warmSem:          make(chan struct{}, 12),
 		uploads:          newUploadManager(uploadConcurrency),

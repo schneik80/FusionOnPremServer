@@ -15,6 +15,7 @@ import App from './App'
 import { QUERY_CACHE_KEY } from './queryPersist'
 import { ColorModeProvider } from './state/colorMode'
 import { LocaleProvider } from './state/locale'
+import { ThemeOverridesProvider } from './state/themeOverrides'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -56,7 +57,9 @@ createRoot(document.getElementById('root')!).render(
           // chat, tasks, and production never persist — they're realtime,
           // per-user data that must not linger in shared-machine localStorage.
           // ('task' covers task/tasks/tasksMine; 'prod' covers
-          // prodJob/prodJobs; 'whiteboard' covers the board list.)
+          // prodJob/prodJobs; 'whiteboard' covers the board list; 'admin'
+          // covers adminStatus/adminLogTail — live server state, re-fetched
+          // whenever the Settings console opens.)
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
             q.queryKey[0] !== 'authMe' &&
@@ -64,13 +67,16 @@ createRoot(document.getElementById('root')!).render(
             !String(q.queryKey[0]).startsWith('chat') &&
             !String(q.queryKey[0]).startsWith('task') &&
             !String(q.queryKey[0]).startsWith('prod') &&
-            !String(q.queryKey[0]).startsWith('whiteboard'),
+            !String(q.queryKey[0]).startsWith('whiteboard') &&
+            !String(q.queryKey[0]).startsWith('admin'),
         },
       }}
     >
       <ColorModeProvider>
         <LocaleProvider>
-          <App />
+          <ThemeOverridesProvider>
+            <App />
+          </ThemeOverridesProvider>
         </LocaleProvider>
       </ColorModeProvider>
     </PersistQueryClientProvider>

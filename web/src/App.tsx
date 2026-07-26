@@ -6,6 +6,7 @@ import { useAuthMe } from './api/queries'
 import { AppLayout } from './components/AppLayout'
 import { LoginScreen } from './components/LoginScreen'
 import { useColorMode } from './state/colorMode'
+import { useThemeOverrides } from './state/themeOverrides'
 import { NavProvider } from './state/nav'
 import { UploadsProvider } from './state/uploads'
 import { makeTheme } from './theme'
@@ -36,7 +37,8 @@ function Gate() {
 
 export default function App() {
   const { mode } = useColorMode()
-  const theme = useMemo(() => makeTheme(mode), [mode])
+  const { overrides } = useThemeOverrides()
+  const theme = useMemo(() => makeTheme(mode, overrides[mode]), [mode, overrides])
 
   return (
     <ThemeProvider theme={theme}>

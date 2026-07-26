@@ -1,5 +1,13 @@
 {
   "title": "Einstellungen",
+  "tools": {
+    "appearance": "Darstellung",
+    "connection": "Verbindung",
+    "uptime": "Laufzeit",
+    "backups": "Sicherungen",
+    "logs": "Protokolle",
+    "data": "Daten"
+  },
   "theme": {
     "label": "Design",
     "light": "Hell",
@@ -8,6 +16,23 @@
   },
   "language": {
     "label": "Sprache"
+  },
+  "appearance": {
+    "customColors": "Eigene Farben",
+    "customColorsHint": "Farben werden pro Design angepasst — Hell und Dunkel werden getrennt bearbeitet; wechseln Sie oben das Design, um das andere zu bearbeiten.",
+    "resetAll": "Alle zurücksetzen",
+    "resetToken": "Auf Standard zurücksetzen",
+    "token": {
+      "bgPrimary": "Hintergrund",
+      "bgPanel": "Panel-Hintergrund",
+      "bgHover": "Hover-Hintergrund",
+      "border": "Rahmen & Trennlinien",
+      "textPrimary": "Primärer Text",
+      "textSecondary": "Sekundärer Text",
+      "textMuted": "Gedämpfter Text",
+      "accentHover": "Akzent (Hover)",
+      "accent": "Akzent"
+    }
   },
   "port": {
     "label": "Server-Port",
@@ -24,5 +49,25 @@
   "about": {
     "label": "Info",
     "buildNote": "Öffnen/Einfügen in Fusion und STEP-Download sind in diesem Build noch nicht verfügbar."
+  },
+  "uptime": {
+    "startedAt": "Gestartet",
+    "uptime": "Laufzeit",
+    "requests": "Bearbeitete Anfragen",
+    "appVersion": "App-Version",
+    "goVersion": "Go-Version",
+    "logSize": "Protokollgröße"
+  },
+  "logs": {
+    "refresh": "Aktualisieren",
+    "openFull": "Vollständiges Protokoll öffnen",
+    "path": "{{path}} · {{size}}",
+    "empty": "Das Protokoll ist leer."
+  },
+  "backups": {
+    "comingSoon": "Sicherungen sind bald verfügbar."
+  },
+  "data": {
+    "comingSoon": "Datenverwaltung ist bald verfügbar."
   }
 }
