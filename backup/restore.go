@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,14 +25,40 @@ type RestoreRoots struct {
 	ConfigDir string
 }
 
+// CheckRestorable is the hub-identity gate on a manifest, shared by
+// Engine.Restore and the HTTP handler's pre-check:
+//
+//   - a manifest older than v2 refuses outright — it predates hub isolation
+//     and cannot prove which hub its bytes belong to;
+//   - a manifest stamped for a different hub than this engine refuses — the
+//     slug must match, and when both raw ids are present they must match too
+//     (the raw-id check catches two distinct hubs whose lossy slugs collide).
+//
+// It never touches the filesystem; callers pass a manifest they already read.
+func (e *Engine) CheckRestorable(m *Manifest) error {
+	if m.ManifestVersion < 2 {
+		return errors.New("backup: this backup predates hub isolation and cannot be restored; take a fresh backup")
+	}
+	if m.HubSlug != e.HubSlug || (m.Hub != "" && e.Hub != "" && m.Hub != e.Hub) {
+		return fmt.Errorf("backup: snapshot belongs to hub %q (profile %q), not this session's hub %q (profile %q) — cross-hub restore refused",
+			m.Hub, m.HubSlug, e.Hub, e.HubSlug)
+	}
+	return nil
+}
+
 // Restore copies a snapshot's files back into the given roots, replacing the
 // live data. The sequence is deliberately conservative:
 //
-//  1. Validate: the manifest must load, no file may carry a schema version
+//  1. Validate: the manifest must load, must pass CheckRestorable (v2+,
+//     stamped for THIS engine's hub), no file may carry a schema version
 //     newer than this build writes (`expected`, same hook as Verify), and
 //     the snapshot's app version must not be newer than the running one
 //     ("dev" and unparseable versions always pass — a dev build restores
 //     anything, and version-string exotica must not brick a restore).
+//     Every manifest path must also resolve INSIDE roots.HubRoot (or be the
+//     allow-listed config.json targeting roots.ConfigDir) — a crafted
+//     manifest cannot direct a single byte anywhere else, and the check
+//     completes before anything is written.
 //  2. Read every file into memory first, re-checking each hash — a restore
 //     never begins writing from a snapshot it can't fully read intact.
 //  3. Take a pre-restore safety snapshot of the CURRENT data via e.Run;
@@ -56,6 +83,9 @@ func (e *Engine) Restore(snapshotDir string, roots RestoreRoots, expected func(s
 	if err != nil {
 		return err
 	}
+	if err := e.CheckRestorable(m); err != nil {
+		return err
+	}
 	if snapshotNewerThanApp(m.AppVersion, e.AppVersion) {
 		return fmt.Errorf("backup: snapshot was written by version %s, newer than the running %s — upgrade before restoring",
 			m.AppVersion, e.AppVersion)
@@ -67,10 +97,12 @@ func (e *Engine) Restore(snapshotDir string, roots RestoreRoots, expected func(s
 		}
 	}
 
-	// Read + hash-check everything up front so a corrupt or truncated
+	// Read + hash-check everything up front, and resolve every destination
+	// path against its root, so a corrupt, truncated, or path-crafted
 	// snapshot is refused before a single live byte changes.
 	type pending struct {
 		rel  string
+		dest string
 		data []byte
 	}
 	files := make([]pending, 0, len(m.Files))
@@ -81,6 +113,19 @@ func (e *Engine) Restore(snapshotDir string, roots RestoreRoots, expected func(s
 		}
 		if rel == "server.json" {
 			continue // live operational state; see the doc comment
+		}
+		// Containment: store/pins files may only land inside HubRoot; the one
+		// allow-listed global file is the root-level config.json, which lands
+		// in ConfigDir. safeRel already rejected traversal, but the manifest
+		// is untrusted data — re-prove the joined destination stays inside
+		// its root before anything is written.
+		root := roots.HubRoot
+		if rel == "config.json" {
+			root = roots.ConfigDir
+		}
+		dest, rerr := containedJoin(root, rel)
+		if rerr != nil {
+			return fmt.Errorf("backup: manifest entry %q: %w", f.Path, rerr)
 		}
 		data, rerr := os.ReadFile(filepath.Join(snapshotDir, filepath.FromSlash(rel)))
 		if rerr != nil {
@@ -95,7 +140,7 @@ func (e *Engine) Restore(snapshotDir string, roots RestoreRoots, expected func(s
 				return rerr
 			}
 		}
-		files = append(files, pending{rel: rel, data: data})
+		files = append(files, pending{rel: rel, dest: dest, data: data})
 	}
 
 	// Safety net before any write: snapshot the data we are about to replace.
@@ -104,19 +149,26 @@ func (e *Engine) Restore(snapshotDir string, roots RestoreRoots, expected func(s
 	}
 
 	for _, f := range files {
-		root := roots.HubRoot
-		if f.rel == "config.json" {
-			root = roots.ConfigDir // the one allow-listed global file
-		}
-		dest := filepath.Join(root, filepath.FromSlash(f.rel))
-		if err := os.MkdirAll(filepath.Dir(dest), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(f.dest), 0700); err != nil {
 			return fmt.Errorf("backup: restoring %s: %w", f.rel, err)
 		}
-		if err := atomicfile.WriteFile(dest, f.data, 0600); err != nil {
+		if err := atomicfile.WriteFile(f.dest, f.data, 0600); err != nil {
 			return fmt.Errorf("backup: restoring %s: %w", f.rel, err)
 		}
 	}
 	return nil
+}
+
+// containedJoin joins rel under root and proves the result stays inside root
+// — the write-side half of the path-escape defense (safeRel is the parse-side
+// half). Any escape refuses; the caller has not written anything yet.
+func containedJoin(root, rel string) (string, error) {
+	dest := filepath.Join(root, filepath.FromSlash(rel))
+	r, err := filepath.Rel(root, dest)
+	if err != nil || r == ".." || strings.HasPrefix(r, ".."+string(filepath.Separator)) {
+		return "", errors.New("path escapes the restore root")
+	}
+	return dest, nil
 }
 
 // mergeConfigSecret rebuilds the config.json to restore: every field from

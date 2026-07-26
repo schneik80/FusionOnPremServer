@@ -43,8 +43,10 @@ const (
 const tsLayout = "20060102-150405"
 
 // ManifestVersion gates manifest.json the way store file versions gate data
-// files; a future restore refuses manifests it doesn't understand.
-const ManifestVersion = 1
+// files; a future restore refuses manifests it doesn't understand. v2 added
+// the Hub/HubSlug identity fields — restore refuses v1 manifests outright,
+// because a pre-hub-isolation snapshot cannot prove which hub it belongs to.
+const ManifestVersion = 2
 
 // Source is one provider of backup files. Snapshot must call visit once per
 // file with a slash-separated path relative to the snapshot root, the file's
@@ -66,10 +68,16 @@ type ManifestFile struct {
 }
 
 // Manifest is manifest.json at a snapshot dir's root: what was backed up,
-// when, by which app version — everything verify/restore needs.
+// when, by which app version — everything verify/restore needs. Hub and
+// HubSlug (v2) stamp WHOSE data the snapshot holds: Hub is the raw hub id
+// ("" only for the transient _unassigned quarantine profile) and HubSlug is
+// the profile directory slug, always set for real hubs. Restore refuses any
+// manifest whose identity doesn't match the engine's.
 type Manifest struct {
 	ManifestVersion int            `json:"manifestVersion"`
 	AppVersion      string         `json:"appVersion"`
+	Hub             string         `json:"hub,omitempty"`
+	HubSlug         string         `json:"hubSlug,omitempty"`
 	CreatedAt       time.Time      `json:"createdAt"`
 	Kind            Kind           `json:"kind"`
 	Files           []ManifestFile `json:"files"`
@@ -90,11 +98,16 @@ type Summary struct {
 }
 
 // Engine writes and manages snapshots under Dir. All fields are set at
-// construction; the engine itself is stateless between calls.
+// construction; the engine itself is stateless between calls. Hub/HubSlug
+// name the ONE hub this engine snapshots and restores: every manifest it
+// writes is stamped with them, and Restore refuses a snapshot stamped for a
+// different hub — the engine is structurally single-hub.
 type Engine struct {
 	Dir        string
 	Sources    []Source
 	AppVersion string
+	Hub        string // raw hub id ("" only for the _unassigned profile)
+	HubSlug    string // hub profile directory slug
 }
 
 // Run creates one snapshot of the given kind. Daily runs additionally promote
@@ -116,6 +129,8 @@ func (e *Engine) runAt(kind Kind, now time.Time) (*Manifest, error) {
 	m := &Manifest{
 		ManifestVersion: ManifestVersion,
 		AppVersion:      e.AppVersion,
+		Hub:             e.Hub,
+		HubSlug:         e.HubSlug,
 		CreatedAt:       now.UTC(),
 		Kind:            kind,
 		Files:           []ManifestFile{},
@@ -179,7 +194,11 @@ func (e *Engine) newSnapshotDir(kind Kind, now time.Time) (string, error) {
 	base := filepath.Join(e.Dir, string(kind), now.UTC().Format(tsLayout))
 	dir := base
 	for i := 2; ; i++ {
-		if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+		// Any Stat error — not just ErrNotExist — ends the probe: a broken
+		// destination (e.g. a path component that is a regular file returns
+		// ENOTDIR) would otherwise suffix forever, and MkdirAll below reports
+		// the real error either way.
+		if _, err := os.Stat(dir); err != nil {
 			break
 		}
 		dir = fmt.Sprintf("%s-%d", base, i)
@@ -225,6 +244,12 @@ func (e *Engine) List() ([]Summary, error) {
 				sum.FileCount = len(m.Files)
 				for _, f := range m.Files {
 					sum.TotalBytes += f.Size
+				}
+				// Pre-hub-isolation snapshots still LIST (the operator should
+				// see them), but they carry a Warning: restore will refuse
+				// them because they cannot prove which hub they belong to.
+				if m.ManifestVersion < 2 {
+					sum.Warning = "predates hub isolation — not restorable"
 				}
 			}
 			out = append(out, sum)

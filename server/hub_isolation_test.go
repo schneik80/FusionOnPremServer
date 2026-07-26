@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
+	"github.com/schneik80/fusionlocalserver/backup"
 	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/internal/testutil"
 	"github.com/schneik80/fusionlocalserver/pins"
@@ -509,6 +510,22 @@ func TestHubIsolation_BackupsPerHubTreeAndNoForeignBytes(t *testing.T) {
 	}
 	if len(entries) != 1 || entries[0].Name() != isoHubA {
 		t.Errorf("backup destination entries = %v, want only %q", entries, isoHubA)
+	}
+
+	// The manifest is stamped with hub A's identity (v2): Hub is the raw id,
+	// HubSlug the profile slug — what restore's foreign-hub gate keys on.
+	manualTier := filepath.Join(sharedDir, isoHubA, "manual")
+	snaps, err := os.ReadDir(manualTier)
+	if err != nil || len(snaps) != 1 {
+		t.Fatalf("manual tier = %v, %v (want exactly 1)", snaps, err)
+	}
+	m, err := backup.ReadManifest(filepath.Join(manualTier, snaps[0].Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.ManifestVersion != backup.ManifestVersion || m.Hub != isoHubA || m.HubSlug != setA.slug {
+		t.Errorf("manifest identity = v%d hub %q slug %q, want v%d %q/%q",
+			m.ManifestVersion, m.Hub, m.HubSlug, backup.ManifestVersion, isoHubA, setA.slug)
 	}
 
 	// Hub B has no destination configured → its run answers 503.

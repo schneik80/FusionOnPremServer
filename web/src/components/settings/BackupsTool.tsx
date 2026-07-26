@@ -31,6 +31,7 @@ import {
 } from '../../api/queries'
 import type { BackupFileResult, BackupSummary, BackupVerifyReport } from '../../api/types'
 import { fmtBytes, fmtDate } from '../../fmt'
+import { useNav } from '../../state/nav'
 import { DirPickerDialog } from './DirPickerDialog'
 import { Field } from './Field'
 
@@ -38,6 +39,11 @@ import { Field } from './Field'
 // enabled), trigger a manual backup, browse existing snapshots, and — per
 // snapshot — verify integrity or restore. The server keeps 7 daily /
 // 4 weekly / 12 monthly; manual and pre-restore backups are never pruned.
+//
+// Everything here is PER HUB: the config being edited is the current hub's
+// own backup.json, the destination/schedule apply to that hub alone, and the
+// snapshot table lists only that hub's tree — the server exposes no other
+// hub's backups to this session.
 
 // Reconnect delay after a restore: the server rebinds ~0.5s after acking
 // (same mechanism as a port change), so a short pause lets the new listener
@@ -50,6 +56,7 @@ const fileOk = (f: BackupFileResult) =>
 
 export function BackupsTool({ active }: { active: boolean }) {
   const { t } = useTranslation('settings')
+  const { hubName } = useNav()
   const backupsQ = useAdminBackups(active)
   const save = useAdminBackupConfigSet()
   const run = useAdminBackupRun()
@@ -112,8 +119,11 @@ export function BackupsTool({ active }: { active: boolean }) {
 
   return (
     <Stack spacing={3}>
-      <Field label={t('backups.configTitle')}>
+      <Field label={hubName ? t('backups.configTitleHub', { hub: hubName }) : t('backups.configTitle')}>
         <Stack spacing={1.5} sx={{ maxWidth: 520 }}>
+          <Typography variant="caption" color="text.secondary">
+            {t('backups.perHubNote')}
+          </Typography>
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <TextField
               size="small"
@@ -325,6 +335,11 @@ function VerifyResult({ report, onHide }: { report: BackupVerifyReport; onHide: 
           {t('backups.verify.hide')}
         </Button>
       </Stack>
+      {report.warning && (
+        <Typography variant="caption" color="warning.main">
+          {report.warning}
+        </Typography>
+      )}
       {failures.map((f) => (
         <Stack key={f.path} direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
           <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>

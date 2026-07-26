@@ -78,12 +78,15 @@ export interface BackupFileResult {
 }
 
 // BackupVerifyReport mirrors server.BackupVerifyReportDTO
-// (POST /api/admin/backups/verify).
+// (POST /api/admin/backups/verify). warning is a report-level finding — a
+// snapshot whose files are clean but that restore would refuse (it predates
+// hub isolation, or belongs to another hub).
 export interface BackupVerifyReport {
   path: string
   kind: string
   createdAt: string
   ok: boolean
+  warning?: string
   files: BackupFileResult[]
 }
 

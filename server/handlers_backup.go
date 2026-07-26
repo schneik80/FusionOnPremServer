@@ -115,10 +115,17 @@ func (s *Server) backupEngineFor(set *storeSet) (*backup.Engine, error) {
 		srcs = append(srcs, backup.StoreSource("whiteboards", set.whiteboards.Snapshot))
 	}
 	srcs = append(srcs, backup.PinsSource(set.root), backup.ConfigSource(s.hubs.configDir))
+	// Hub/HubSlug come from the storeSet, which carries the authoritative
+	// identity for both resolution paths: session-locked handlers (requireHub
+	// resolved the set from the session) and the scheduler (getBySlug read the
+	// profile's hub.json). Every manifest this engine writes is stamped with
+	// them, and Restore refuses any manifest stamped otherwise.
 	return &backup.Engine{
 		Dir:        filepath.Join(cfg.BackupDir, set.slug),
 		Sources:    srcs,
 		AppVersion: s.opts.Version,
+		Hub:        set.hubID,
+		HubSlug:    set.slug,
 	}, nil
 }
 
@@ -152,30 +159,25 @@ func (s *Server) pokeBackupScheduler() {
 }
 
 // runBackupScheduler fires each hub's daily backup at that hub's configured
-// HH:MM local time. One loop computes the minimum next-fire time across every
-// enabled hub profile on disk (a hub can have backups configured without
-// having been opened this process run), sleeps until it, then runs every hub
-// whose slot arrived — per-hub failures are logged and skipped, never
-// stopping the other hubs. There is deliberately NO missed-window catch-up
-// (settled decision): a server that was down at 03:30 backs up at the next
-// 03:30, not at startup. _unassigned participates only if it carries its own
-// enabled backup.json (default: none — quarantine is transient). Idles while
-// nothing is enabled; a poke (config change) re-evaluates immediately; exits
-// with ctx.
+// HH:MM local time. This is the settled per-hub posture: EACH HUB BACKS UP ON
+// ITS OWN SCHEDULE TO ITS OWN DESTINATION (hubs/<slug>/backup.json →
+// <thatHub'sBackupDir>/<slug>/), and a hub's snapshots are exposed only to
+// sessions locked to that hub — the scheduler writes every hub's tree, but
+// list/verify/restore/run/config all resolve through the SESSION hub's engine
+// and can never reach another hub's snapshots. One loop computes the minimum
+// next-fire time across every enabled hub profile on disk (a hub can have
+// backups configured without having been opened this process run), sleeps
+// until it, then runs every hub whose slot arrived — per-hub failures are
+// logged and skipped, never stopping the other hubs. There is deliberately NO
+// missed-window catch-up (settled decision): a server that was down at 03:30
+// backs up at the next 03:30, not at startup. _unassigned participates only
+// if it carries its own enabled backup.json (default: none — quarantine is
+// transient). Idles while nothing is enabled; a poke (config change)
+// re-evaluates immediately; exits with ctx.
 func (s *Server) runBackupScheduler(ctx context.Context) {
 	for {
 		now := time.Now()
-		next := time.Time{}
-		for _, slug := range s.hubs.diskHubSlugs() {
-			cfg, err := loadHubBackupConfig(filepath.Join(s.hubs.configDir, "hubs", slug))
-			if err != nil || !cfg.BackupEnabled || cfg.BackupDir == "" {
-				continue
-			}
-			n := backup.NextRun(now, cfg.BackupTime)
-			if next.IsZero() || n.Before(next) {
-				next = n
-			}
-		}
+		next := s.nextScheduledBackup(now)
 		if next.IsZero() {
 			select {
 			case <-ctx.Done():
@@ -196,6 +198,26 @@ func (s *Server) runBackupScheduler(ctx context.Context) {
 			s.runDueHubBackups(now)
 		}
 	}
+}
+
+// nextScheduledBackup returns the earliest next-fire time across every
+// enabled hub profile on disk — the scheduler loop's min-next selection,
+// extracted so its choice over multiple per-hub schedules is testable with a
+// controlled clock (backup.NextRun is pure). Zero when no hub has backups
+// enabled.
+func (s *Server) nextScheduledBackup(now time.Time) time.Time {
+	next := time.Time{}
+	for _, slug := range s.hubs.diskHubSlugs() {
+		cfg, err := loadHubBackupConfig(filepath.Join(s.hubs.configDir, "hubs", slug))
+		if err != nil || !cfg.BackupEnabled || cfg.BackupDir == "" {
+			continue
+		}
+		n := backup.NextRun(now, cfg.BackupTime)
+		if next.IsZero() || n.Before(next) {
+			next = n
+		}
+	}
+	return next
 }
 
 // runDueHubBackups runs a daily backup for every enabled hub whose scheduled
@@ -383,12 +405,15 @@ type BackupFileResultDTO struct {
 }
 
 // BackupVerifyReportDTO is the verify response: manifest header + per-file
-// results. Path echoes the request's backup-dir-relative path.
+// results. Path echoes the request's backup-dir-relative path. Warning is a
+// report-level finding — a snapshot that verifies byte-clean but that restore
+// would refuse (pre-hub-isolation manifest, or one stamped for another hub).
 type BackupVerifyReportDTO struct {
 	Path      string                `json:"path"`
 	Kind      string                `json:"kind"`
 	CreatedAt string                `json:"createdAt"`
 	OK        bool                  `json:"ok"`
+	Warning   string                `json:"warning,omitempty"`
 	Files     []BackupFileResultDTO `json:"files"`
 }
 
@@ -489,7 +514,9 @@ func (s *Server) handleAdminBackupVerify(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	rep, err := backup.Verify(snapDir, expectedSchemaVersion)
+	// The engine method (not the package function) so the report also warns
+	// when the snapshot's hub identity would make restore refuse it.
+	rep, err := eng.Verify(snapDir, expectedSchemaVersion)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("verify failed: %v", err))
 		return
@@ -499,6 +526,7 @@ func (s *Server) handleAdminBackupVerify(w http.ResponseWriter, r *http.Request)
 		Kind:      string(rep.Kind),
 		CreatedAt: fmtTime(rep.CreatedAt),
 		OK:        rep.OK,
+		Warning:   rep.Warning,
 		Files:     make([]BackupFileResultDTO, 0, len(rep.Files)),
 	}
 	for _, f := range rep.Files {
@@ -543,6 +571,20 @@ func (s *Server) handleAdminBackupRestore(w http.ResponseWriter, r *http.Request
 	}
 	if req.Confirm == "" || req.Confirm != filepath.Base(snapDir) {
 		writeError(w, http.StatusBadRequest, "confirmation does not match the snapshot name")
+		return
+	}
+	// Pre-check the hub-identity gate here too (Restore re-checks): the
+	// refusal reasons — a pre-hub-isolation manifest, or a snapshot stamped
+	// for another hub — reach the client as the bare message, not wrapped in
+	// a generic "restore failed".
+	m, merr := backup.ReadManifest(snapDir)
+	if merr != nil {
+		writeError(w, http.StatusBadRequest, merr.Error())
+		return
+	}
+	if cerr := eng.CheckRestorable(m); cerr != nil {
+		s.logger.Warn("backup: restore refused", "path", req.Path, "err", cerr)
+		writeError(w, http.StatusBadRequest, cerr.Error())
 		return
 	}
 	// Store/pins files restore into the SESSION HUB's profile; the only

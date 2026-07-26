@@ -34,13 +34,20 @@ func (f FileResult) ok() bool {
 }
 
 // VerifyReport is the outcome of verifying one snapshot: per-file results
-// plus the manifest header, OK only when every file is fully OK.
+// plus the manifest header, OK only when every file is fully OK. Hub/HubSlug
+// echo the manifest's identity stamp (v2; empty on v1 manifests); Warning is
+// a report-level finding — a snapshot that verifies byte-clean but would
+// still be refused by restore (pre-v2, or stamped for a different hub).
 type VerifyReport struct {
-	Path      string       `json:"path"`
-	CreatedAt time.Time    `json:"createdAt"`
-	Kind      Kind         `json:"kind"`
-	Files     []FileResult `json:"files"`
-	OK        bool         `json:"ok"`
+	Path            string       `json:"path"`
+	CreatedAt       time.Time    `json:"createdAt"`
+	Kind            Kind         `json:"kind"`
+	ManifestVersion int          `json:"manifestVersion"`
+	Hub             string       `json:"hub,omitempty"`
+	HubSlug         string       `json:"hubSlug,omitempty"`
+	Warning         string       `json:"warning,omitempty"`
+	Files           []FileResult `json:"files"`
+	OK              bool         `json:"ok"`
 }
 
 // Verify checks a snapshot directory against its manifest: every manifest
@@ -58,10 +65,13 @@ func Verify(snapshotDir string, expected func(store, rel string) (int, bool)) (*
 		return nil, err
 	}
 	rep := &VerifyReport{
-		Path:      snapshotDir,
-		CreatedAt: m.CreatedAt,
-		Kind:      m.Kind,
-		Files:     []FileResult{},
+		Path:            snapshotDir,
+		CreatedAt:       m.CreatedAt,
+		Kind:            m.Kind,
+		ManifestVersion: m.ManifestVersion,
+		Hub:             m.Hub,
+		HubSlug:         m.HubSlug,
+		Files:           []FileResult{},
 	}
 
 	inManifest := make(map[string]bool, len(m.Files))
@@ -84,6 +94,26 @@ func Verify(snapshotDir string, expected func(store, rel string) (int, bool)) (*
 			rep.OK = false
 			break
 		}
+	}
+	return rep, nil
+}
+
+// Verify (the Engine method) runs the package-level Verify and additionally
+// surfaces the hub-identity findings CheckRestorable would refuse on, as a
+// report-level Warning: a pre-hub-isolation manifest, or a snapshot stamped
+// for a different hub than this engine. File-level OK is untouched — the
+// bytes may be pristine; they are just not restorable HERE.
+func (e *Engine) Verify(snapshotDir string, expected func(store, rel string) (int, bool)) (*VerifyReport, error) {
+	rep, err := Verify(snapshotDir, expected)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case rep.ManifestVersion < 2:
+		rep.Warning = "this backup predates hub isolation and cannot be restored; take a fresh backup"
+	case rep.HubSlug != e.HubSlug || (rep.Hub != "" && e.Hub != "" && rep.Hub != e.Hub):
+		rep.Warning = fmt.Sprintf("snapshot belongs to hub %q (profile %q), not this session's hub — restore will refuse it",
+			rep.Hub, rep.HubSlug)
 	}
 	return rep, nil
 }
