@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -23,13 +22,9 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
-	"github.com/schneik80/fusionlocalserver/backup"
 	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/config"
 	"github.com/schneik80/fusionlocalserver/pins"
-	"github.com/schneik80/fusionlocalserver/production"
-	"github.com/schneik80/fusionlocalserver/tasks"
-	"github.com/schneik80/fusionlocalserver/whiteboards"
 )
 
 // Options configures a server run. Config may be nil when CfgErr is set (no
@@ -115,48 +110,35 @@ type Server struct {
 	thumbs  *thumbCache
 	warmSem chan struct{}
 
-	// chat is the file-backed project chat store (nil when the config dir is
-	// unavailable; chat endpoints then reply 503), with its APS-role-backed
-	// authorizer, per-session rate limits, and the SSE fan-out hub.
+	// hubs owns one storeSet (chat/tasks/production/whiteboards + per-hub SSE
+	// fan-out) per hub, rooted under <config>/hubs/<slug>/ and resolved
+	// per-request from the session's selected hub by requireHub. Nil when the
+	// config dir is unavailable; local-data endpoints then reply 503.
+	// Authorization stays global: chatAuthz maps the caller's APS project
+	// role to capabilities — one roster cache across every hub and feature.
+	hubs *hubStores
+
+	// chatAuthz + the per-session rate limiters are process-global (a session
+	// spans hubs across switches; the limits are per user, not per hub).
 	// chatKeepalive is the events stream's ping/entitlement-recheck cadence
 	// (defaulted in Run; overridable in tests).
-	chat          *chat.Store
 	chatAuthz     *chat.Authorizer
 	chatMsgLim    *chat.Limiter
 	chatOpLim     *chat.Limiter
 	chatSyncLim   *chat.Limiter
-	chatHub       *chat.Hub
 	chatKeepalive time.Duration
 
-	// tasks is the file-backed project task store (nil when the config dir
-	// is unavailable; task endpoints then reply 503). Authorization shares
-	// chatAuthz — the caller's APS project role, one roster cache for both
-	// features.
-	tasks     *tasks.Store
-	taskOpLim *chat.Limiter
-
-	// production is the file-backed job/batch store (nil when the config dir
-	// is unavailable; production endpoints then reply 503). Authorization
-	// shares chatAuthz, exactly like tasks.
-	production *production.Store
-	prodOpLim  *chat.Limiter
-
-	// whiteboards is the file-backed tldraw board store (nil when the config
-	// dir is unavailable; whiteboard endpoints then reply 503). Authorization
-	// shares chatAuthz, exactly like tasks and production.
-	whiteboards     *whiteboards.Store
+	taskOpLim       *chat.Limiter
+	prodOpLim       *chat.Limiter
 	whiteboardOpLim *chat.Limiter
 
 	// uploads tracks background file-upload jobs (per-session; see uploads.go).
 	uploads *uploadManager
 
-	// backups is the snapshot engine (nil while no backup directory is
-	// configured; the run endpoint then replies 503). backupMu guards the
-	// pointer — the engine is rebuilt whenever the backup config changes.
-	// backupPoke wakes the scheduler goroutine to recompute its timer after a
-	// config change (buffered, cap 1, so posting never blocks a handler).
-	backupMu   sync.Mutex
-	backups    *backup.Engine
+	// backupPoke wakes the backup scheduler goroutine to recompute its timers
+	// after a per-hub config change (buffered, cap 1, so posting never blocks
+	// a handler). Engines are built on demand per hub (backupEngineFor) —
+	// there is no cached process-global engine anymore.
 	backupPoke chan struct{}
 }
 
@@ -230,65 +212,34 @@ func Run(opts Options) error {
 		logger.Warn("sessions: could not load persisted sessions", "err", lerr)
 	}
 
-	// Chat store (message logs live under <config>/chat/<project>/). Rate
-	// limits are per session: messages 2/s with burst 5, channel ops 10/min,
-	// sync (read cursors + typing pings) 2/s with burst 20.
-	if dir, derr := config.Dir(); derr != nil {
-		logger.Warn("chat: disabled (config dir unavailable)", "err", derr)
-	} else if cs, cerr := chat.NewStore(filepath.Join(dir, "chat")); cerr != nil {
-		logger.Warn("chat: disabled (store init failed)", "err", cerr)
-	} else {
-		s.chat = cs
-		defer cs.Close()
-	}
+	// Authorization + per-session rate limits (global — see the field docs).
+	// Messages 2/s with burst 5, channel ops 10/min, sync (read cursors +
+	// typing pings) 2/s with burst 20; task/production mutations 2/s burst 10
+	// (generous enough for Kanban drags, tight enough to stop scripted
+	// floods); whiteboard create/rename likewise (document autosaves are
+	// debounced client-side and never hit this limiter).
 	s.chatAuthz = chat.NewAuthorizer()
 	s.chatMsgLim = chat.NewLimiter(2, 5)
 	s.chatOpLim = chat.NewLimiter(10.0/60.0, 10)
 	s.chatSyncLim = chat.NewLimiter(2, 20)
 	s.chatKeepalive = 25 * time.Second
-	if s.chat != nil {
-		s.chatHub = chat.NewHub(s.chatAuthz, s.chat.EventEpoch)
-	}
-
-	// Task store (one tasks.json per project under <config>/tasks/).
-	// Mutations are limited to 2/s with burst 10 per session — generous
-	// enough for Kanban drags, tight enough to stop scripted floods.
-	if dir, derr := config.Dir(); derr != nil {
-		logger.Warn("tasks: disabled (config dir unavailable)", "err", derr)
-	} else if ts, terr := tasks.NewStore(filepath.Join(dir, "tasks")); terr != nil {
-		logger.Warn("tasks: disabled (store init failed)", "err", terr)
-	} else {
-		s.tasks = ts
-	}
 	s.taskOpLim = chat.NewLimiter(2, 10)
-
-	// Production store (one production.json per project under
-	// <config>/production/). Same posture and rate limit as tasks.
-	if dir, derr := config.Dir(); derr != nil {
-		logger.Warn("production: disabled (config dir unavailable)", "err", derr)
-	} else if ps, perr := production.NewStore(filepath.Join(dir, "production")); perr != nil {
-		logger.Warn("production: disabled (store init failed)", "err", perr)
-	} else {
-		s.production = ps
-	}
 	s.prodOpLim = chat.NewLimiter(2, 10)
-
-	// Whiteboard store (metadata + one tldraw document per board under
-	// <config>/whiteboards/). The limiter covers create/rename only — document
-	// autosaves are already debounced client-side and would trip a 2/s bucket.
-	if dir, derr := config.Dir(); derr != nil {
-		logger.Warn("whiteboards: disabled (config dir unavailable)", "err", derr)
-	} else if ws, werr := whiteboards.NewStore(filepath.Join(dir, "whiteboards")); werr != nil {
-		logger.Warn("whiteboards: disabled (store init failed)", "err", werr)
-	} else {
-		s.whiteboards = ws
-	}
 	s.whiteboardOpLim = chat.NewLimiter(2, 10)
 
-	// Backup engine over the four stores + pins + redacted config (nil until a
-	// backup directory is configured; rebuilt on config change).
+	// Per-hub store sets, rooted under <config>/hubs/<slug>/ and built
+	// lazily when a session locks to a hub. Nil (all local-data endpoints
+	// 503) when the config dir is unavailable.
+	if dir, derr := config.Dir(); derr != nil {
+		logger.Warn("local stores: disabled (config dir unavailable)", "err", derr)
+	} else {
+		s.hubs = newHubStores(dir, s.chatAuthz)
+		defer s.hubs.closeAll()
+	}
+
+	// Backup engines are built on demand per hub from hubs/<slug>/backup.json
+	// (backupEngineFor); backupPoke re-arms the scheduler after config edits.
 	s.backupPoke = make(chan struct{}, 1)
-	s.reloadBackupEngine()
 
 	// Resolve TLS once, before the bind loop spans restarts. A self-signed
 	// cert is generated/cached when -tls is given without a cert pair.
@@ -438,12 +389,14 @@ func (s *Server) serveUntil(ctx context.Context, srv *http.Server) (serveReason,
 
 // drain gracefully shuts down srv, waiting up to 10s for in-flight requests
 // (including the just-sent port-change response) to complete. Chat event
-// streams are closed first — they are indefinitely long-lived, and Shutdown
-// would otherwise wait the full budget on them and stall the port-rebind
-// loop.
+// streams are closed first, fanned out over EVERY hub's SSE hub — they are
+// indefinitely long-lived, and Shutdown would otherwise wait the full budget
+// on them and stall the port-rebind (or restore-restart) loop.
 func (s *Server) drain(srv *http.Server) {
-	if s.chatHub != nil {
-		s.chatHub.CloseAll()
+	for _, set := range s.hubs.snapshotAll() {
+		if set.chatHub != nil {
+			set.chatHub.CloseAll()
+		}
 	}
 	s.logger.Info("draining connections")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

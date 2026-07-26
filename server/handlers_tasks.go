@@ -29,20 +29,26 @@ import (
 const taskMaxBody = 64 << 10
 
 // taskCtx is what every task handler resolves first: the caller's token,
-// identity, display name, session id (the rate-limit key), and — except
-// for /mine — the project in question.
+// identity, display name, session id (the rate-limit key), the SESSION
+// HUB's task store (from the requireHub choke point — never from any wire
+// hub id), and — except for /mine — the project in question.
 type taskCtx struct {
 	projectID string
 	token     string
 	id        chat.Identity
 	name      string
 	sessID    string
+
+	store *tasks.Store
+	hubID string
 }
 
-// taskSession gates a task request that has no project scope (/mine).
+// taskSession gates a task request that has no project scope (/mine). The
+// hub's store set comes from requireHub; /mine therefore scopes to the
+// session hub structurally — its dir scan can't see other hubs' files.
 func (s *Server) taskSession(w http.ResponseWriter, r *http.Request) (taskCtx, bool) {
-	if s.tasks == nil {
-		writeError(w, http.StatusServiceUnavailable, "task storage is unavailable on this server")
+	set, ok := reqStores(w, r)
+	if !ok {
 		return taskCtx{}, false
 	}
 	tok, ok := s.token(r.Context(), w, r)
@@ -63,6 +69,8 @@ func (s *Server) taskSession(w http.ResponseWriter, r *http.Request) (taskCtx, b
 		id:     chat.Identity{UserID: sess.Profile.Sub, Email: sess.Profile.Email},
 		name:   name,
 		sessID: sess.ID,
+		store:  set.tasks,
+		hubID:  set.hubID,
 	}, true
 }
 
@@ -146,12 +154,12 @@ func (s *Server) handleTasksList(w http.ResponseWriter, r *http.Request) {
 	if !s.taskCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	list, err := s.tasks.List(c.projectID)
+	list, err := c.store.List(c.projectID)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
 	}
-	hubID, projectName, err := s.tasks.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
@@ -196,12 +204,12 @@ func (s *Server) handleTaskGet(w http.ResponseWriter, r *http.Request) {
 	if !s.taskCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	t, err := s.tasks.Get(c.projectID, taskID)
+	t, err := c.store.Get(c.projectID, taskID)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
 	}
-	hubID, projectName, err := s.tasks.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
@@ -250,11 +258,14 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "hubId and projectName are required")
 		return
 	}
+	if !hubMatches(w, c.hubID, in.HubID) {
+		return
+	}
 	if in.Assignee != nil && in.Assignee.ID == "" {
 		writeError(w, http.StatusBadRequest, "assignee id is required")
 		return
 	}
-	t, err := s.tasks.Create(c.projectID, in.HubID, in.ProjectName, tasks.Draft{
+	t, err := c.store.Create(c.projectID, in.HubID, in.ProjectName, tasks.Draft{
 		Title:       in.Title,
 		Description: in.Description,
 		Status:      in.Status,
@@ -323,7 +334,7 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "assignee id is required")
 		return
 	}
-	t, err := s.tasks.Update(c.projectID, taskID, tasks.Patch{
+	t, err := c.store.Update(c.projectID, taskID, tasks.Patch{
 		Title:         in.Title,
 		Description:   in.Description,
 		Status:        in.Status,
@@ -346,7 +357,7 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 		s.taskError(w, r, err)
 		return
 	}
-	hubID, projectName, err := s.tasks.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
@@ -371,7 +382,7 @@ func (s *Server) handleTaskDelete(w http.ResponseWriter, r *http.Request) {
 	if !s.taskCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	t, err := s.tasks.Get(c.projectID, taskID)
+	t, err := c.store.Get(c.projectID, taskID)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
@@ -385,7 +396,7 @@ func (s *Server) handleTaskDelete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "only the task's creator or a project moderator can delete it")
 		return
 	}
-	if err := s.tasks.Delete(c.projectID, taskID); err != nil {
+	if err := c.store.Delete(c.projectID, taskID); err != nil {
 		s.taskError(w, r, err)
 		return
 	}
@@ -417,12 +428,12 @@ func (s *Server) handleTasksShift(w http.ResponseWriter, r *http.Request) {
 	if !decodeTaskBody(w, r, &in) {
 		return
 	}
-	shifted, err := s.tasks.ShiftTasks(c.projectID, in.TaskIDs, in.Days)
+	shifted, err := c.store.ShiftTasks(c.projectID, in.TaskIDs, in.Days)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
 	}
-	hubID, projectName, err := s.tasks.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.taskError(w, r, err)
 		return
@@ -444,7 +455,7 @@ func (s *Server) handleTasksMine(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	mine, err := s.tasks.Mine(c.id.UserID, c.id.Email)
+	mine, err := c.store.Mine(c.id.UserID, c.id.Email)
 	if err != nil {
 		s.taskError(w, r, err)
 		return

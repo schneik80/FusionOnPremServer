@@ -31,17 +31,22 @@ const (
 	whiteboardMaxDoc = whiteboards.MaxSnapshotBytes
 )
 
+// whiteboardCtx carries the caller plus the SESSION HUB's whiteboard store
+// (from the requireHub choke point — never from any wire hub id).
 type whiteboardCtx struct {
 	projectID string
 	token     string
 	id        chat.Identity
 	name      string
 	sessID    string
+
+	store *whiteboards.Store
+	hubID string
 }
 
 func (s *Server) whiteboardSession(w http.ResponseWriter, r *http.Request) (whiteboardCtx, bool) {
-	if s.whiteboards == nil {
-		writeError(w, http.StatusServiceUnavailable, "whiteboard storage is unavailable on this server")
+	set, ok := reqStores(w, r)
+	if !ok {
 		return whiteboardCtx{}, false
 	}
 	tok, ok := s.token(r.Context(), w, r)
@@ -62,6 +67,8 @@ func (s *Server) whiteboardSession(w http.ResponseWriter, r *http.Request) (whit
 		id:     chat.Identity{UserID: sess.Profile.Sub, Email: sess.Profile.Email},
 		name:   name,
 		sessID: sess.ID,
+		store:  set.whiteboards,
+		hubID:  set.hubID,
 	}, true
 }
 
@@ -110,7 +117,7 @@ func (s *Server) whiteboardUser(c whiteboardCtx) whiteboards.UserRef {
 }
 
 func (s *Server) whiteboardResult(w http.ResponseWriter, r *http.Request, c whiteboardCtx, b whiteboards.Board, status int) {
-	hubID, projectName, err := s.whiteboards.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
@@ -129,12 +136,12 @@ func (s *Server) handleWhiteboardsList(w http.ResponseWriter, r *http.Request) {
 	if !s.whiteboardCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	list, err := s.whiteboards.List(c.projectID)
+	list, err := c.store.List(c.projectID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
 	}
-	hubID, projectName, err := s.whiteboards.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
@@ -190,7 +197,10 @@ func (s *Server) handleWhiteboardCreate(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "hubId and projectName are required")
 		return
 	}
-	b, err := s.whiteboards.Create(c.projectID, in.HubID, in.ProjectName, whiteboards.Draft{Name: in.Name}, s.whiteboardUser(c))
+	if !hubMatches(w, c.hubID, in.HubID) {
+		return
+	}
+	b, err := c.store.Create(c.projectID, in.HubID, in.ProjectName, whiteboards.Draft{Name: in.Name}, s.whiteboardUser(c))
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
@@ -224,7 +234,7 @@ func (s *Server) handleWhiteboardUpdate(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	b, err := s.whiteboards.Update(c.projectID, boardID, whiteboards.Patch{Name: in.Name})
+	b, err := c.store.Update(c.projectID, boardID, whiteboards.Patch{Name: in.Name})
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
@@ -248,7 +258,7 @@ func (s *Server) handleWhiteboardDelete(w http.ResponseWriter, r *http.Request) 
 	if !s.whiteboardCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	b, err := s.whiteboards.Get(c.projectID, boardID)
+	b, err := c.store.Get(c.projectID, boardID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
@@ -262,7 +272,7 @@ func (s *Server) handleWhiteboardDelete(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusForbidden, "only the whiteboard's creator or a project moderator can delete it")
 		return
 	}
-	if err := s.whiteboards.Delete(c.projectID, boardID); err != nil {
+	if err := c.store.Delete(c.projectID, boardID); err != nil {
 		s.whiteboardError(w, r, err)
 		return
 	}
@@ -285,7 +295,7 @@ func (s *Server) handleWhiteboardDocGet(w http.ResponseWriter, r *http.Request) 
 	if !s.whiteboardCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	doc, err := s.whiteboards.Document(c.projectID, boardID)
+	doc, err := c.store.Document(c.projectID, boardID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
@@ -320,7 +330,7 @@ func (s *Server) handleWhiteboardDocPut(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusRequestEntityTooLarge, "whiteboard document is too large")
 		return
 	}
-	b, err := s.whiteboards.SaveSnapshot(c.projectID, boardID, doc, s.whiteboardUser(c))
+	b, err := c.store.SaveSnapshot(c.projectID, boardID, doc, s.whiteboardUser(c))
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return

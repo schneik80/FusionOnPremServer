@@ -243,7 +243,7 @@ func TestSSE_CloseAllDisconnectsStreams(t *testing.T) {
 	chatDo(t, ts.URL, http.MethodGet, chatURL("/api/chat/channels"), editor, nil, nil)
 
 	events, _ := openSSE(t, ts.URL, editor, "")
-	s.chatHub.CloseAll()
+	hubSet(t, s, testHubID).chatHub.CloseAll()
 	waitClosed(t, events, "stream after CloseAll")
 }
 

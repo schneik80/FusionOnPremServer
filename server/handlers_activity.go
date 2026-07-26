@@ -108,6 +108,16 @@ func (s *Server) handleActivityRollup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// The rollup's hub rides in the BODY, so the session-hub equality is
+	// enforced here (before the APS fan-out) rather than by requireHub's
+	// central query-param check.
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	if !hubMatches(w, set.hubID, body.HubID) {
+		return
+	}
 
 	events, err := api.RollUpDesignActivity(ctx, token, body.HubID, body.ItemID, body.ChildItemIDs)
 	if err != nil {

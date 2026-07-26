@@ -15,7 +15,6 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/backup"
 	"github.com/schneik80/fusionlocalserver/chat"
-	"github.com/schneik80/fusionlocalserver/config"
 	"github.com/schneik80/fusionlocalserver/pins"
 	"github.com/schneik80/fusionlocalserver/production"
 	"github.com/schneik80/fusionlocalserver/tasks"
@@ -24,11 +23,16 @@ import (
 
 // Backup endpoints back the Settings console's Backups tool. Same gating
 // posture as the rest of /api/admin: any authenticated session (single-user
-// local server), destructive steps confirm in the UI.
+// local server), destructive steps confirm in the UI. Backups are FULLY
+// per-hub: each hub carries its own configuration (hubs/<slug>/backup.json —
+// its own destination and schedule), its engine snapshots only that hub's
+// stores + pins (plus the redacted global config pair), and its snapshot
+// tree roots at <thatHub'sBackupDir>/<slug>/ — the slug subtree guards two
+// hubs configured to one location from ever interleaving.
 
-// BackupConfigDTO is the backup configuration slice of server.json — both the
-// GET/POST /api/admin/backups/config payload and the config half of
-// GET /api/admin/backups.
+// BackupConfigDTO is one hub's backup configuration — both the GET/POST
+// /api/admin/backups/config payload and the config half of
+// GET /api/admin/backups. It always reads and writes the SESSION hub's file.
 type BackupConfigDTO struct {
 	BackupDir     string `json:"backupDir"`
 	BackupTime    string `json:"backupTime"`
@@ -61,13 +65,13 @@ type FsDirsDTO struct {
 	Dirs   []string `json:"dirs"`
 }
 
-// backupConfigFromSettings extracts the config DTO, applying the default time.
-func backupConfigFromSettings(set Settings) BackupConfigDTO {
-	tm := set.BackupTime
+// backupConfigDTO renders a hub's backup config, applying the default time.
+func backupConfigDTO(cfg hubBackupConfig) BackupConfigDTO {
+	tm := cfg.BackupTime
 	if tm == "" {
 		tm = backup.DefaultTime
 	}
-	return BackupConfigDTO{BackupDir: set.BackupDir, BackupTime: tm, BackupEnabled: set.BackupEnabled}
+	return BackupConfigDTO{BackupDir: cfg.BackupDir, BackupTime: tm, BackupEnabled: cfg.BackupEnabled}
 }
 
 func backupSummaryDTO(s backup.Summary) BackupSummaryDTO {
@@ -82,48 +86,57 @@ func backupSummaryDTO(s backup.Summary) BackupSummaryDTO {
 	}
 }
 
-// backupEngine returns the current engine (nil when no backup dir is set).
-func (s *Server) backupEngine() *backup.Engine {
-	s.backupMu.Lock()
-	defer s.backupMu.Unlock()
-	return s.backups
+// backupEngineFor builds the hub's snapshot engine from its own backup.json,
+// on demand — there is no cached process-global engine. Returns (nil, nil)
+// when the hub has no backup directory configured (callers answer 503, the
+// existing posture). Sources are strictly allow-list AND strictly this hub's:
+// the set's four store snapshots, the set's pins glob (set.root), and the
+// redacted global config pair. The engine roots at <BackupDir>/<slug>/ so two
+// hubs pointed at one location still land in disjoint trees.
+func (s *Server) backupEngineFor(set *storeSet) (*backup.Engine, error) {
+	cfg, err := loadHubBackupConfig(set.root)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.BackupDir == "" {
+		return nil, nil
+	}
+	srcs := []backup.Source{}
+	if set.chat != nil {
+		srcs = append(srcs, backup.StoreSource("chat", set.chat.Snapshot))
+	}
+	if set.tasks != nil {
+		srcs = append(srcs, backup.StoreSource("tasks", set.tasks.Snapshot))
+	}
+	if set.production != nil {
+		srcs = append(srcs, backup.StoreSource("production", set.production.Snapshot))
+	}
+	if set.whiteboards != nil {
+		srcs = append(srcs, backup.StoreSource("whiteboards", set.whiteboards.Snapshot))
+	}
+	srcs = append(srcs, backup.PinsSource(set.root), backup.ConfigSource(s.hubs.configDir))
+	return &backup.Engine{
+		Dir:        filepath.Join(cfg.BackupDir, set.slug),
+		Sources:    srcs,
+		AppVersion: s.opts.Version,
+	}, nil
 }
 
-// reloadBackupEngine rebuilds the engine from the persisted settings —
-// called at startup and after every config change. Sources are strictly
-// allow-list: the four store snapshots, the pins glob, and the redacted
-// config pair. Nothing else under the config dir is ever read.
-func (s *Server) reloadBackupEngine() {
-	set, err := LoadSettings()
+// reqBackupEngine resolves the session hub's engine or writes the response
+// itself: 503 when the hub has no backup directory configured, 500 on a
+// config load failure.
+func (s *Server) reqBackupEngine(w http.ResponseWriter, r *http.Request, set *storeSet) (*backup.Engine, bool) {
+	eng, err := s.backupEngineFor(set)
 	if err != nil {
-		s.logger.Warn("backup: settings load failed; engine disabled", "err", err)
-		set = Settings{}
+		s.logger.Error("backup: config unavailable", "hub", set.hubID, "err", err)
+		writeError(w, http.StatusInternalServerError, "backup configuration is unavailable")
+		return nil, false
 	}
-	var eng *backup.Engine
-	if set.BackupDir != "" {
-		if dir, derr := config.Dir(); derr != nil {
-			s.logger.Warn("backup: disabled (config dir unavailable)", "err", derr)
-		} else {
-			srcs := []backup.Source{}
-			if s.chat != nil {
-				srcs = append(srcs, backup.StoreSource("chat", s.chat.Snapshot))
-			}
-			if s.tasks != nil {
-				srcs = append(srcs, backup.StoreSource("tasks", s.tasks.Snapshot))
-			}
-			if s.production != nil {
-				srcs = append(srcs, backup.StoreSource("production", s.production.Snapshot))
-			}
-			if s.whiteboards != nil {
-				srcs = append(srcs, backup.StoreSource("whiteboards", s.whiteboards.Snapshot))
-			}
-			srcs = append(srcs, backup.PinsSource(dir), backup.ConfigSource(dir))
-			eng = &backup.Engine{Dir: set.BackupDir, Sources: srcs, AppVersion: s.opts.Version}
-		}
+	if eng == nil {
+		writeError(w, http.StatusServiceUnavailable, "no backup directory configured")
+		return nil, false
 	}
-	s.backupMu.Lock()
-	s.backups = eng
-	s.backupMu.Unlock()
+	return eng, true
 }
 
 // pokeBackupScheduler wakes the scheduler to recompute its timer. Coalescing
@@ -138,15 +151,32 @@ func (s *Server) pokeBackupScheduler() {
 	}
 }
 
-// runBackupScheduler fires a daily backup at the configured HH:MM local time,
-// then recomputes the next occurrence. There is deliberately NO missed-window
-// catch-up (settled decision): a server that was down at 03:30 backs up at
-// the next 03:30, not at startup. Idles while disabled/unconfigured; a poke
-// (config change) re-evaluates immediately; exits with ctx.
+// runBackupScheduler fires each hub's daily backup at that hub's configured
+// HH:MM local time. One loop computes the minimum next-fire time across every
+// enabled hub profile on disk (a hub can have backups configured without
+// having been opened this process run), sleeps until it, then runs every hub
+// whose slot arrived — per-hub failures are logged and skipped, never
+// stopping the other hubs. There is deliberately NO missed-window catch-up
+// (settled decision): a server that was down at 03:30 backs up at the next
+// 03:30, not at startup. _unassigned participates only if it carries its own
+// enabled backup.json (default: none — quarantine is transient). Idles while
+// nothing is enabled; a poke (config change) re-evaluates immediately; exits
+// with ctx.
 func (s *Server) runBackupScheduler(ctx context.Context) {
 	for {
-		set, err := LoadSettings()
-		if err != nil || !set.BackupEnabled || s.backupEngine() == nil {
+		now := time.Now()
+		next := time.Time{}
+		for _, slug := range s.hubs.diskHubSlugs() {
+			cfg, err := loadHubBackupConfig(filepath.Join(s.hubs.configDir, "hubs", slug))
+			if err != nil || !cfg.BackupEnabled || cfg.BackupDir == "" {
+				continue
+			}
+			n := backup.NextRun(now, cfg.BackupTime)
+			if next.IsZero() || n.Before(next) {
+				next = n
+			}
+		}
+		if next.IsZero() {
 			select {
 			case <-ctx.Done():
 				return
@@ -154,7 +184,6 @@ func (s *Server) runBackupScheduler(ctx context.Context) {
 				continue
 			}
 		}
-		next := backup.NextRun(time.Now(), set.BackupTime)
 		timer := time.NewTimer(time.Until(next))
 		select {
 		case <-ctx.Done():
@@ -164,29 +193,59 @@ func (s *Server) runBackupScheduler(ctx context.Context) {
 			timer.Stop()
 			continue
 		case <-timer.C:
-			eng := s.backupEngine()
-			if eng == nil {
-				continue
-			}
-			if m, rerr := eng.Run(backup.KindDaily); rerr != nil {
-				s.logger.Error("backup: scheduled daily backup failed", "err", rerr)
-			} else {
-				s.logger.Info("backup: scheduled daily backup complete",
-					"files", len(m.Files), "dir", eng.Dir)
-			}
+			s.runDueHubBackups(now)
 		}
 	}
 }
 
-// handleAdminBackups lists every snapshot plus the current config.
+// runDueHubBackups runs a daily backup for every enabled hub whose scheduled
+// time has arrived since `computedAt` (the instant the sleeping loop computed
+// its timers). Each hub fails independently.
+func (s *Server) runDueHubBackups(computedAt time.Time) {
+	now := time.Now()
+	for _, slug := range s.hubs.diskHubSlugs() {
+		cfg, err := loadHubBackupConfig(filepath.Join(s.hubs.configDir, "hubs", slug))
+		if err != nil || !cfg.BackupEnabled || cfg.BackupDir == "" {
+			continue
+		}
+		if backup.NextRun(computedAt, cfg.BackupTime).After(now) {
+			continue // this hub's slot hasn't arrived yet
+		}
+		set, serr := s.hubs.getBySlug(slug)
+		if serr != nil {
+			s.logger.Error("backup: scheduled backup skipped (hub unavailable)", "hub", slug, "err", serr)
+			continue
+		}
+		eng, eerr := s.backupEngineFor(set)
+		if eerr != nil || eng == nil {
+			s.logger.Error("backup: scheduled backup skipped (engine unavailable)", "hub", slug, "err", eerr)
+			continue
+		}
+		if m, rerr := eng.Run(backup.KindDaily); rerr != nil {
+			s.logger.Error("backup: scheduled daily backup failed", "hub", slug, "err", rerr)
+		} else {
+			s.logger.Info("backup: scheduled daily backup complete",
+				"hub", slug, "files", len(m.Files), "dir", eng.Dir)
+		}
+	}
+}
+
+// handleAdminBackups lists the session hub's snapshots plus its config.
 func (s *Server) handleAdminBackups(w http.ResponseWriter, r *http.Request) {
-	set, err := LoadSettings()
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("loading settings: %w", err))
+	set, ok := reqStores(w, r)
+	if !ok {
 		return
 	}
-	out := BackupListDTO{Config: backupConfigFromSettings(set), Backups: []BackupSummaryDTO{}}
-	if eng := s.backupEngine(); eng != nil {
+	cfg, err := loadHubBackupConfig(set.root)
+	if err != nil {
+		s.fail(w, r, fmt.Errorf("loading backup config: %w", err))
+		return
+	}
+	out := BackupListDTO{Config: backupConfigDTO(cfg), Backups: []BackupSummaryDTO{}}
+	if eng, eerr := s.backupEngineFor(set); eerr != nil {
+		s.fail(w, r, fmt.Errorf("loading backup config: %w", eerr))
+		return
+	} else if eng != nil {
 		sums, lerr := eng.List()
 		if lerr != nil {
 			s.fail(w, r, fmt.Errorf("listing backups: %w", lerr))
@@ -199,11 +258,14 @@ func (s *Server) handleAdminBackups(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleAdminBackupRun performs a manual backup now.
+// handleAdminBackupRun performs a manual backup of the session hub now.
 func (s *Server) handleAdminBackupRun(w http.ResponseWriter, r *http.Request) {
-	eng := s.backupEngine()
-	if eng == nil {
-		writeError(w, http.StatusServiceUnavailable, "no backup directory configured")
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	eng, ok := s.reqBackupEngine(w, r, set)
+	if !ok {
 		return
 	}
 	m, err := eng.Run(backup.KindManual)
@@ -227,19 +289,27 @@ func (s *Server) handleAdminBackupRun(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleAdminBackupConfigGet returns the persisted backup configuration.
+// handleAdminBackupConfigGet returns the session hub's backup configuration.
 func (s *Server) handleAdminBackupConfigGet(w http.ResponseWriter, r *http.Request) {
-	set, err := LoadSettings()
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("loading settings: %w", err))
+	set, ok := reqStores(w, r)
+	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, backupConfigFromSettings(set))
+	cfg, err := loadHubBackupConfig(set.root)
+	if err != nil {
+		s.fail(w, r, fmt.Errorf("loading backup config: %w", err))
+		return
+	}
+	writeJSON(w, http.StatusOK, backupConfigDTO(cfg))
 }
 
-// handleAdminBackupConfigSet validates and persists the backup configuration,
-// then rebuilds the engine and reschedules.
+// handleAdminBackupConfigSet validates and persists the SESSION HUB's backup
+// configuration (hubs/<slug>/backup.json), then reschedules.
 func (s *Server) handleAdminBackupConfigSet(w http.ResponseWriter, r *http.Request) {
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
 	var req BackupConfigDTO
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -279,17 +349,16 @@ func (s *Server) handleAdminBackupConfigSet(w http.ResponseWriter, r *http.Reque
 		_ = os.Remove(probe.Name())
 	}
 
-	if err := UpdateSettings(func(set *Settings) {
-		set.BackupDir = req.BackupDir
-		set.BackupTime = req.BackupTime
-		set.BackupEnabled = req.BackupEnabled
+	if err := saveHubBackupConfig(set.root, hubBackupConfig{
+		BackupDir:     req.BackupDir,
+		BackupTime:    req.BackupTime,
+		BackupEnabled: req.BackupEnabled,
 	}); err != nil {
 		s.fail(w, r, fmt.Errorf("saving backup settings: %w", err))
 		return
 	}
-	s.reloadBackupEngine()
 	s.pokeBackupScheduler()
-	s.logger.Info("backup: configuration updated",
+	s.logger.Info("backup: configuration updated", "hub", set.hubID,
 		"dir", req.BackupDir, "time", req.BackupTime, "enabled", req.BackupEnabled)
 	writeJSON(w, http.StatusOK, req)
 }
@@ -379,7 +448,10 @@ func expectedSchemaVersion(store, rel string) (int, bool) {
 // snapshotDirForPath resolves a backup-dir-relative snapshot path, refusing
 // anything that escapes the backup directory (absolute paths, ..
 // traversal). The path is client input naming a directory we will read and
-// restore from — it must never point anywhere else.
+// restore from — it must never point anywhere else. backupDir is already the
+// session hub's OWN subtree (<configured dir>/<slug>), so containment here
+// also means "inside this hub's tree" — a path into another hub's snapshots
+// cannot resolve.
 func snapshotDirForPath(backupDir, rel string) (string, error) {
 	rel = strings.TrimSpace(rel)
 	if rel == "" {
@@ -399,9 +471,12 @@ func snapshotDirForPath(backupDir, rel string) (string, error) {
 // handleAdminBackupVerify re-checks one snapshot against its manifest:
 // hashes, parseability, schema versions, missing and stray files.
 func (s *Server) handleAdminBackupVerify(w http.ResponseWriter, r *http.Request) {
-	eng := s.backupEngine()
-	if eng == nil {
-		writeError(w, http.StatusServiceUnavailable, "no backup directory configured")
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	eng, ok := s.reqBackupEngine(w, r, set)
+	if !ok {
 		return
 	}
 	var req BackupVerifyRequest
@@ -448,9 +523,12 @@ func (s *Server) handleAdminBackupVerify(w http.ResponseWriter, r *http.Request)
 // from rewriting pre-restore data. Pins have no cache (Load per request)
 // and sessions.enc is never in a backup, so neither needs touching.
 func (s *Server) handleAdminBackupRestore(w http.ResponseWriter, r *http.Request) {
-	eng := s.backupEngine()
-	if eng == nil {
-		writeError(w, http.StatusServiceUnavailable, "no backup directory configured")
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	eng, ok := s.reqBackupEngine(w, r, set)
+	if !ok {
 		return
 	}
 	var req BackupRestoreRequest
@@ -467,30 +545,30 @@ func (s *Server) handleAdminBackupRestore(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "confirmation does not match the snapshot name")
 		return
 	}
-	dir, err := config.Dir()
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("resolving config dir: %w", err))
-		return
-	}
-	if err := eng.Restore(snapDir, dir, expectedSchemaVersion); err != nil {
+	// Store/pins files restore into the SESSION HUB's profile; the only
+	// global write is the merged config.json (server.json is skipped inside
+	// Restore). Another hub's tree is untouchable by construction.
+	roots := backup.RestoreRoots{HubRoot: set.root, ConfigDir: s.hubs.configDir}
+	if err := eng.Restore(snapDir, roots, expectedSchemaVersion); err != nil {
 		s.logger.Error("backup: restore failed", "path", req.Path, "err", err)
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("restore failed: %v", err))
 		return
 	}
 
-	// Files are replaced; drop every store's in-memory state before anything
-	// can write stale data back over the restored files.
-	if s.chat != nil {
-		s.chat.Reset()
+	// Files are replaced; drop the SESSION HUB's in-memory store state before
+	// anything can write stale data back over the restored files. Other hubs'
+	// stores were not touched and keep their caches.
+	if set.chat != nil {
+		set.chat.Reset()
 	}
-	if s.tasks != nil {
-		s.tasks.Reset()
+	if set.tasks != nil {
+		set.tasks.Reset()
 	}
-	if s.production != nil {
-		s.production.Reset()
+	if set.production != nil {
+		set.production.Reset()
 	}
-	if s.whiteboards != nil {
-		s.whiteboards.Reset()
+	if set.whiteboards != nil {
+		set.whiteboards.Reset()
 	}
 
 	s.logger.Info("backup: restore complete — restarting listener", "path", req.Path)

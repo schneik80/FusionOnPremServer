@@ -42,6 +42,13 @@ type Session struct {
 
 	lastSeen time.Time // guarded by SessionStore.mu
 
+	// hubMu guards the session's hub lock. Every data route resolves its
+	// stores from this selection (never from wire hub ids); it persists
+	// across restarts so a returning user re-enters their hub directly.
+	hubMu           sync.Mutex
+	selectedHubID   string
+	selectedHubName string
+
 	// refreshMu serialises token refresh for this session. APS rotates the
 	// refresh token on every use, so two concurrent refreshes of the same
 	// session would invalidate each other; the lock plus a re-check of
@@ -51,6 +58,22 @@ type Session struct {
 	// taking refreshMu (which the refresh round-trip holds across a network
 	// call). refreshMu still serialises the read-modify-write of a refresh.
 	token atomic.Pointer[auth.TokenData]
+}
+
+// SelectedHub returns the hub this session is locked to ("" when none is
+// selected yet — the client must POST /api/session/hub before data routes
+// answer).
+func (s *Session) SelectedHub() (hubID, hubName string) {
+	s.hubMu.Lock()
+	defer s.hubMu.Unlock()
+	return s.selectedHubID, s.selectedHubName
+}
+
+func (s *Session) setSelectedHub(hubID, hubName string) {
+	s.hubMu.Lock()
+	s.selectedHubID = hubID
+	s.selectedHubName = hubName
+	s.hubMu.Unlock()
 }
 
 // SessionStore is an in-memory, expiring set of logged-in sessions keyed by an
@@ -116,6 +139,21 @@ func (s *SessionStore) Get(id string) (*Session, bool) {
 	}
 	sess.lastSeen = time.Now()
 	return sess, true
+}
+
+// SetSelectedHub locks the session to a hub and persists the selection (a
+// restart must not silently unlock a hub the user already chose). Reports
+// whether the session exists.
+func (s *SessionStore) SetSelectedHub(id, hubID, hubName string) bool {
+	s.mu.Lock()
+	sess, ok := s.byID[id]
+	s.mu.Unlock()
+	if !ok {
+		return false
+	}
+	sess.setSelectedHub(hubID, hubName)
+	s.persist()
+	return true
 }
 
 func (s *SessionStore) Delete(id string) {

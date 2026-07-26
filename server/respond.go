@@ -35,6 +35,13 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, errorResponse{Error: msg, Code: codeForStatus(status)})
 }
 
+// writeErrorCode sends the error envelope with an explicit machine code,
+// for errors whose code is more specific than the status-derived one (the
+// hub session lock: 409 hub_not_selected, 403 hub_mismatch).
+func writeErrorCode(w http.ResponseWriter, status int, code, msg string) {
+	writeJSON(w, status, errorResponse{Error: msg, Code: code})
+}
+
 // codeForStatus is the status→code table for the error envelope. Stable —
 // the SPA's errors catalog keys off these tokens.
 func codeForStatus(status int) string {

@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/config"
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
+	"github.com/schneik80/fusionlocalserver/internal/hubslug"
 	"github.com/schneik80/fusionlocalserver/internal/migrate"
 	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
@@ -80,7 +80,8 @@ type Pin struct {
 }
 
 // pinsFileForHub returns the absolute path to the pins file for the given
-// hub. The hub ID is sanitized so that URN-format identifiers (which
+// hub: hubs/<slug>/pins-<slug>.json under the config dir (the hub's profile
+// directory). The hub ID is sanitized so that URN-format identifiers (which
 // contain ':' and '/') produce filenames that round-trip cleanly across
 // macOS, Linux, and Windows.
 func pinsFileForHub(hubID string) (string, error) {
@@ -88,33 +89,14 @@ func pinsFileForHub(hubID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "pins-"+sanitizeHubID(hubID)+".json"), nil
+	return filepath.Join(hubslug.ProfileDir(dir, hubID), "pins-"+sanitizeHubID(hubID)+".json"), nil
 }
 
-// sanitizeHubID maps a hub ID to a filesystem-safe slug: any character
-// outside [A-Za-z0-9_.\-] is replaced with '_'. The result is capped at
-// 120 chars to stay well clear of per-platform path length limits.
+// sanitizeHubID maps a hub ID to a filesystem-safe slug. It delegates to the
+// shared hubslug package (extracted from here, byte-identical); the pins
+// tests keep their own copy of the table as a ratchet.
 func sanitizeHubID(hubID string) string {
-	if hubID == "" {
-		return "_unset"
-	}
-	var b strings.Builder
-	for _, r := range hubID {
-		switch {
-		case r >= 'A' && r <= 'Z',
-			r >= 'a' && r <= 'z',
-			r >= '0' && r <= '9',
-			r == '_', r == '.', r == '-':
-			b.WriteRune(r)
-		default:
-			b.WriteRune('_')
-		}
-	}
-	out := b.String()
-	if len(out) > 120 {
-		out = out[:120]
-	}
-	return out
+	return hubslug.Slug(hubID)
 }
 
 // legacyPinsPath is the historical single-file location pre-dating
@@ -226,6 +208,11 @@ func Save(hubID string, ps []Pin) error {
 	pf.Schema.Touch()
 	data, err := json.MarshalIndent(pf, "", "  ")
 	if err != nil {
+		return err
+	}
+	// The hub's profile directory may not exist yet (first pin before any
+	// other store touched this hub).
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 	return atomicfile.WriteFile(path, data, 0600)

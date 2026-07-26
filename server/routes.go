@@ -21,171 +21,183 @@ func (s *Server) routes() http.Handler {
 
 	// Protected: every data route requires a logged-in session. prot wraps a
 	// handler with requireAuth, which resolves the session's APS token into the
-	// request context (or replies 401).
+	// request context (or replies 401). Only the hub list and the hub-selection
+	// endpoint use bare prot — they must work before a hub is chosen.
 	prot := func(h http.HandlerFunc) http.HandlerFunc {
 		return s.requireAuth(h).ServeHTTP
 	}
+	// protHub additionally requires the session's hub lock (requireHub): 409
+	// hub_not_selected until POST /api/session/hub, a central 403 on any
+	// query-param hubId that differs from the session hub, and the hub's
+	// storeSet resolved once into the request context. EVERY data route below
+	// other than /api/hubs and /api/session/hub goes through it.
+	protHub := func(h http.HandlerFunc) http.HandlerFunc {
+		return s.requireAuth(s.requireHub(h)).ServeHTTP
+	}
+
+	// Session hub lock (the only data routes valid before a hub is chosen).
+	mux.HandleFunc("POST /api/session/hub", prot(s.handleSessionHub))
 
 	// Navigation.
 	mux.HandleFunc("GET /api/hubs", prot(s.handleHubs))
-	mux.HandleFunc("GET /api/projects", prot(s.handleProjects))
-	mux.HandleFunc("GET /api/projects/contents", prot(s.handleProjectContents))
-	mux.HandleFunc("GET /api/folders/contents", prot(s.handleFolderContents))
+	mux.HandleFunc("GET /api/projects", protHub(s.handleProjects))
+	mux.HandleFunc("GET /api/projects/contents", protHub(s.handleProjectContents))
+	mux.HandleFunc("GET /api/folders/contents", protHub(s.handleFolderContents))
 	// DM-space folder listing for the in-place hub browser (sees content the
 	// GraphQL listing misses, e.g. wiki image folders).
-	mux.HandleFunc("GET /api/browse/contents", prot(s.handleBrowseContents))
-	mux.HandleFunc("GET /api/items/details", prot(s.handleItemDetails))
-	mux.HandleFunc("GET /api/items/location", prot(s.handleItemLocation))
+	mux.HandleFunc("GET /api/browse/contents", protHub(s.handleBrowseContents))
+	mux.HandleFunc("GET /api/items/details", protHub(s.handleItemDetails))
+	mux.HandleFunc("GET /api/items/location", protHub(s.handleItemLocation))
 	// Raw bytes of an uploaded (non-native) file's tip, for the preview viewers.
-	mux.HandleFunc("GET /api/items/file", prot(s.handleFile))
+	mux.HandleFunc("GET /api/items/file", protHub(s.handleFile))
 
 	// References.
-	mux.HandleFunc("GET /api/items/uses", prot(s.handleUses))
-	mux.HandleFunc("GET /api/items/descendants", prot(s.handleDescendants))
-	mux.HandleFunc("GET /api/items/where-used", prot(s.handleWhereUsed))
-	mux.HandleFunc("GET /api/items/drawings", prot(s.handleDrawings))
-	mux.HandleFunc("GET /api/items/bom", prot(s.handleBOM))
+	mux.HandleFunc("GET /api/items/uses", protHub(s.handleUses))
+	mux.HandleFunc("GET /api/items/descendants", protHub(s.handleDescendants))
+	mux.HandleFunc("GET /api/items/where-used", protHub(s.handleWhereUsed))
+	mux.HandleFunc("GET /api/items/drawings", protHub(s.handleDrawings))
+	mux.HandleFunc("GET /api/items/bom", protHub(s.handleBOM))
 
 	// Permissions (project groups + roles; group members need hub-admin access).
-	mux.HandleFunc("GET /api/projects/groups", prot(s.handleProjectGroups))
-	mux.HandleFunc("GET /api/permissions/path", prot(s.handlePermissionsPath))
-	mux.HandleFunc("GET /api/groups/members", prot(s.handleGroupMembers))
-	mux.HandleFunc("GET /api/items/classify", prot(s.handleClassify))
-	mux.HandleFunc("GET /api/items/thumbnail", prot(s.handleThumbnail))
-	mux.HandleFunc("GET /api/items/thumbnail/image", prot(s.handleThumbnailImage))
-	mux.HandleFunc("GET /api/items/drawing/preview", prot(s.handleDrawingPreview))
-	mux.HandleFunc("GET /api/items/properties", prot(s.handleProperties))
-	mux.HandleFunc("GET /api/items/custom-properties", prot(s.handleCustomProperties))
+	mux.HandleFunc("GET /api/projects/groups", protHub(s.handleProjectGroups))
+	mux.HandleFunc("GET /api/permissions/path", protHub(s.handlePermissionsPath))
+	mux.HandleFunc("GET /api/groups/members", protHub(s.handleGroupMembers))
+	mux.HandleFunc("GET /api/items/classify", protHub(s.handleClassify))
+	mux.HandleFunc("GET /api/items/thumbnail", protHub(s.handleThumbnail))
+	mux.HandleFunc("GET /api/items/thumbnail/image", protHub(s.handleThumbnailImage))
+	mux.HandleFunc("GET /api/items/drawing/preview", protHub(s.handleDrawingPreview))
+	mux.HandleFunc("GET /api/items/properties", protHub(s.handleProperties))
+	mux.HandleFunc("GET /api/items/custom-properties", protHub(s.handleCustomProperties))
 
 	// Activity reports (per design; rollup merges in child documents).
-	mux.HandleFunc("GET /api/activity/report", prot(s.handleActivityReport))
-	mux.HandleFunc("POST /api/activity/rollup", prot(s.handleActivityRollup))
+	mux.HandleFunc("GET /api/activity/report", protHub(s.handleActivityReport))
+	mux.HandleFunc("POST /api/activity/rollup", protHub(s.handleActivityRollup))
 
 	// Settings.
-	mux.HandleFunc("POST /api/settings/port", prot(s.handleSetPort))
+	mux.HandleFunc("POST /api/settings/port", protHub(s.handleSetPort))
 
 	// Debug (only live when launched with -v; otherwise 404s). A live, real-doc
 	// probe for discovering how a version exposes its root component version.
-	mux.HandleFunc("GET /api/debug/version-probe", prot(s.handleDebugVersionProbe))
+	mux.HandleFunc("GET /api/debug/version-probe", protHub(s.handleDebugVersionProbe))
 
 	// Chat (docs/chat/PLAN.md, phase 1). REST + client polling; the SSE
 	// event stream lands in phase 2. URN-style ids ride query params, per
 	// the repo-wide convention.
-	mux.HandleFunc("GET /api/chat/events", prot(s.handleChatEvents))
-	mux.HandleFunc("GET /api/chat/channels", prot(s.handleChatChannels))
-	mux.HandleFunc("POST /api/chat/channels", prot(s.handleChatChannelCreate))
-	mux.HandleFunc("PATCH /api/chat/channels", prot(s.handleChatChannelUpdate))
-	mux.HandleFunc("DELETE /api/chat/channels", prot(s.handleChatChannelArchive))
-	mux.HandleFunc("POST /api/chat/channels/members", prot(s.handleChatMemberAdd))
-	mux.HandleFunc("DELETE /api/chat/channels/members", prot(s.handleChatMemberRemove))
-	mux.HandleFunc("GET /api/chat/messages", prot(s.handleChatMessages))
-	mux.HandleFunc("POST /api/chat/messages", prot(s.handleChatMessageCreate))
-	mux.HandleFunc("PATCH /api/chat/messages", prot(s.handleChatMessageEdit))
-	mux.HandleFunc("DELETE /api/chat/messages", prot(s.handleChatMessageDelete))
-	mux.HandleFunc("GET /api/chat/thread", prot(s.handleChatThread))
-	mux.HandleFunc("POST /api/chat/reactions", prot(s.handleChatReactionAdd))
-	mux.HandleFunc("DELETE /api/chat/reactions", prot(s.handleChatReactionRemove))
-	mux.HandleFunc("PATCH /api/chat/read", prot(s.handleChatRead))
-	mux.HandleFunc("GET /api/chat/unreads", prot(s.handleChatUnreads))
-	mux.HandleFunc("POST /api/chat/typing", prot(s.handleChatTyping))
-	mux.HandleFunc("GET /api/chat/members", prot(s.handleChatMembers))
+	mux.HandleFunc("GET /api/chat/events", protHub(s.handleChatEvents))
+	mux.HandleFunc("GET /api/chat/channels", protHub(s.handleChatChannels))
+	mux.HandleFunc("POST /api/chat/channels", protHub(s.handleChatChannelCreate))
+	mux.HandleFunc("PATCH /api/chat/channels", protHub(s.handleChatChannelUpdate))
+	mux.HandleFunc("DELETE /api/chat/channels", protHub(s.handleChatChannelArchive))
+	mux.HandleFunc("POST /api/chat/channels/members", protHub(s.handleChatMemberAdd))
+	mux.HandleFunc("DELETE /api/chat/channels/members", protHub(s.handleChatMemberRemove))
+	mux.HandleFunc("GET /api/chat/messages", protHub(s.handleChatMessages))
+	mux.HandleFunc("POST /api/chat/messages", protHub(s.handleChatMessageCreate))
+	mux.HandleFunc("PATCH /api/chat/messages", protHub(s.handleChatMessageEdit))
+	mux.HandleFunc("DELETE /api/chat/messages", protHub(s.handleChatMessageDelete))
+	mux.HandleFunc("GET /api/chat/thread", protHub(s.handleChatThread))
+	mux.HandleFunc("POST /api/chat/reactions", protHub(s.handleChatReactionAdd))
+	mux.HandleFunc("DELETE /api/chat/reactions", protHub(s.handleChatReactionRemove))
+	mux.HandleFunc("PATCH /api/chat/read", protHub(s.handleChatRead))
+	mux.HandleFunc("GET /api/chat/unreads", protHub(s.handleChatUnreads))
+	mux.HandleFunc("POST /api/chat/typing", protHub(s.handleChatTyping))
+	mux.HandleFunc("GET /api/chat/members", protHub(s.handleChatMembers))
 
 	// Tasks (user-based project tasks; local store, chat-authz roles).
 	// /api/tasks/get is separate because GET /api/tasks is the project
 	// list (wiki/pages vs wiki/page precedent); /mine is the caller's
 	// cross-project task list.
-	mux.HandleFunc("GET /api/tasks", prot(s.handleTasksList))
-	mux.HandleFunc("POST /api/tasks", prot(s.handleTaskCreate))
-	mux.HandleFunc("PATCH /api/tasks", prot(s.handleTaskUpdate))
-	mux.HandleFunc("DELETE /api/tasks", prot(s.handleTaskDelete))
-	mux.HandleFunc("GET /api/tasks/get", prot(s.handleTaskGet))
-	mux.HandleFunc("GET /api/tasks/mine", prot(s.handleTasksMine))
+	mux.HandleFunc("GET /api/tasks", protHub(s.handleTasksList))
+	mux.HandleFunc("POST /api/tasks", protHub(s.handleTaskCreate))
+	mux.HandleFunc("PATCH /api/tasks", protHub(s.handleTaskUpdate))
+	mux.HandleFunc("DELETE /api/tasks", protHub(s.handleTaskDelete))
+	mux.HandleFunc("GET /api/tasks/get", protHub(s.handleTaskGet))
+	mux.HandleFunc("GET /api/tasks/mine", protHub(s.handleTasksMine))
 	// /shift moves a set of scheduled tasks by N days in one atomic write
 	// (the Gantt stage-bar drag; per-task PATCHes would burst the limiter).
-	mux.HandleFunc("POST /api/tasks/shift", prot(s.handleTasksShift))
+	mux.HandleFunc("POST /api/tasks/shift", protHub(s.handleTasksShift))
 
 	// Admin console (Settings dialog tools). Standard authenticated-session
 	// gating; destructive tools confirm in the UI.
-	mux.HandleFunc("GET /api/admin/status", prot(s.handleAdminStatus))
-	mux.HandleFunc("GET /api/admin/log", prot(s.handleAdminLog))
+	mux.HandleFunc("GET /api/admin/status", protHub(s.handleAdminStatus))
+	mux.HandleFunc("GET /api/admin/log", protHub(s.handleAdminLog))
 	// Backups (list, manual run, config) + the dirs-only filesystem browse
 	// backing the backup-folder picker.
-	mux.HandleFunc("GET /api/admin/backups", prot(s.handleAdminBackups))
-	mux.HandleFunc("POST /api/admin/backups/run", prot(s.handleAdminBackupRun))
-	mux.HandleFunc("GET /api/admin/backups/config", prot(s.handleAdminBackupConfigGet))
-	mux.HandleFunc("POST /api/admin/backups/config", prot(s.handleAdminBackupConfigSet))
+	mux.HandleFunc("GET /api/admin/backups", protHub(s.handleAdminBackups))
+	mux.HandleFunc("POST /api/admin/backups/run", protHub(s.handleAdminBackupRun))
+	mux.HandleFunc("GET /api/admin/backups/config", protHub(s.handleAdminBackupConfigGet))
+	mux.HandleFunc("POST /api/admin/backups/config", protHub(s.handleAdminBackupConfigSet))
 	// Verify re-hashes a snapshot against its manifest; restore replaces the
 	// live data (typed confirmation, pre-restore safety snapshot, restart).
-	mux.HandleFunc("POST /api/admin/backups/verify", prot(s.handleAdminBackupVerify))
-	mux.HandleFunc("POST /api/admin/backups/restore", prot(s.handleAdminBackupRestore))
-	mux.HandleFunc("GET /api/admin/fs/dirs", prot(s.handleAdminFsDirs))
+	mux.HandleFunc("POST /api/admin/backups/verify", protHub(s.handleAdminBackupVerify))
+	mux.HandleFunc("POST /api/admin/backups/restore", protHub(s.handleAdminBackupRestore))
+	mux.HandleFunc("GET /api/admin/fs/dirs", protHub(s.handleAdminFsDirs))
 	// Data tool: disk usage across the local stores, per-project app-data
 	// deletion (typed confirmation in the UI), and allow-listed stale-artifact
 	// cleanup.
-	mux.HandleFunc("GET /api/admin/disk", prot(s.handleAdminDisk))
-	mux.HandleFunc("DELETE /api/admin/projects/data", prot(s.handleAdminProjectDataDelete))
-	mux.HandleFunc("POST /api/admin/cleanup", prot(s.handleAdminCleanup))
+	mux.HandleFunc("GET /api/admin/disk", protHub(s.handleAdminDisk))
+	mux.HandleFunc("DELETE /api/admin/projects/data", protHub(s.handleAdminProjectDataDelete))
+	mux.HandleFunc("POST /api/admin/cleanup", protHub(s.handleAdminCleanup))
 
 	// Production (light MES job & batch tracker; local store, chat-authz
 	// roles). GET /api/production/job (singular) is one job's full graph;
 	// GET /api/production/jobs is the project list. Steps, edges, and
 	// placeholders mutate a job in place. IDs ride in query params (URNs
 	// contain ':'/'/').
-	mux.HandleFunc("GET /api/production/jobs", prot(s.handleProdJobsList))
-	mux.HandleFunc("POST /api/production/jobs", prot(s.handleProdJobCreate))
-	mux.HandleFunc("PATCH /api/production/jobs", prot(s.handleProdJobUpdate))
-	mux.HandleFunc("DELETE /api/production/jobs", prot(s.handleProdJobDelete))
-	mux.HandleFunc("GET /api/production/job", prot(s.handleProdJobGet))
-	mux.HandleFunc("GET /api/production/mine", prot(s.handleProdMine))
-	mux.HandleFunc("POST /api/production/steps", prot(s.handleProdStepCreate))
-	mux.HandleFunc("PATCH /api/production/steps", prot(s.handleProdStepUpdate))
-	mux.HandleFunc("DELETE /api/production/steps", prot(s.handleProdStepDelete))
-	mux.HandleFunc("POST /api/production/edges", prot(s.handleProdEdgeCreate))
-	mux.HandleFunc("DELETE /api/production/edges", prot(s.handleProdEdgeDelete))
-	mux.HandleFunc("POST /api/production/placeholders", prot(s.handleProdPlaceholderCreate))
-	mux.HandleFunc("PATCH /api/production/placeholders", prot(s.handleProdPlaceholderUpdate))
-	mux.HandleFunc("DELETE /api/production/placeholders", prot(s.handleProdPlaceholderDelete))
+	mux.HandleFunc("GET /api/production/jobs", protHub(s.handleProdJobsList))
+	mux.HandleFunc("POST /api/production/jobs", protHub(s.handleProdJobCreate))
+	mux.HandleFunc("PATCH /api/production/jobs", protHub(s.handleProdJobUpdate))
+	mux.HandleFunc("DELETE /api/production/jobs", protHub(s.handleProdJobDelete))
+	mux.HandleFunc("GET /api/production/job", protHub(s.handleProdJobGet))
+	mux.HandleFunc("GET /api/production/mine", protHub(s.handleProdMine))
+	mux.HandleFunc("POST /api/production/steps", protHub(s.handleProdStepCreate))
+	mux.HandleFunc("PATCH /api/production/steps", protHub(s.handleProdStepUpdate))
+	mux.HandleFunc("DELETE /api/production/steps", protHub(s.handleProdStepDelete))
+	mux.HandleFunc("POST /api/production/edges", protHub(s.handleProdEdgeCreate))
+	mux.HandleFunc("DELETE /api/production/edges", protHub(s.handleProdEdgeDelete))
+	mux.HandleFunc("POST /api/production/placeholders", protHub(s.handleProdPlaceholderCreate))
+	mux.HandleFunc("PATCH /api/production/placeholders", protHub(s.handleProdPlaceholderUpdate))
+	mux.HandleFunc("DELETE /api/production/placeholders", protHub(s.handleProdPlaceholderDelete))
 	// Plan documents (version-pinned at attach), batches (freeze on create),
 	// and fulfillments (version-pinned supplied documents).
-	mux.HandleFunc("POST /api/production/plandocs", prot(s.handleProdPlanDocCreate))
-	mux.HandleFunc("DELETE /api/production/plandocs", prot(s.handleProdPlanDocDelete))
-	mux.HandleFunc("POST /api/production/batches", prot(s.handleProdBatchCreate))
-	mux.HandleFunc("GET /api/production/batch", prot(s.handleProdBatchGet))
-	mux.HandleFunc("PATCH /api/production/batches", prot(s.handleProdBatchUpdate))
-	mux.HandleFunc("DELETE /api/production/batches", prot(s.handleProdBatchDelete))
-	mux.HandleFunc("POST /api/production/fulfillments", prot(s.handleProdFulfillmentCreate))
-	mux.HandleFunc("DELETE /api/production/fulfillments", prot(s.handleProdFulfillmentDelete))
+	mux.HandleFunc("POST /api/production/plandocs", protHub(s.handleProdPlanDocCreate))
+	mux.HandleFunc("DELETE /api/production/plandocs", protHub(s.handleProdPlanDocDelete))
+	mux.HandleFunc("POST /api/production/batches", protHub(s.handleProdBatchCreate))
+	mux.HandleFunc("GET /api/production/batch", protHub(s.handleProdBatchGet))
+	mux.HandleFunc("PATCH /api/production/batches", protHub(s.handleProdBatchUpdate))
+	mux.HandleFunc("DELETE /api/production/batches", protHub(s.handleProdBatchDelete))
+	mux.HandleFunc("POST /api/production/fulfillments", protHub(s.handleProdFulfillmentCreate))
+	mux.HandleFunc("DELETE /api/production/fulfillments", protHub(s.handleProdFulfillmentDelete))
 	// Whiteboards (tldraw boards; local store, chat-authz roles). The document
 	// endpoints are separate from the metadata ones so listing boards never
 	// ships their shapes.
-	mux.HandleFunc("GET /api/whiteboards", prot(s.handleWhiteboardsList))
-	mux.HandleFunc("POST /api/whiteboards", prot(s.handleWhiteboardCreate))
-	mux.HandleFunc("PATCH /api/whiteboards", prot(s.handleWhiteboardUpdate))
-	mux.HandleFunc("DELETE /api/whiteboards", prot(s.handleWhiteboardDelete))
-	mux.HandleFunc("GET /api/whiteboards/doc", prot(s.handleWhiteboardDocGet))
-	mux.HandleFunc("PUT /api/whiteboards/doc", prot(s.handleWhiteboardDocPut))
+	mux.HandleFunc("GET /api/whiteboards", protHub(s.handleWhiteboardsList))
+	mux.HandleFunc("POST /api/whiteboards", protHub(s.handleWhiteboardCreate))
+	mux.HandleFunc("PATCH /api/whiteboards", protHub(s.handleWhiteboardUpdate))
+	mux.HandleFunc("DELETE /api/whiteboards", protHub(s.handleWhiteboardDelete))
+	mux.HandleFunc("GET /api/whiteboards/doc", protHub(s.handleWhiteboardDocGet))
+	mux.HandleFunc("PUT /api/whiteboards/doc", protHub(s.handleWhiteboardDocPut))
 
-	mux.HandleFunc("POST /api/production/batchrefs", prot(s.handleProdBatchRefAdd))
-	mux.HandleFunc("DELETE /api/production/batchrefs", prot(s.handleProdBatchRefDelete))
+	mux.HandleFunc("POST /api/production/batchrefs", protHub(s.handleProdBatchRefAdd))
+	mux.HandleFunc("DELETE /api/production/batchrefs", protHub(s.handleProdBatchRefDelete))
 
 	// Pins.
-	mux.HandleFunc("GET /api/pins", prot(s.handlePinsList))
-	mux.HandleFunc("POST /api/pins", prot(s.handlePinsAdd))
-	mux.HandleFunc("DELETE /api/pins", prot(s.handlePinsRemove))
+	mux.HandleFunc("GET /api/pins", protHub(s.handlePinsList))
+	mux.HandleFunc("POST /api/pins", protHub(s.handlePinsAdd))
+	mux.HandleFunc("DELETE /api/pins", protHub(s.handlePinsRemove))
 
 	// Uploads (background file-upload jobs into a project folder).
-	mux.HandleFunc("POST /api/uploads", prot(s.handleUploadCreate))
-	mux.HandleFunc("GET /api/uploads", prot(s.handleUploadList))
-	mux.HandleFunc("POST /api/uploads/cancel", prot(s.handleUploadCancel))
-	mux.HandleFunc("POST /api/uploads/dismiss", prot(s.handleUploadDismiss))
+	mux.HandleFunc("POST /api/uploads", protHub(s.handleUploadCreate))
+	mux.HandleFunc("GET /api/uploads", protHub(s.handleUploadList))
+	mux.HandleFunc("POST /api/uploads/cancel", protHub(s.handleUploadCancel))
+	mux.HandleFunc("POST /api/uploads/dismiss", protHub(s.handleUploadDismiss))
 
 	// Wiki (project-scoped markdown pages in a project-root "Wiki" folder).
-	mux.HandleFunc("GET /api/wiki/pages", prot(s.handleWikiPages))
-	mux.HandleFunc("GET /api/wiki/page", prot(s.handleWikiPage))
-	mux.HandleFunc("POST /api/wiki/publish", prot(s.handleWikiPublish))
-	mux.HandleFunc("POST /api/wiki/rename", prot(s.handleWikiRename))
-	mux.HandleFunc("POST /api/wiki/image", prot(s.handleWikiImageUpload))
-	mux.HandleFunc("GET /api/wiki/image", prot(s.handleWikiImage))
+	mux.HandleFunc("GET /api/wiki/pages", protHub(s.handleWikiPages))
+	mux.HandleFunc("GET /api/wiki/page", protHub(s.handleWikiPage))
+	mux.HandleFunc("POST /api/wiki/publish", protHub(s.handleWikiPublish))
+	mux.HandleFunc("POST /api/wiki/rename", protHub(s.handleWikiRename))
+	mux.HandleFunc("POST /api/wiki/image", protHub(s.handleWikiImageUpload))
+	mux.HandleFunc("GET /api/wiki/image", protHub(s.handleWikiImage))
 
 	// Static SPA for everything else.
 	mux.Handle("/", s.staticHandler())

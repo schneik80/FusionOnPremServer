@@ -14,20 +14,17 @@ import (
 const defaultPort = 8080
 
 // Settings holds web-server runtime preferences that a user can change at
-// runtime (the listen port and the backup configuration). It is stored
+// runtime — since hub isolation, only the listen port. It is stored
 // separately from config.json — that file holds the APS identity
 // (client_id/region) and has strict load rules — so persisting preferences
 // never entangles with auth config, and the TUI ignores it entirely.
+//
+// The backup configuration used to live here; it is per-hub now
+// (hubs/<slug>/backup.json — see hubstores.go). Old server.json files still
+// carrying backup fields load fine (unknown JSON fields are ignored) and are
+// migrated in the hub-layout migration.
 type Settings struct {
 	Port int `json:"port,omitempty"`
-
-	// Backup configuration (Settings console → Backups). BackupDir empty means
-	// backups are unconfigured (no engine); BackupTime is "HH:MM" local, empty
-	// falling back to backup.DefaultTime; BackupEnabled gates the daily
-	// scheduler only — manual "back up now" needs just a BackupDir.
-	BackupDir     string `json:"backupDir,omitempty"`
-	BackupTime    string `json:"backupTime,omitempty"`
-	BackupEnabled bool   `json:"backupEnabled,omitempty"`
 }
 
 // settingsPath is ~/.config/fusionlocalserver/server.json. config.Dir creates the

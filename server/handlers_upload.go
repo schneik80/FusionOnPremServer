@@ -102,6 +102,17 @@ func (s *Server) handleUploadCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "hubId, dmProjectId and file are required")
 		return
 	}
+	// The upload target must be the session hub (multipart fields are not
+	// covered by requireHub's central query-param check).
+	set, ok := reqStores(w, r)
+	if !ok {
+		os.Remove(tmpPath)
+		return
+	}
+	if !hubMatches(w, set.hubID, hubID) {
+		os.Remove(tmpPath)
+		return
+	}
 	if fileName == "" || fileName == "." || fileName == "/" {
 		os.Remove(tmpPath)
 		writeError(w, http.StatusBadRequest, "file has no usable name")

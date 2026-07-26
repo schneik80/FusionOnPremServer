@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/backup"
-	"github.com/schneik80/fusionlocalserver/config"
 	"github.com/schneik80/fusionlocalserver/tasks"
 )
 
@@ -24,6 +23,7 @@ func TestBackupConfigValidation(t *testing.T) {
 	ts := httptest.NewServer(s.routes())
 	t.Cleanup(ts.Close)
 	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")
+	hubRoot := hubSet(t, s, testHubID).root
 
 	backupDir := t.TempDir()
 
@@ -47,8 +47,8 @@ func TestBackupConfigValidation(t *testing.T) {
 		t.Errorf("enabled without dir: status = %d, want 400", code)
 	}
 
-	// Valid → 200, persisted, engine constructed, and the port setting (if
-	// any) survives the load-modify-save cycle.
+	// Valid → 200, persisted into the SESSION HUB's backup.json, an engine
+	// resolvable on demand, and server.json (the port) untouched.
 	if err := SaveSettings(Settings{Port: 9123}); err != nil {
 		t.Fatal(err)
 	}
@@ -60,15 +60,24 @@ func TestBackupConfigValidation(t *testing.T) {
 	if echoed.BackupDir != backupDir || echoed.BackupTime != "04:15" || !echoed.BackupEnabled {
 		t.Errorf("echoed config = %+v", echoed)
 	}
+	cfg, err := loadHubBackupConfig(hubRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BackupDir != backupDir || cfg.BackupTime != "04:15" || !cfg.BackupEnabled {
+		t.Errorf("persisted hub backup config = %+v", cfg)
+	}
 	set, err := LoadSettings()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if set.BackupDir != backupDir || set.BackupTime != "04:15" || !set.BackupEnabled || set.Port != 9123 {
-		t.Errorf("persisted settings = %+v", set)
+	if set.Port != 9123 {
+		t.Errorf("persisted settings = %+v, want the port untouched", set)
 	}
-	if s.backupEngine() == nil {
-		t.Error("engine not constructed after valid config")
+	if eng, eerr := s.backupEngineFor(hubSet(t, s, testHubID)); eerr != nil || eng == nil {
+		t.Errorf("engine not resolvable after valid config: %v", eerr)
+	} else if eng.Dir != filepath.Join(backupDir, testHubID) {
+		t.Errorf("engine dir = %q, want the hub's own subtree %q", eng.Dir, filepath.Join(backupDir, testHubID))
 	}
 
 	// GET reflects it.
@@ -93,15 +102,12 @@ func TestBackupRunEndpoint(t *testing.T) {
 		t.Fatalf("run without engine: status = %d, want 503", code)
 	}
 
-	// With an engine → 200 and a snapshot on disk.
+	// With a configured destination → 200 and a snapshot on disk, inside the
+	// hub's own <dir>/<slug>/ subtree.
 	backupDir := t.TempDir()
-	s.backupMu.Lock()
-	s.backups = &backup.Engine{
-		Dir:        backupDir,
-		Sources:    []backup.Source{backup.StoreSource("tasks", s.tasks.Snapshot)},
-		AppVersion: "test",
+	if err := saveHubBackupConfig(hubSet(t, s, testHubID).root, hubBackupConfig{BackupDir: backupDir}); err != nil {
+		t.Fatal(err)
 	}
-	s.backupMu.Unlock()
 
 	var sum BackupSummaryDTO
 	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/run", editor, nil, &sum); code != http.StatusOK {
@@ -110,7 +116,7 @@ func TestBackupRunEndpoint(t *testing.T) {
 	if sum.Kind != "manual" || sum.CreatedAt == "" {
 		t.Errorf("run summary = %+v", sum)
 	}
-	entries, err := os.ReadDir(filepath.Join(backupDir, "manual"))
+	entries, err := os.ReadDir(filepath.Join(backupDir, testHubID, "manual"))
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("manual tier = %v, %v", entries, err)
 	}
@@ -176,17 +182,19 @@ func TestFsDirsListsOnlyVisibleDirectories(t *testing.T) {
 	}
 }
 
-// withTestEngine installs a backup engine over the server's tasks store.
+// withTestEngine configures a backup destination for the test hub and
+// returns the engine the handlers will resolve for it (rooted at the hub's
+// own <dir>/<slug>/ subtree).
 func withTestEngine(t *testing.T, s *Server) *backup.Engine {
 	t.Helper()
-	eng := &backup.Engine{
-		Dir:        t.TempDir(),
-		Sources:    []backup.Source{backup.StoreSource("tasks", s.tasks.Snapshot)},
-		AppVersion: "test",
+	set := hubSet(t, s, testHubID)
+	if err := saveHubBackupConfig(set.root, hubBackupConfig{BackupDir: t.TempDir()}); err != nil {
+		t.Fatal(err)
 	}
-	s.backupMu.Lock()
-	s.backups = eng
-	s.backupMu.Unlock()
+	eng, err := s.backupEngineFor(set)
+	if err != nil || eng == nil {
+		t.Fatalf("backupEngineFor = %v, %v", eng, err)
+	}
 	return eng
 }
 
@@ -219,7 +227,7 @@ func TestBackupVerifyEndpoint(t *testing.T) {
 	}
 
 	// A real snapshot verifies OK end to end.
-	if _, err := s.tasks.Create(taskTestProject, "hub-1", "Test Project",
+	if _, err := hubSet(t, s, testHubID).tasks.Create(taskTestProject, "hub-1", "Test Project",
 		tasks.Draft{Title: "backed up"}, tasks.UserRef{ID: "u-editor"}); err != nil {
 		t.Fatal(err)
 	}
@@ -361,12 +369,10 @@ func TestBackupRestoreEndToEndMigration(t *testing.T) {
 		t.Fatalf("pre-restore tier = %v, %v (want exactly 1)", preEntries, err)
 	}
 
-	// The v1 file landed in the config dir byte-identical.
-	configDir, err := config.Dir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	restored := filepath.Join(configDir, filepath.FromSlash(rel))
+	// The v1 file landed in the HUB PROFILE byte-identical (store/pins files
+	// restore into the session hub's root, never the config-dir root).
+	hubRoot := hubSet(t, s, testHubID).root
+	restored := filepath.Join(hubRoot, filepath.FromSlash(rel))
 	got, err := os.ReadFile(restored)
 	if err != nil {
 		t.Fatalf("restored file: %v", err)
@@ -377,7 +383,7 @@ func TestBackupRestoreEndToEndMigration(t *testing.T) {
 
 	// A store over the restored dir loads it, migrating v1→v2: the load
 	// snapshots the v1 bytes, and the next save persists version 2 + stamp.
-	st, err := tasks.NewStore(filepath.Join(configDir, "tasks"))
+	st, err := tasks.NewStore(filepath.Join(hubRoot, "tasks"))
 	if err != nil {
 		t.Fatal(err)
 	}

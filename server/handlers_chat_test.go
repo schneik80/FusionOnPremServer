@@ -79,30 +79,33 @@ func newChatTestServer(t *testing.T) (*Server, *fakeRoster) {
 	restore := api.SetGraphqlEndpointForTesting(srv.URL)
 	t.Cleanup(restore)
 
-	store, err := chat.NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(store.Close)
-
 	authz := chat.NewAuthorizer()
 	s := &Server{
 		logger:      quietLogger(),
 		clientID:    "test-client",
 		sessions:    NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger()),
 		pending:     NewPendingStore(pendingTTL),
-		chat:        store,
+		hubs:        testHubStores(t, authz),
 		chatAuthz:   authz,
 		chatMsgLim:  chat.NewLimiter(2, 5),
 		chatOpLim:   chat.NewLimiter(10.0/60.0, 10),
 		chatSyncLim: chat.NewLimiter(2, 20),
-		chatHub:     chat.NewHub(authz, store.EventEpoch),
 	}
 	return s, roster
 }
 
-// login creates a session for the given identity and returns its cookie.
+// login creates a session for the given identity, locked to the default test
+// hub, and returns its cookie. Use loginNoHub for the pre-selection state.
 func login(t *testing.T, s *Server, sub, name, email string) *http.Cookie {
+	t.Helper()
+	cookie := loginNoHub(t, s, sub, name, email)
+	lockHub(t, s, cookie, testHubID)
+	return cookie
+}
+
+// loginNoHub creates a session WITHOUT a hub lock (data routes answer 409
+// hub_not_selected until one is chosen).
+func loginNoHub(t *testing.T, s *Server, sub, name, email string) *http.Cookie {
 	t.Helper()
 	sess, err := s.sessions.Create(
 		&auth.TokenData{AccessToken: "tok-" + sub, ExpiresAt: time.Now().Add(time.Hour)},
@@ -363,7 +366,7 @@ func TestChat_EditAndModerationRules(t *testing.T) {
 
 func TestChat_UnavailableStore(t *testing.T) {
 	s, _ := newChatTestServer(t)
-	s.chat = nil // config dir unavailable at startup
+	s.hubs = nil // config dir unavailable at startup — no hub store sets
 	ts := httptest.NewServer(s.routes())
 	t.Cleanup(ts.Close)
 	editor := login(t, s, "u-editor", "Ed", "editor@x.io")

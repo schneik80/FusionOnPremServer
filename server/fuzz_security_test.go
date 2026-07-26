@@ -79,7 +79,7 @@ func FuzzPinsAddBody(f *testing.F) {
 	f.Fuzz(func(t *testing.T, body string) {
 		s := &Server{logger: quietLogger()}
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/pins?hubId=h1", strings.NewReader(body))
+		req := withHubCtx(httptest.NewRequest(http.MethodPost, "/api/pins", strings.NewReader(body)), &storeSet{hubID: "h1"})
 		s.handlePinsAdd(rec, req)
 		assertResilient(t, rec.Code, rec.Body.String(), body)
 		// Only the contract statuses are acceptable here.
@@ -170,8 +170,8 @@ func TestNullBytesAndLongStringsArePinData(t *testing.T) {
 
 	t.Run("null_byte_in_hub_query", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/pins?hubId=h%001",
-			strings.NewReader(`{"id":"x","kind":"design"}`))
+		req := withHubCtx(httptest.NewRequest(http.MethodPost, "/api/pins",
+			strings.NewReader(`{"id":"x","kind":"design"}`)), &storeSet{hubID: "h\x001"})
 		s.handlePinsAdd(rec, req)
 		if rec.Code >= 500 {
 			t.Fatalf("null byte in hubId caused %d: %q", rec.Code, rec.Body.String())
@@ -181,7 +181,7 @@ func TestNullBytesAndLongStringsArePinData(t *testing.T) {
 	t.Run("oversized_body_rejected", func(t *testing.T) {
 		huge := `{"id":"x","kind":"design","name":"` + strings.Repeat("A", 1<<20) + `"}`
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/pins?hubId=h1", strings.NewReader(huge))
+		req := withHubCtx(httptest.NewRequest(http.MethodPost, "/api/pins", strings.NewReader(huge)), &storeSet{hubID: "h1"})
 		s.handlePinsAdd(rec, req)
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("oversized body: status = %d, want 400", rec.Code)
@@ -246,23 +246,17 @@ func newChatFuzzHarness(f *testing.F) (http.Handler, *http.Cookie, string) {
 	f.Cleanup(gql.Close)
 	f.Cleanup(api.SetGraphqlEndpointForTesting(gql.URL))
 
-	store, err := chat.NewStore(f.TempDir())
-	if err != nil {
-		f.Fatal(err)
-	}
-	f.Cleanup(store.Close)
 	authz := chat.NewAuthorizer()
 	s := &Server{
 		logger:      quietLogger(),
 		clientID:    "fuzz-client",
 		sessions:    NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger()),
 		pending:     NewPendingStore(pendingTTL),
-		chat:        store,
+		hubs:        testHubStores(f, authz),
 		chatAuthz:   authz,
 		chatMsgLim:  chat.NewLimiter(1e9, 1e9), // out of the way: fuzz the decoder, not the limiter
 		chatOpLim:   chat.NewLimiter(1e9, 1e9),
 		chatSyncLim: chat.NewLimiter(1e9, 1e9),
-		chatHub:     chat.NewHub(authz, store.EventEpoch),
 	}
 	sess, err := s.sessions.Create(
 		&auth.TokenData{AccessToken: "tok-fuzz", ExpiresAt: time.Now().Add(24 * time.Hour)},
@@ -271,7 +265,12 @@ func newChatFuzzHarness(f *testing.F) (http.Handler, *http.Cookie, string) {
 	if err != nil {
 		f.Fatal(err)
 	}
-	root, err := store.EnsureRoot("urn:fuzz:project")
+	s.sessions.SetSelectedHub(sess.ID, testHubID, testHubName)
+	set, err := s.hubs.get(testHubID, testHubName)
+	if err != nil {
+		f.Fatal(err)
+	}
+	root, err := set.chat.EnsureRoot("urn:fuzz:project")
 	if err != nil {
 		f.Fatal(err)
 	}

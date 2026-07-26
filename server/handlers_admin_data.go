@@ -16,7 +16,11 @@ import (
 // the local per-project stores, per-project app-data deletion, and
 // allow-listed stale-artifact cleanup. Same gating posture as the rest of
 // /api/admin: any authenticated session; the destructive delete carries a
-// typed confirmation in the UI.
+// typed confirmation in the UI. Everything is scoped to the SESSION HUB's
+// profile directory (set.root) — another hub's data is never listed, sized,
+// deleted, or pruned from here. The one exception is cleanup's legacy
+// config-root artifacts (tokens.json, models/, old debug logs), which are
+// pre-hub global cruft.
 
 // dataAppStores lists the four per-project app stores in display order, each
 // with the envelope file its project dirs self-describe themselves through
@@ -52,8 +56,8 @@ type DiskStoreDTO struct {
 }
 
 // DiskUsageDTO is GET /api/admin/disk: the four app stores plus the pins
-// pseudo-store, with everything else under the config dir (server.log,
-// sessions, TLS material, stale artifacts) lumped into otherBytes.
+// pseudo-store of the SESSION HUB's profile, with everything else under that
+// profile (hub.json, backup.json, stale artifacts) lumped into otherBytes.
 type DiskUsageDTO struct {
 	Stores     []DiskStoreDTO `json:"stores"`
 	OtherBytes int64          `json:"otherBytes"`
@@ -132,15 +136,15 @@ func peekPinsHubID(path string) string {
 	return ""
 }
 
-// handleAdminDisk walks config.Dir() and reports per-store, per-project
-// sizes. Only envelope JSONs are ever read for content; everything else is
-// os.Stat/WalkDir sizes.
+// handleAdminDisk walks the session hub's profile directory and reports
+// per-store, per-project sizes. Only envelope JSONs are ever read for
+// content; everything else is os.Stat/WalkDir sizes.
 func (s *Server) handleAdminDisk(w http.ResponseWriter, r *http.Request) {
-	dir, err := config.Dir()
-	if err != nil {
-		s.fail(w, r, err)
+	set, ok := reqStores(w, r)
+	if !ok {
 		return
 	}
+	dir := set.root
 	out := DiskUsageDTO{Stores: []DiskStoreDTO{}}
 	var accounted int64
 	for _, st := range dataAppStores {
@@ -195,6 +199,10 @@ func (s *Server) handleAdminDisk(w http.ResponseWriter, r *http.Request) {
 // half-delete; each store's DeleteProject is idempotent, so a missing dir
 // still reports true.
 func (s *Server) handleAdminProjectDataDelete(w http.ResponseWriter, r *http.Request) {
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
 	projectID, ok := reqParam(w, r, "projectId")
 	if !ok {
 		return
@@ -204,18 +212,20 @@ func (s *Server) handleAdminProjectDataDelete(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// The session hub's stores only — a projectId that lives in another hub
+	// simply isn't here, and its data is untouchable from this session.
 	deleters := map[string]func(string) error{}
-	if s.chat != nil {
-		deleters["chat"] = s.chat.DeleteProject
+	if set.chat != nil {
+		deleters["chat"] = set.chat.DeleteProject
 	}
-	if s.tasks != nil {
-		deleters["tasks"] = s.tasks.DeleteProject
+	if set.tasks != nil {
+		deleters["tasks"] = set.tasks.DeleteProject
 	}
-	if s.production != nil {
-		deleters["production"] = s.production.DeleteProject
+	if set.production != nil {
+		deleters["production"] = set.production.DeleteProject
 	}
-	if s.whiteboards != nil {
-		deleters["whiteboards"] = s.whiteboards.DeleteProject
+	if set.whiteboards != nil {
+		deleters["whiteboards"] = set.whiteboards.DeleteProject
 	}
 
 	known := map[string]bool{"chat": true, "tasks": true, "production": true, "whiteboards": true}
@@ -254,12 +264,18 @@ func (s *Server) handleAdminProjectDataDelete(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, ProjectDataDeleteDTO{Deleted: deleted})
 }
 
-// handleAdminCleanup removes the allow-listed stale artifacts from the config
-// dir root — tokens.json, models/ (dir), debug.log, server-restart.log;
-// nothing else, ever — and prunes .bak/.vN.bak/.tmp files older than 30 days
-// across the four store dirs (suffix allow-list only). Live data, sessions,
-// TLS material and the server log are never candidates.
+// handleAdminCleanup removes the allow-listed stale legacy artifacts from
+// the config dir root — tokens.json, models/ (dir), debug.log,
+// server-restart.log; nothing else, ever (pre-hub global cruft) — and prunes
+// .bak/.vN.bak/.tmp files older than 30 days across the SESSION HUB's four
+// store dirs (suffix allow-list only). Another hub's stale artifacts are out
+// of reach; live data, sessions, TLS material and the server log are never
+// candidates.
 func (s *Server) handleAdminCleanup(w http.ResponseWriter, r *http.Request) {
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
 	dir, err := config.Dir()
 	if err != nil {
 		s.fail(w, r, err)
@@ -289,7 +305,7 @@ func (s *Server) handleAdminCleanup(w http.ResponseWriter, r *http.Request) {
 
 	cutoff := time.Now().Add(-staleCleanupAge)
 	for _, st := range dataAppStores {
-		root := filepath.Join(dir, st.name)
+		root := filepath.Join(set.root, st.name)
 		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, werr error) error {
 			if werr != nil || d.IsDir() {
 				return nil //nolint:nilerr // unreadable entries are skipped, not fatal
@@ -303,7 +319,7 @@ func (s *Server) handleAdminCleanup(w http.ResponseWriter, r *http.Request) {
 				return nil
 			}
 			if os.Remove(path) == nil {
-				if rel, rerr := filepath.Rel(dir, path); rerr == nil {
+				if rel, rerr := filepath.Rel(set.root, path); rerr == nil {
 					out.Removed = append(out.Removed, filepath.ToSlash(rel))
 				}
 				out.BytesFreed += info.Size()

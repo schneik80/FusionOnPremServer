@@ -92,6 +92,13 @@ func (s *Server) handleWikiPublish(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "hubId, dmProjectId and slug are required")
 		return
 	}
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	if !hubMatches(w, set.hubID, req.HubID) {
+		return
+	}
 	dmHubID, err := api.GetHubDataManagementID(ctx, token, req.HubID)
 	if err != nil {
 		s.fail(w, r, err)
@@ -129,6 +136,13 @@ func (s *Server) handleWikiRename(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "hubId, dmProjectId, itemId and newSlug are required")
 		return
 	}
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	if !hubMatches(w, set.hubID, req.HubID) {
+		return
+	}
 	dmHubID, err := api.GetHubDataManagementID(ctx, token, req.HubID)
 	if err != nil {
 		s.fail(w, r, err)
@@ -160,6 +174,15 @@ func (s *Server) handleWikiImageUpload(w http.ResponseWriter, r *http.Request) {
 	slug := r.FormValue("slug")
 	if hubID == "" || dmProjectID == "" || slug == "" {
 		writeError(w, http.StatusBadRequest, "hubId, dmProjectId and slug are required")
+		return
+	}
+	// The multipart hubId must be the session hub (query-param hub ids are
+	// checked centrally in requireHub; form fields are checked here).
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	if !hubMatches(w, set.hubID, hubID) {
 		return
 	}
 	file, hdr, err := r.FormFile("file")

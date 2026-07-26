@@ -13,6 +13,13 @@ import (
 	"github.com/schneik80/fusionlocalserver/tasks"
 )
 
+// restoreRootsTmp is a throwaway destination pair rooted at one temp dir.
+func restoreRootsTmp(t *testing.T) RestoreRoots {
+	t.Helper()
+	dir := t.TempDir()
+	return RestoreRoots{HubRoot: dir, ConfigDir: dir}
+}
+
 // restoreExpected mirrors the server's expectedSchemaVersion for the
 // fixtures used here: tasks.json is v2, everything else unversioned.
 func restoreExpected(store, rel string) (int, bool) {
@@ -105,7 +112,7 @@ func TestRestoreRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := eng.Restore(snapDir, configDir, restoreExpected); err != nil {
+	if err := eng.Restore(snapDir, RestoreRoots{HubRoot: configDir, ConfigDir: configDir}, restoreExpected); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
 
@@ -219,7 +226,7 @@ func TestRestoreRefusesFutureSchemaVersion(t *testing.T) {
 
 	configDir := t.TempDir()
 	eng := &Engine{Dir: root, AppVersion: "1.2.3"}
-	err := eng.Restore(snapDir, configDir, restoreExpected)
+	err := eng.Restore(snapDir, RestoreRoots{HubRoot: configDir, ConfigDir: configDir}, restoreExpected)
 	if err == nil || !strings.Contains(err.Error(), "newer") {
 		t.Fatalf("Restore future schema: err = %v, want a clear 'newer' refusal", err)
 	}
@@ -242,7 +249,7 @@ func TestRestoreRefusesNewerAppVersion(t *testing.T) {
 	}, "9.9.9", nil)
 
 	eng := &Engine{Dir: root, AppVersion: "1.2.3"}
-	err := eng.Restore(snapDir, t.TempDir(), restoreExpected)
+	err := eng.Restore(snapDir, restoreRootsTmp(t), restoreExpected)
 	if err == nil || !strings.Contains(err.Error(), "newer") {
 		t.Fatalf("Restore newer app: err = %v, want a clear 'newer' refusal", err)
 	}
@@ -250,7 +257,7 @@ func TestRestoreRefusesNewerAppVersion(t *testing.T) {
 	// A dev build restores anything — "dev" bypasses the version gate.
 	devEng := &Engine{Dir: root, AppVersion: "dev"}
 	configDir := t.TempDir()
-	if err := devEng.Restore(snapDir, configDir, restoreExpected); err != nil {
+	if err := devEng.Restore(snapDir, RestoreRoots{HubRoot: configDir, ConfigDir: configDir}, restoreExpected); err != nil {
 		t.Fatalf("Restore as dev: %v", err)
 	}
 	if _, serr := os.Stat(filepath.Join(configDir, "tasks", "p", "tasks.json")); serr != nil {
@@ -274,7 +281,7 @@ func TestRestoreRefusesCorruptSnapshotFile(t *testing.T) {
 
 	eng := &Engine{Dir: root, AppVersion: "1.2.3"}
 	configDir := t.TempDir()
-	err := eng.Restore(snapDir, configDir, restoreExpected)
+	err := eng.Restore(snapDir, RestoreRoots{HubRoot: configDir, ConfigDir: configDir}, restoreExpected)
 	if err == nil || !strings.Contains(err.Error(), "checksum") {
 		t.Fatalf("Restore corrupt file: err = %v, want a checksum refusal", err)
 	}
@@ -294,7 +301,7 @@ func TestRestoreConfigSecretWithAbsentLiveFile(t *testing.T) {
 
 	eng := &Engine{Dir: root, AppVersion: "1.2.3"}
 	configDir := t.TempDir() // no live config.json
-	if err := eng.Restore(snapDir, configDir, restoreExpected); err != nil {
+	if err := eng.Restore(snapDir, RestoreRoots{HubRoot: configDir, ConfigDir: configDir}, restoreExpected); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
 	var cfg map[string]any

@@ -14,72 +14,58 @@ import (
 	"github.com/schneik80/fusionlocalserver/config"
 	"github.com/schneik80/fusionlocalserver/production"
 	"github.com/schneik80/fusionlocalserver/tasks"
-	"github.com/schneik80/fusionlocalserver/whiteboards"
 )
 
-// newDataTestServer builds a Server whose four stores are rooted under the
-// real config.Dir() (HOME is a per-test TempDir — the pins withTempConfigDir
-// trick), because the Data endpoints walk the config dir itself rather than
-// asking the stores.
-func newDataTestServer(t *testing.T) (*Server, string) {
+// newDataTestServer builds a Server whose hub store sets root under the real
+// config.Dir() (HOME is a per-test TempDir — the pins withTempConfigDir
+// trick), because the Data endpoints walk the hub profile dir itself rather
+// than asking the stores. Returns the server, the CONFIG dir, and the test
+// hub's profile root (hubs/hub-1/) that the data endpoints are scoped to.
+func newDataTestServer(t *testing.T) (*Server, string, string) {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir())
 	dir, err := config.Dir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	chatStore, err := chat.NewStore(filepath.Join(dir, "chat"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(chatStore.Close)
-	tasksStore, err := tasks.NewStore(filepath.Join(dir, "tasks"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	prodStore, err := production.NewStore(filepath.Join(dir, "production"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	wbStore, err := whiteboards.NewStore(filepath.Join(dir, "whiteboards"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	authz := chat.NewAuthorizer()
+	hs := newHubStores(dir, authz)
+	t.Cleanup(hs.closeAll)
 	s := &Server{
-		logger:      quietLogger(),
-		clientID:    "test-client",
-		sessions:    NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger()),
-		pending:     NewPendingStore(pendingTTL),
-		chat:        chatStore,
-		tasks:       tasksStore,
-		production:  prodStore,
-		whiteboards: wbStore,
+		logger:    quietLogger(),
+		clientID:  "test-client",
+		sessions:  NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger()),
+		pending:   NewPendingStore(pendingTTL),
+		hubs:      hs,
+		chatAuthz: authz,
 	}
-	return s, dir
+	return s, dir, filepath.Join(dir, "hubs", testHubID)
 }
 
 const dataTestProject = "urn:project:data-1"
 
 func TestAdminDiskUsage(t *testing.T) {
-	s, dir := newDataTestServer(t)
+	s, _, hubRoot := newDataTestServer(t)
 	ts := httptest.NewServer(s.routes())
 	t.Cleanup(ts.Close)
 	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")
 
-	// Seed two app stores for one project, a pins file, and an "other" file.
-	if _, err := s.tasks.Create(dataTestProject, "hub-1", "Data Project",
+	// Seed two app stores for one project, a pins file, and an "other" file
+	// (all inside the session hub's profile — that is the endpoint's scope).
+	set := hubSet(t, s, testHubID)
+	if _, err := set.tasks.Create(dataTestProject, "hub-1", "Data Project",
 		tasks.Draft{Title: "sized"}, tasks.UserRef{ID: "u1"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.production.CreateJob(dataTestProject, "hub-1", "Data Project",
+	if _, err := set.production.CreateJob(dataTestProject, "hub-1", "Data Project",
 		production.JobDraft{Name: "sized job"}, production.UserRef{ID: "u1"}); err != nil {
 		t.Fatal(err)
 	}
 	pinsJSON := `{"version":1,"pins":[{"id":"urn:x","hub_id":"hub-1","kind":"project"}]}`
-	if err := os.WriteFile(filepath.Join(dir, "pins-hub_1.json"), []byte(pinsJSON), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(hubRoot, "pins-hub-1.json"), []byte(pinsJSON), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "server.log"), []byte("log line\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(hubRoot, "stray.bin"), []byte("log line\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -128,16 +114,16 @@ func TestAdminDiskUsage(t *testing.T) {
 		t.Fatalf("pins rows = %d, want 1", len(pins.Projects))
 	}
 	pr := pins.Projects[0]
-	if pr.Dir != "pins-hub_1.json" || pr.HubID != "hub-1" || pr.ProjectID != "" || pr.ProjectName != "" {
+	if pr.Dir != "pins-hub-1.json" || pr.HubID != "hub-1" || pr.ProjectID != "" || pr.ProjectName != "" {
 		t.Errorf("pins row = %+v", pr)
 	}
 	if pr.Bytes != int64(len(pinsJSON)) {
 		t.Errorf("pins bytes = %d, want %d", pr.Bytes, len(pinsJSON))
 	}
 
-	// server.log lands in otherBytes; the totals add up.
+	// The stray file (and hub.json) land in otherBytes; the totals add up.
 	if out.OtherBytes < int64(len("log line\n")) {
-		t.Errorf("otherBytes = %d, want at least the server.log size", out.OtherBytes)
+		t.Errorf("otherBytes = %d, want at least the stray file size", out.OtherBytes)
 	}
 	var accounted int64
 	for _, st := range out.Stores {
@@ -149,18 +135,19 @@ func TestAdminDiskUsage(t *testing.T) {
 }
 
 func TestAdminProjectDataDelete(t *testing.T) {
-	s, dir := newDataTestServer(t)
+	s, _, hubRoot := newDataTestServer(t)
 	ts := httptest.NewServer(s.routes())
 	t.Cleanup(ts.Close)
 	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")
 
+	set := hubSet(t, s, testHubID)
 	seed := func() {
 		t.Helper()
-		if _, err := s.tasks.Create(dataTestProject, "hub-1", "Data Project",
+		if _, err := set.tasks.Create(dataTestProject, "hub-1", "Data Project",
 			tasks.Draft{Title: "doomed"}, tasks.UserRef{ID: "u1"}); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.production.CreateJob(dataTestProject, "hub-1", "Data Project",
+		if _, err := set.production.CreateJob(dataTestProject, "hub-1", "Data Project",
 			production.JobDraft{Name: "survivor"}, production.UserRef{ID: "u1"}); err != nil {
 			t.Fatal(err)
 		}
@@ -168,8 +155,8 @@ func TestAdminProjectDataDelete(t *testing.T) {
 	seed()
 	// The slug both stores write for this project (sanitizeID is shared).
 	slug := "urn_project_data-1"
-	tasksDir := filepath.Join(dir, "tasks", slug)
-	prodDir := filepath.Join(dir, "production", slug)
+	tasksDir := filepath.Join(hubRoot, "tasks", slug)
+	prodDir := filepath.Join(hubRoot, "production", slug)
 	deleteURL := func(projectID, apps string) string {
 		return "/api/admin/projects/data?projectId=" + url.QueryEscape(projectID) +
 			"&apps=" + url.QueryEscape(apps)
@@ -235,7 +222,7 @@ func TestAdminProjectDataDelete(t *testing.T) {
 }
 
 func TestAdminCleanup(t *testing.T) {
-	s, dir := newDataTestServer(t)
+	s, dir, hubRoot := newDataTestServer(t)
 	ts := httptest.NewServer(s.routes())
 	t.Cleanup(ts.Close)
 	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")
@@ -261,12 +248,13 @@ func TestAdminCleanup(t *testing.T) {
 	write(filepath.Join(dir, "tls-cert.pem"), "cert")
 	write(filepath.Join(dir, "server.log"), "log\n")
 	write(filepath.Join(dir, "config.json"), `{"client_id":"x"}`)
-	// …and store-dir .bak/.tmp files: one recent (survives), two old (pruned),
-	// plus an old live file that matches no suffix (survives).
-	recentBak := filepath.Join(dir, "tasks", "proj_a", "tasks.json.bak")
-	oldBak := filepath.Join(dir, "tasks", "proj_a", "tasks.json.v1.bak")
-	oldTmp := filepath.Join(dir, "whiteboards", "proj_b", "doc-w1.json.tmp")
-	oldLive := filepath.Join(dir, "tasks", "proj_a", "tasks.json")
+	// …and store-dir .bak/.tmp files under the SESSION hub profile: one
+	// recent (survives), two old (pruned), plus an old live file that
+	// matches no suffix (survives).
+	recentBak := filepath.Join(hubRoot, "tasks", "proj_a", "tasks.json.bak")
+	oldBak := filepath.Join(hubRoot, "tasks", "proj_a", "tasks.json.v1.bak")
+	oldTmp := filepath.Join(hubRoot, "whiteboards", "proj_b", "doc-w1.json.tmp")
+	oldLive := filepath.Join(hubRoot, "tasks", "proj_a", "tasks.json")
 	write(recentBak, "recent backup")
 	write(oldBak, "v1 backup")
 	write(oldTmp, "half-written temp")

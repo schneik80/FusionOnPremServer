@@ -13,8 +13,19 @@ import (
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
 )
 
-// Restore copies a snapshot's files back into configDir, replacing the live
-// data. The sequence is deliberately conservative:
+// RestoreRoots names the two destinations a restore may write into. HubRoot
+// is the hub profile directory (hubs/<slug>/ under the config dir) that every
+// store/pins file restores into; ConfigDir is the config-dir root, used ONLY
+// for the allow-listed config.json (server.json is skipped entirely). Keeping
+// the roots explicit is what makes a restore structurally unable to write one
+// hub's data into another hub's profile or into the global root.
+type RestoreRoots struct {
+	HubRoot   string
+	ConfigDir string
+}
+
+// Restore copies a snapshot's files back into the given roots, replacing the
+// live data. The sequence is deliberately conservative:
 //
 //  1. Validate: the manifest must load, no file may carry a schema version
 //     newer than this build writes (`expected`, same hook as Verify), and
@@ -40,7 +51,7 @@ import (
 //
 // The caller is responsible for evicting store caches and restarting the
 // listener afterwards; Restore only moves bytes.
-func (e *Engine) Restore(snapshotDir, configDir string, expected func(store, rel string) (int, bool)) error {
+func (e *Engine) Restore(snapshotDir string, roots RestoreRoots, expected func(store, rel string) (int, bool)) error {
 	m, err := ReadManifest(snapshotDir)
 	if err != nil {
 		return err
@@ -80,7 +91,7 @@ func (e *Engine) Restore(snapshotDir, configDir string, expected func(store, rel
 			return fmt.Errorf("backup: snapshot file %s fails its checksum, refusing to restore (run verify for details)", rel)
 		}
 		if rel == "config.json" {
-			if data, rerr = mergeConfigSecret(data, configDir); rerr != nil {
+			if data, rerr = mergeConfigSecret(data, roots.ConfigDir); rerr != nil {
 				return rerr
 			}
 		}
@@ -93,7 +104,11 @@ func (e *Engine) Restore(snapshotDir, configDir string, expected func(store, rel
 	}
 
 	for _, f := range files {
-		dest := filepath.Join(configDir, filepath.FromSlash(f.rel))
+		root := roots.HubRoot
+		if f.rel == "config.json" {
+			root = roots.ConfigDir // the one allow-listed global file
+		}
+		dest := filepath.Join(root, filepath.FromSlash(f.rel))
 		if err := os.MkdirAll(filepath.Dir(dest), 0700); err != nil {
 			return fmt.Errorf("backup: restoring %s: %w", f.rel, err)
 		}

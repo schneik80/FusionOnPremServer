@@ -42,12 +42,12 @@ func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sub, replay, reset, err := s.chatHub.Subscribe(c.projectID, r.Header.Get("Last-Event-ID"))
+	sub, replay, reset, err := c.hub.Subscribe(c.projectID, r.Header.Get("Last-Event-ID"))
 	if err != nil {
 		s.chatError(w, r, err)
 		return
 	}
-	defer s.chatHub.Unsubscribe(c.projectID, sub)
+	defer c.hub.Unsubscribe(c.projectID, sub)
 
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
@@ -120,7 +120,7 @@ func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
 // frame too (fail closed) without killing the stream.
 func (s *Server) writeEntitledFrame(ctx context.Context, write func(string, ...any) bool, c chatCtx, f chat.Frame) bool {
 	checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	entitled, err := s.chatHub.Entitled(checkCtx, c.token, c.id, c.projectID, f)
+	entitled, err := c.hub.Entitled(checkCtx, c.token, c.id, c.projectID, f)
 	cancel()
 	if err != nil || !entitled {
 		return err == nil || ctx.Err() == nil

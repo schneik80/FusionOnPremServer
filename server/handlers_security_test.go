@@ -107,8 +107,8 @@ func TestPinsAddRejectsMalformedJSON(t *testing.T) {
 	s := &Server{logger: quietLogger()}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/pins?hubId=h1",
-		strings.NewReader(`{"id": "x", "kind": `)) // truncated JSON
+	req := withHubCtx(httptest.NewRequest(http.MethodPost, "/api/pins",
+		strings.NewReader(`{"id": "x", "kind": `)), &storeSet{hubID: "h1"}) // truncated JSON
 	s.handlePinsAdd(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
@@ -129,7 +129,7 @@ func TestPinsAddRejectsOversizedBody(t *testing.T) {
 	// 128 KiB of padding inside an otherwise-valid pin — over the 64 KiB cap.
 	huge := `{"id":"x","kind":"design","name":"` + strings.Repeat("A", 128<<10) + `"}`
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/pins?hubId=h1", strings.NewReader(huge))
+	req := withHubCtx(httptest.NewRequest(http.MethodPost, "/api/pins", strings.NewReader(huge)), &storeSet{hubID: "h1"})
 	s.handlePinsAdd(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
@@ -142,8 +142,8 @@ func TestPinsAddRejectsUnpinnableKind(t *testing.T) {
 	s := &Server{logger: quietLogger()}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/pins?hubId=h1",
-		strings.NewReader(`{"id":"x","kind":"bogus"}`))
+	req := withHubCtx(httptest.NewRequest(http.MethodPost, "/api/pins",
+		strings.NewReader(`{"id":"x","kind":"bogus"}`)), &storeSet{hubID: "h1"})
 	s.handlePinsAdd(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
@@ -169,7 +169,7 @@ func TestInjectionPayloadIsStoredVerbatim(t *testing.T) {
 	bodyBytes, _ := json.Marshal(pin)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/pins?hubId=h1", strings.NewReader(string(bodyBytes)))
+	req := withHubCtx(httptest.NewRequest(http.MethodPost, "/api/pins", strings.NewReader(string(bodyBytes))), &storeSet{hubID: "h1"})
 	s.handlePinsAdd(rec, req)
 
 	if rec.Code != http.StatusOK {

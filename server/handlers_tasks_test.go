@@ -8,7 +8,6 @@ import (
 	"github.com/schneik80/fusionlocalserver/api"
 	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/internal/testutil"
-	"github.com/schneik80/fusionlocalserver/tasks"
 )
 
 const (
@@ -39,17 +38,14 @@ func newTaskTestServer(t *testing.T) *Server {
 	restore := api.SetGraphqlEndpointForTesting(srv.URL)
 	t.Cleanup(restore)
 
-	store, err := tasks.NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	authz := chat.NewAuthorizer()
 	return &Server{
 		logger:    quietLogger(),
 		clientID:  "test-client",
 		sessions:  NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger()),
 		pending:   NewPendingStore(pendingTTL),
-		tasks:     store,
-		chatAuthz: chat.NewAuthorizer(),
+		hubs:      testHubStores(t, authz),
+		chatAuthz: authz,
 		taskOpLim: chat.NewLimiter(50, 100), // roomy: tests mutate rapidly
 	}
 }
@@ -218,7 +214,7 @@ func TestTasks_Mine(t *testing.T) {
 
 func TestTasks_StoreUnavailable(t *testing.T) {
 	s := newTaskTestServer(t)
-	s.tasks = nil
+	s.hubs = nil // config dir unavailable at startup — no hub store sets
 	ts := httptest.NewServer(s.routes())
 	t.Cleanup(ts.Close)
 	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")

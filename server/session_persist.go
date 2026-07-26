@@ -35,6 +35,10 @@ type persistedSession struct {
 	CreatedAt time.Time        `json:"created_at"`
 	LastSeen  time.Time        `json:"last_seen"`
 	Token     *auth.TokenData  `json:"token"`
+	// Additive (older files simply load these as empty): the session's hub
+	// lock, so a restart doesn't force everyone back through the hub gate.
+	SelectedHubID   string `json:"selected_hub_id,omitempty"`
+	SelectedHubName string `json:"selected_hub_name,omitempty"`
 }
 
 // EnablePersistence points the store at <dir> for its encrypted session file
@@ -84,12 +88,15 @@ func (s *SessionStore) snapshot() []persistedSession {
 	defer s.mu.Unlock()
 	out := make([]persistedSession, 0, len(s.byID))
 	for _, sess := range s.byID {
+		hubID, hubName := sess.SelectedHub()
 		out = append(out, persistedSession{
-			ID:        sess.ID,
-			Profile:   sess.Profile,
-			CreatedAt: sess.CreatedAt,
-			LastSeen:  sess.lastSeen,
-			Token:     sess.token.Load(),
+			ID:              sess.ID,
+			Profile:         sess.Profile,
+			CreatedAt:       sess.CreatedAt,
+			LastSeen:        sess.lastSeen,
+			Token:           sess.token.Load(),
+			SelectedHubID:   hubID,
+			SelectedHubName: hubName,
 		})
 	}
 	return out
@@ -126,6 +133,7 @@ func (s *SessionStore) load() error {
 	s.mu.Lock()
 	for _, ps := range snap {
 		sess := &Session{ID: ps.ID, Profile: ps.Profile, CreatedAt: ps.CreatedAt, lastSeen: ps.LastSeen}
+		sess.setSelectedHub(ps.SelectedHubID, ps.SelectedHubName)
 		sess.token.Store(ps.Token)
 		if s.expired(sess, now) {
 			continue

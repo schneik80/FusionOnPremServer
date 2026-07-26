@@ -28,20 +28,26 @@ import (
 const prodMaxBody = 64 << 10
 
 // prodCtx is what every production handler resolves first: the caller's token,
-// identity, display name, session id (rate-limit key) and the project.
+// identity, display name, session id (rate-limit key), the SESSION HUB's
+// production store (from the requireHub choke point — never from any wire hub
+// id), and the project.
 type prodCtx struct {
 	projectID string
 	token     string
 	id        chat.Identity
 	name      string
 	sessID    string
+
+	store *production.Store
+	hubID string
 }
 
-// prodSession gates a production request with no project scope (none yet, but
-// keeps parity with taskSession and is ready for a future /mine).
+// prodSession gates a production request with no project scope (/mine). The
+// hub's store set comes from requireHub, so /mine scopes to the session hub
+// structurally.
 func (s *Server) prodSession(w http.ResponseWriter, r *http.Request) (prodCtx, bool) {
-	if s.production == nil {
-		writeError(w, http.StatusServiceUnavailable, "production storage is unavailable on this server")
+	set, ok := reqStores(w, r)
+	if !ok {
 		return prodCtx{}, false
 	}
 	tok, ok := s.token(r.Context(), w, r)
@@ -62,6 +68,8 @@ func (s *Server) prodSession(w http.ResponseWriter, r *http.Request) (prodCtx, b
 		id:     chat.Identity{UserID: sess.Profile.Sub, Email: sess.Profile.Email},
 		name:   name,
 		sessID: sess.ID,
+		store:  set.production,
+		hubID:  set.hubID,
 	}, true
 }
 
@@ -130,7 +138,7 @@ func decodeProdBody(w http.ResponseWriter, r *http.Request, v any) bool {
 
 // prodJobResult writes a single job, re-fetching the project's hub/name.
 func (s *Server) prodJobResult(w http.ResponseWriter, r *http.Request, c prodCtx, j production.Job, status int) {
-	hubID, projectName, err := s.production.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -151,12 +159,12 @@ func (s *Server) handleProdJobsList(w http.ResponseWriter, r *http.Request) {
 	if !s.prodCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	jobs, err := s.production.ListJobs(c.projectID)
+	jobs, err := c.store.ListJobs(c.projectID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
 	}
-	hubID, projectName, err := s.production.ProjectInfo(c.projectID)
+	hubID, projectName, err := c.store.ProjectInfo(c.projectID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -196,7 +204,7 @@ func (s *Server) handleProdMine(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	mine, err := s.production.Mine(c.id.UserID, c.id.Email)
+	mine, err := c.store.Mine(c.id.UserID, c.id.Email)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -223,7 +231,7 @@ func (s *Server) handleProdJobGet(w http.ResponseWriter, r *http.Request) {
 	if !s.prodCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	j, err := s.production.GetJob(c.projectID, jobID)
+	j, err := c.store.GetJob(c.projectID, jobID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -256,7 +264,10 @@ func (s *Server) handleProdJobCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "hubId and projectName are required")
 		return
 	}
-	j, err := s.production.CreateJob(c.projectID, in.HubID, in.ProjectName, production.JobDraft{
+	if !hubMatches(w, c.hubID, in.HubID) {
+		return
+	}
+	j, err := c.store.CreateJob(c.projectID, in.HubID, in.ProjectName, production.JobDraft{
 		Name:        in.Name,
 		Description: in.Description,
 	}, production.UserRef{ID: c.id.UserID, Name: c.name, Email: c.id.Email})
@@ -289,7 +300,7 @@ func (s *Server) handleProdJobUpdate(w http.ResponseWriter, r *http.Request) {
 	if !decodeProdBody(w, r, &in) {
 		return
 	}
-	j, err := s.production.UpdateJob(c.projectID, jobID, production.JobPatch{Name: in.Name, Description: in.Description})
+	j, err := c.store.UpdateJob(c.projectID, jobID, production.JobPatch{Name: in.Name, Description: in.Description})
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -313,7 +324,7 @@ func (s *Server) handleProdJobDelete(w http.ResponseWriter, r *http.Request) {
 	if !s.prodCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	j, err := s.production.GetJob(c.projectID, jobID)
+	j, err := c.store.GetJob(c.projectID, jobID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -327,7 +338,7 @@ func (s *Server) handleProdJobDelete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "only the job's creator or a project moderator can delete it")
 		return
 	}
-	if err := s.production.DeleteJob(c.projectID, jobID); err != nil {
+	if err := c.store.DeleteJob(c.projectID, jobID); err != nil {
 		s.prodError(w, r, err)
 		return
 	}
@@ -371,7 +382,7 @@ func (s *Server) handleProdStepCreate(w http.ResponseWriter, r *http.Request) {
 	if !decodeProdBody(w, r, &in) {
 		return
 	}
-	j, err := s.production.CreateStep(c.projectID, jobID, production.StepDraft{
+	j, err := c.store.CreateStep(c.projectID, jobID, production.StepDraft{
 		Title:       in.Title,
 		Description: in.Description,
 		X:           in.X,
@@ -412,7 +423,7 @@ func (s *Server) handleProdStepUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		patch.Position = &production.Position{X: *in.X, Y: *in.Y}
 	}
-	j, err := s.production.UpdateStep(c.projectID, jobID, stepID, patch)
+	j, err := c.store.UpdateStep(c.projectID, jobID, stepID, patch)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -430,7 +441,7 @@ func (s *Server) handleProdStepDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	j, err := s.production.DeleteStep(c.projectID, jobID, stepID)
+	j, err := c.store.DeleteStep(c.projectID, jobID, stepID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -453,7 +464,7 @@ func (s *Server) handleProdEdgeCreate(w http.ResponseWriter, r *http.Request) {
 	if !decodeProdBody(w, r, &in) {
 		return
 	}
-	j, err := s.production.AddEdge(c.projectID, jobID, in.From, in.To)
+	j, err := c.store.AddEdge(c.projectID, jobID, in.From, in.To)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -471,7 +482,7 @@ func (s *Server) handleProdEdgeDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	j, err := s.production.DeleteEdge(c.projectID, jobID, edgeID)
+	j, err := c.store.DeleteEdge(c.projectID, jobID, edgeID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -499,7 +510,7 @@ func (s *Server) handleProdPlaceholderCreate(w http.ResponseWriter, r *http.Requ
 	if !decodeProdBody(w, r, &in) {
 		return
 	}
-	j, err := s.production.AddPlaceholder(c.projectID, jobID, stepID, production.PlaceholderDraft{
+	j, err := c.store.AddPlaceholder(c.projectID, jobID, stepID, production.PlaceholderDraft{
 		Label:    in.Label,
 		Kind:     in.Kind,
 		Required: in.Required,
@@ -533,7 +544,7 @@ func (s *Server) handleProdPlaceholderUpdate(w http.ResponseWriter, r *http.Requ
 	if !decodeProdBody(w, r, &in) {
 		return
 	}
-	j, err := s.production.UpdatePlaceholder(c.projectID, jobID, stepID, placeholderID, production.PlaceholderPatch{
+	j, err := c.store.UpdatePlaceholder(c.projectID, jobID, stepID, placeholderID, production.PlaceholderPatch{
 		Label:    in.Label,
 		Kind:     in.Kind,
 		Required: in.Required,
@@ -559,7 +570,7 @@ func (s *Server) handleProdPlaceholderDelete(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
-	j, err := s.production.RemovePlaceholder(c.projectID, jobID, stepID, placeholderID)
+	j, err := c.store.RemovePlaceholder(c.projectID, jobID, stepID, placeholderID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -588,6 +599,11 @@ type prodDocIn struct {
 func (s *Server) resolveSnapshot(ctx context.Context, w http.ResponseWriter, r *http.Request, c prodCtx, in prodDocIn) (production.DocSnapshot, bool) {
 	if in.HubID == "" || in.ItemID == "" || in.DMProjectID == "" {
 		writeError(w, http.StatusBadRequest, "hubId, itemId and dmProjectId are required")
+		return production.DocSnapshot{}, false
+	}
+	// The referenced document must live in the session hub — checked before
+	// any APS call so a foreign-hub reference costs nothing upstream.
+	if !hubMatches(w, c.hubID, in.HubID) {
 		return production.DocSnapshot{}, false
 	}
 	snap, err := api.SnapshotDocVersion(ctx, c.token, in.HubID, in.DMProjectID, in.ItemID, in.VersionID)
@@ -635,7 +651,7 @@ func (s *Server) handleProdPlanDocCreate(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	j, err := s.production.AttachPlanDoc(c.projectID, jobID, stepID, doc, s.prodUser(c))
+	j, err := c.store.AttachPlanDoc(c.projectID, jobID, stepID, doc, s.prodUser(c))
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -657,7 +673,7 @@ func (s *Server) handleProdPlanDocDelete(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	j, err := s.production.RemovePlanDoc(c.projectID, jobID, stepID, planDocID)
+	j, err := c.store.RemovePlanDoc(c.projectID, jobID, stepID, planDocID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -690,7 +706,7 @@ func (s *Server) handleProdBatchCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		runAt = t
 	}
-	b, err := s.production.CreateBatch(c.projectID, jobID, production.BatchDraft{
+	b, err := c.store.CreateBatch(c.projectID, jobID, production.BatchDraft{
 		Name:  in.Name,
 		Kind:  in.Kind,
 		RunAt: runAt,
@@ -720,7 +736,7 @@ func (s *Server) handleProdBatchGet(w http.ResponseWriter, r *http.Request) {
 	if !s.prodCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	b, err := s.production.GetBatch(c.projectID, jobID, batchID)
+	b, err := c.store.GetBatch(c.projectID, jobID, batchID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -756,7 +772,7 @@ func (s *Server) handleProdBatchUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		patch.RunAt = &t
 	}
-	b, err := s.production.UpdateBatch(c.projectID, jobID, batchID, patch)
+	b, err := c.store.UpdateBatch(c.projectID, jobID, batchID, patch)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -784,7 +800,7 @@ func (s *Server) handleProdBatchDelete(w http.ResponseWriter, r *http.Request) {
 	if !s.prodCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	b, err := s.production.GetBatch(c.projectID, jobID, batchID)
+	b, err := c.store.GetBatch(c.projectID, jobID, batchID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -798,7 +814,7 @@ func (s *Server) handleProdBatchDelete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "only the batch's creator or a project moderator can delete it")
 		return
 	}
-	if err := s.production.DeleteBatch(c.projectID, jobID, batchID); err != nil {
+	if err := c.store.DeleteBatch(c.projectID, jobID, batchID); err != nil {
 		s.prodError(w, r, err)
 		return
 	}
@@ -843,7 +859,7 @@ func (s *Server) handleProdFulfillmentCreate(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
-	b, err := s.production.AddFulfillment(c.projectID, jobID, batchID, production.FulfillmentDraft{
+	b, err := c.store.AddFulfillment(c.projectID, jobID, batchID, production.FulfillmentDraft{
 		StepID:        in.StepID,
 		PlaceholderID: in.PlaceholderID,
 		Doc:           doc,
@@ -871,7 +887,7 @@ func (s *Server) handleProdFulfillmentDelete(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
-	b, err := s.production.RemoveFulfillment(c.projectID, jobID, batchID, fulfillmentID)
+	b, err := c.store.RemoveFulfillment(c.projectID, jobID, batchID, fulfillmentID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -897,7 +913,7 @@ func (s *Server) handleProdBatchRefAdd(w http.ResponseWriter, r *http.Request) {
 	if !decodeProdBody(w, r, &in) {
 		return
 	}
-	b, err := s.production.AddBatchRef(c.projectID, jobID, batchID, in.Token)
+	b, err := c.store.AddBatchRef(c.projectID, jobID, batchID, in.Token)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -919,7 +935,7 @@ func (s *Server) handleProdBatchRefDelete(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	b, err := s.production.RemoveBatchRef(c.projectID, jobID, batchID, token)
+	b, err := c.store.RemoveBatchRef(c.projectID, jobID, batchID, token)
 	if err != nil {
 		s.prodError(w, r, err)
 		return

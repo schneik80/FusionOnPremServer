@@ -35,6 +35,9 @@ type ctxKey int
 const (
 	tokenCtxKey ctxKey = iota
 	sessionCtxKey
+	// storesCtxKey carries the storeSet requireHub resolved from the
+	// session's selected hub (see hubgate.go).
+	storesCtxKey
 )
 
 func tokenFromCtx(ctx context.Context) (string, bool) {
@@ -48,9 +51,13 @@ func sessionFromCtx(ctx context.Context) (*Session, bool) {
 }
 
 // AuthMeDTO is the GET /api/auth/me response: the SPA's login-state probe.
+// SelectedHubID/Name reflect the session's hub lock (empty until POST
+// /api/session/hub) so a returning client can re-enter its hub directly.
 type AuthMeDTO struct {
-	Authenticated bool     `json:"authenticated"`
-	User          *UserDTO `json:"user,omitempty"`
+	Authenticated   bool     `json:"authenticated"`
+	User            *UserDTO `json:"user,omitempty"`
+	SelectedHubID   string   `json:"selectedHubId,omitempty"`
+	SelectedHubName string   `json:"selectedHubName,omitempty"`
 }
 
 // UserDTO is the minimal logged-in identity shown in the web UI. ID is the
@@ -210,10 +217,19 @@ func (s *Server) handleAuthMe(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, AuthMeDTO{Authenticated: false})
 		return
 	}
-	writeJSON(w, http.StatusOK, AuthMeDTO{
-		Authenticated: true,
-		User:          &UserDTO{ID: sess.Profile.Sub, Name: sess.Profile.Name, Email: sess.Profile.Email},
-	})
+	writeJSON(w, http.StatusOK, authMeDTO(sess))
+}
+
+// authMeDTO builds the login-state DTO for a live session (shared by
+// /api/auth/me and POST /api/session/hub).
+func authMeDTO(sess *Session) AuthMeDTO {
+	hubID, hubName := sess.SelectedHub()
+	return AuthMeDTO{
+		Authenticated:   true,
+		User:            &UserDTO{ID: sess.Profile.Sub, Name: sess.Profile.Name, Email: sess.Profile.Email},
+		SelectedHubID:   hubID,
+		SelectedHubName: hubName,
+	}
 }
 
 func (s *Server) redirectAuthError(w http.ResponseWriter, r *http.Request, reason string) {

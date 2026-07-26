@@ -27,6 +27,26 @@ func withTempConfigDir(t *testing.T) string {
 	return dir
 }
 
+// pinsPath is the hub's pins file inside its profile directory. The hub ids
+// used by these tests are already slug-safe, so the slug equals the id.
+func pinsPath(dir, hub string) string {
+	return filepath.Join(dir, "hubs", hub, "pins-"+hub+".json")
+}
+
+// writePinsFile writes raw bytes at the hub's pins path, creating the profile
+// directory (tests seed files before any Save has created it).
+func writePinsFile(t *testing.T, dir, hub string, data []byte) string {
+	t.Helper()
+	path := pinsPath(dir, hub)
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatalf("mkdir profile: %v", err)
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatalf("write pins file: %v", err)
+	}
+	return path
+}
+
 func TestSanitizeHubID(t *testing.T) {
 	cases := []struct {
 		name string
@@ -65,9 +85,7 @@ func TestLoad_AbsentFileReturnsEmpty(t *testing.T) {
 func TestLoad_CorruptFileReturnsEmpty(t *testing.T) {
 	dir := withTempConfigDir(t)
 	// File exists but isn't valid JSON.
-	if err := os.WriteFile(filepath.Join(dir, "pins-hub_a.json"), []byte("{not json"), 0600); err != nil {
-		t.Fatalf("write corrupt: %v", err)
-	}
+	writePinsFile(t, dir, "hub_a", []byte("{not json"))
 	got, err := Load("hub_a")
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -126,7 +144,7 @@ func TestSave_FileMode0600(t *testing.T) {
 	if err := Save("hub", []Pin{{ID: "x", Name: "x", Kind: "design", HubID: "hub"}}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	info, err := os.Stat(filepath.Join(dir, "pins-hub.json"))
+	info, err := os.Stat(pinsPath(dir, "hub"))
 	if err != nil {
 		t.Fatalf("stat: %v", err)
 	}
@@ -311,7 +329,7 @@ func TestSaveWritesV1Envelope(t *testing.T) {
 	if err := Save(hub, []Pin{{ID: "p1", Name: "One", Kind: "design", HubID: hub}}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "pins-"+hub+".json"))
+	data, err := os.ReadFile(pinsPath(dir, hub))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,11 +356,8 @@ func TestSaveWritesV1Envelope(t *testing.T) {
 func TestLoadLegacyArrayMigrates(t *testing.T) {
 	dir := withTempConfigDir(t)
 	hub := "hubLegacy"
-	path := filepath.Join(dir, "pins-"+hub+".json")
 	legacy := `[{"id":"p1","name":"Old","kind":"design","hub_id":"hubLegacy","pinned_at":"2024-01-02T03:04:05Z"}]`
-	if err := os.WriteFile(path, []byte(legacy), 0600); err != nil {
-		t.Fatal(err)
-	}
+	path := writePinsFile(t, dir, hub, []byte(legacy))
 	got, err := Load(hub)
 	if err != nil || len(got) != 1 || got[0].ID != "p1" {
 		t.Fatalf("Load legacy = %v, %v", got, err)
@@ -369,10 +384,7 @@ func TestLoadLegacyArrayMigrates(t *testing.T) {
 func TestLoadFutureVersionRefused(t *testing.T) {
 	dir := withTempConfigDir(t)
 	hub := "hubFuture"
-	path := filepath.Join(dir, "pins-"+hub+".json")
-	if err := os.WriteFile(path, []byte(`{"version": 99, "pins": []}`), 0600); err != nil {
-		t.Fatal(err)
-	}
+	writePinsFile(t, dir, hub, []byte(`{"version": 99, "pins": []}`))
 	if _, err := Load(hub); err == nil {
 		t.Fatal("expected ErrFutureVersion")
 	}
@@ -381,10 +393,7 @@ func TestLoadFutureVersionRefused(t *testing.T) {
 func TestLoadCorruptRecovers(t *testing.T) {
 	dir := withTempConfigDir(t)
 	hub := "hubCorrupt"
-	path := filepath.Join(dir, "pins-"+hub+".json")
-	if err := os.WriteFile(path, []byte(`{"version": 1, "pins": [truncated`), 0600); err != nil {
-		t.Fatal(err)
-	}
+	path := writePinsFile(t, dir, hub, []byte(`{"version": 1, "pins": [truncated`))
 	got, err := Load(hub)
 	if err != nil || len(got) != 0 {
 		t.Fatalf("Load corrupt = %v, %v", got, err)
@@ -400,7 +409,7 @@ func TestSavePreservesBirthStamp(t *testing.T) {
 	if err := Save(hub, []Pin{{ID: "p1", HubID: hub}}); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, "pins-"+hub+".json")
+	path := pinsPath(dir, hub)
 	var first struct {
 		Schema struct {
 			CreatedAt time.Time `json:"createdAt"`
