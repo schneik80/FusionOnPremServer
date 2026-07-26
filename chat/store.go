@@ -116,6 +116,25 @@ func NewStore(dir string) (*Store, error) {
 func (s *Store) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.closeHandlesLocked()
+}
+
+// Reset closes every open log handle and drops all in-memory project state,
+// so the next access replays fresh from disk. Required after a backup
+// restore replaces the files under a still-running process — the listener
+// rebind that follows a restore does NOT recreate the store, so a stale
+// cache here would rewrite pre-restore data on the next mutation. Requests
+// already holding a projectState may still finish against the old state;
+// the restart that follows immediately bounds that window.
+func (s *Store) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closeHandlesLocked()
+	s.projects = make(map[string]*projectState)
+}
+
+// closeHandlesLocked closes every channel's append handle. Caller holds s.mu.
+func (s *Store) closeHandlesLocked() {
 	for _, ps := range s.projects {
 		ps.mu.Lock()
 		for _, cs := range ps.channels {

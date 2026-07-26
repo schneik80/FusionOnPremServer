@@ -96,6 +96,27 @@
       "up": "Remonter d'un niveau",
       "select": "Utiliser ce dossier",
       "empty": "Aucun sous-dossier."
+    },
+    "verify": {
+      "action": "Vérifier",
+      "checking": "Vérification…",
+      "ok": "Les {{files}} fichiers ont été vérifiés.",
+      "failSummary": "{{failed}} fichier(s) sur {{files}} ont échoué à la vérification.",
+      "hide": "Masquer",
+      "missing": "manquant",
+      "hash": "somme de contrôle invalide",
+      "parse": "illisible",
+      "version": "version de schéma future"
+    },
+    "restore": {
+      "action": "Restaurer",
+      "title": "Restaurer la sauvegarde",
+      "warning": "La restauration remplace les données actuelles du serveur par cette sauvegarde. Une copie de sécurité des données actuelles est d'abord créée, puis le serveur redémarre.",
+      "typeToConfirm": "Saisissez <code>{{name}}</code> pour confirmer.",
+      "confirmLabel": "Nom de l'instantané",
+      "confirmButton": "Restaurer et redémarrer",
+      "restoring": "Restauration…",
+      "reconnecting": "Sauvegarde restaurée — le serveur redémarre. Cette page va se recharger sous peu…"
     }
   },
   "data": {

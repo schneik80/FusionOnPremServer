@@ -3,16 +3,23 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/backup"
+	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/config"
+	"github.com/schneik80/fusionlocalserver/pins"
+	"github.com/schneik80/fusionlocalserver/production"
+	"github.com/schneik80/fusionlocalserver/tasks"
+	"github.com/schneik80/fusionlocalserver/whiteboards"
 )
 
 // Backup endpoints back the Settings console's Backups tool. Same gating
@@ -285,6 +292,212 @@ func (s *Server) handleAdminBackupConfigSet(w http.ResponseWriter, r *http.Reque
 	s.logger.Info("backup: configuration updated",
 		"dir", req.BackupDir, "time", req.BackupTime, "enabled", req.BackupEnabled)
 	writeJSON(w, http.StatusOK, req)
+}
+
+// ---- verify + restore (phase 3c) ----
+
+// BackupVerifyRequest is POST /api/admin/backups/verify: the snapshot to
+// check, as the backup-dir-relative path List() reported (e.g.
+// "manual/20260726-033000").
+type BackupVerifyRequest struct {
+	Path string `json:"path"`
+}
+
+// BackupFileResultDTO mirrors backup.FileResult for one file.
+type BackupFileResultDTO struct {
+	Path      string `json:"path"`
+	HashOK    bool   `json:"hashOK"`
+	ParseOK   bool   `json:"parseOK"`
+	VersionOK bool   `json:"versionOK"`
+	Missing   bool   `json:"missing"`
+	Detail    string `json:"detail,omitempty"`
+}
+
+// BackupVerifyReportDTO is the verify response: manifest header + per-file
+// results. Path echoes the request's backup-dir-relative path.
+type BackupVerifyReportDTO struct {
+	Path      string                `json:"path"`
+	Kind      string                `json:"kind"`
+	CreatedAt string                `json:"createdAt"`
+	OK        bool                  `json:"ok"`
+	Files     []BackupFileResultDTO `json:"files"`
+}
+
+// BackupRestoreRequest is POST /api/admin/backups/restore. Confirm must
+// equal the snapshot's timestamp directory name — the typed confirmation is
+// enforced server-side too, so no client bug can restore unconfirmed.
+type BackupRestoreRequest struct {
+	Path    string `json:"path"`
+	Confirm string `json:"confirm"`
+}
+
+// BackupRestoreResponse mirrors SetPortResponse's restart contract: the
+// client shows a reconnect screen and reloads.
+type BackupRestoreResponse struct {
+	Restarting bool `json:"restarting"`
+}
+
+// expectedSchemaVersion maps a manifest entry (source name + rel path) to
+// the schema version this build currently writes for that file — the hook
+// backup.Verify/Restore use to refuse data from a newer build. Chat splits
+// per basename (meta/cursors/message-log versions advance independently);
+// whiteboard doc-*.json files are opaque tldraw documents with no schema
+// authority here, and config/server.json carry no version at all — those
+// report ok=false and are exempt from the version check.
+func expectedSchemaVersion(store, rel string) (int, bool) {
+	base := path.Base(rel)
+	switch store {
+	case "chat":
+		switch {
+		case base == "meta.json":
+			return chat.MetaVersion(), true
+		case base == "cursors.json":
+			return chat.CursorsVersion(), true
+		case strings.HasPrefix(base, "msg-") && strings.HasSuffix(base, ".jsonl"):
+			return chat.RecordVersion(), true
+		}
+	case "tasks":
+		if base == "tasks.json" {
+			return tasks.CurrentVersion(), true
+		}
+	case "production":
+		if base == "production.json" {
+			return production.CurrentVersion(), true
+		}
+	case "whiteboards":
+		if base == "whiteboards.json" {
+			return whiteboards.CurrentVersion(), true
+		}
+	case "pins":
+		if strings.HasPrefix(base, "pins-") && strings.HasSuffix(base, ".json") {
+			return pins.CurrentVersion(), true
+		}
+	}
+	return 0, false
+}
+
+// snapshotDirForPath resolves a backup-dir-relative snapshot path, refusing
+// anything that escapes the backup directory (absolute paths, ..
+// traversal). The path is client input naming a directory we will read and
+// restore from — it must never point anywhere else.
+func snapshotDirForPath(backupDir, rel string) (string, error) {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return "", errors.New("path is required")
+	}
+	if filepath.IsAbs(rel) || path.IsAbs(filepath.ToSlash(rel)) {
+		return "", errors.New("path must be relative to the backup directory")
+	}
+	full := filepath.Join(backupDir, filepath.FromSlash(rel))
+	r, err := filepath.Rel(backupDir, full)
+	if err != nil || r == "." || r == ".." || strings.HasPrefix(r, ".."+string(filepath.Separator)) {
+		return "", errors.New("path escapes the backup directory")
+	}
+	return full, nil
+}
+
+// handleAdminBackupVerify re-checks one snapshot against its manifest:
+// hashes, parseability, schema versions, missing and stray files.
+func (s *Server) handleAdminBackupVerify(w http.ResponseWriter, r *http.Request) {
+	eng := s.backupEngine()
+	if eng == nil {
+		writeError(w, http.StatusServiceUnavailable, "no backup directory configured")
+		return
+	}
+	var req BackupVerifyRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	snapDir, err := snapshotDirForPath(eng.Dir, req.Path)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	rep, err := backup.Verify(snapDir, expectedSchemaVersion)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("verify failed: %v", err))
+		return
+	}
+	out := BackupVerifyReportDTO{
+		Path:      req.Path,
+		Kind:      string(rep.Kind),
+		CreatedAt: fmtTime(rep.CreatedAt),
+		OK:        rep.OK,
+		Files:     make([]BackupFileResultDTO, 0, len(rep.Files)),
+	}
+	for _, f := range rep.Files {
+		out.Files = append(out.Files, BackupFileResultDTO{
+			Path:      f.Path,
+			HashOK:    f.HashOK,
+			ParseOK:   f.ParseOK,
+			VersionOK: f.VersionOK,
+			Missing:   f.Missing,
+			Detail:    f.Detail,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleAdminBackupRestore restores one snapshot over the live data:
+// typed-confirmation check, engine.Restore (validate → pre-restore snapshot
+// → copy), then store-cache eviction and a listener restart. The restart
+// reuses handleSetPort's mechanism — reply first, rebind ~0.5s later — and
+// matters beyond UX symmetry: the rebind loop does NOT recreate the stores,
+// so the explicit Reset() calls here are what stops a stale in-memory cache
+// from rewriting pre-restore data. Pins have no cache (Load per request)
+// and sessions.enc is never in a backup, so neither needs touching.
+func (s *Server) handleAdminBackupRestore(w http.ResponseWriter, r *http.Request) {
+	eng := s.backupEngine()
+	if eng == nil {
+		writeError(w, http.StatusServiceUnavailable, "no backup directory configured")
+		return
+	}
+	var req BackupRestoreRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	snapDir, err := snapshotDirForPath(eng.Dir, req.Path)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if req.Confirm == "" || req.Confirm != filepath.Base(snapDir) {
+		writeError(w, http.StatusBadRequest, "confirmation does not match the snapshot name")
+		return
+	}
+	dir, err := config.Dir()
+	if err != nil {
+		s.fail(w, r, fmt.Errorf("resolving config dir: %w", err))
+		return
+	}
+	if err := eng.Restore(snapDir, dir, expectedSchemaVersion); err != nil {
+		s.logger.Error("backup: restore failed", "path", req.Path, "err", err)
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("restore failed: %v", err))
+		return
+	}
+
+	// Files are replaced; drop every store's in-memory state before anything
+	// can write stale data back over the restored files.
+	if s.chat != nil {
+		s.chat.Reset()
+	}
+	if s.tasks != nil {
+		s.tasks.Reset()
+	}
+	if s.production != nil {
+		s.production.Reset()
+	}
+	if s.whiteboards != nil {
+		s.whiteboards.Reset()
+	}
+
+	s.logger.Info("backup: restore complete — restarting listener", "path", req.Path)
+	writeJSON(w, http.StatusOK, BackupRestoreResponse{Restarting: true})
+
+	// Rebind after the response has flushed (handleSetPort precedent).
+	time.AfterFunc(500*time.Millisecond, s.requestRestart)
 }
 
 // handleAdminFsDirs lists the subdirectories of one directory for the backup

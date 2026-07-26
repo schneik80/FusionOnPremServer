@@ -1,13 +1,20 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/schneik80/fusionlocalserver/backup"
+	"github.com/schneik80/fusionlocalserver/config"
+	"github.com/schneik80/fusionlocalserver/tasks"
 )
 
 func TestBackupConfigValidation(t *testing.T) {
@@ -166,5 +173,246 @@ func TestFsDirsListsOnlyVisibleDirectories(t *testing.T) {
 	}
 	if !filepath.IsAbs(home.Path) {
 		t.Errorf("home path = %q, want absolute", home.Path)
+	}
+}
+
+// withTestEngine installs a backup engine over the server's tasks store.
+func withTestEngine(t *testing.T, s *Server) *backup.Engine {
+	t.Helper()
+	eng := &backup.Engine{
+		Dir:        t.TempDir(),
+		Sources:    []backup.Source{backup.StoreSource("tasks", s.tasks.Snapshot)},
+		AppVersion: "test",
+	}
+	s.backupMu.Lock()
+	s.backups = eng
+	s.backupMu.Unlock()
+	return eng
+}
+
+func TestBackupVerifyEndpoint(t *testing.T) {
+	s := newTaskTestServer(t)
+	ts := httptest.NewServer(s.routes())
+	t.Cleanup(ts.Close)
+	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")
+
+	// No engine → 503.
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/verify", editor,
+		BackupVerifyRequest{Path: "manual/x"}, nil); code != http.StatusServiceUnavailable {
+		t.Fatalf("verify without engine: status = %d, want 503", code)
+	}
+
+	eng := withTestEngine(t, s)
+
+	// Path escaping the backup dir → 400 (traversal and absolute alike).
+	for _, bad := range []string{"../outside", "manual/../../etc", "/etc/passwd", ""} {
+		if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/verify", editor,
+			BackupVerifyRequest{Path: bad}, nil); code != http.StatusBadRequest {
+			t.Errorf("verify path %q: status = %d, want 400", bad, code)
+		}
+	}
+
+	// Nonexistent snapshot → 400 (no manifest to read).
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/verify", editor,
+		BackupVerifyRequest{Path: "manual/20200101-000000"}, nil); code != http.StatusBadRequest {
+		t.Errorf("verify missing snapshot: status = %d, want 400", code)
+	}
+
+	// A real snapshot verifies OK end to end.
+	if _, err := s.tasks.Create(taskTestProject, "hub-1", "Test Project",
+		tasks.Draft{Title: "backed up"}, tasks.UserRef{ID: "u-editor"}); err != nil {
+		t.Fatal(err)
+	}
+	var sum BackupSummaryDTO
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/run", editor, nil, &sum); code != http.StatusOK {
+		t.Fatalf("run: status = %d", code)
+	}
+	var rep BackupVerifyReportDTO
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/verify", editor,
+		BackupVerifyRequest{Path: sum.Path}, &rep); code != http.StatusOK {
+		t.Fatalf("verify: status = %d", code)
+	}
+	if !rep.OK || len(rep.Files) == 0 || rep.Path != sum.Path || rep.Kind != "manual" {
+		t.Errorf("verify report = %+v", rep)
+	}
+
+	// Corrupt one byte in the snapshot → the report fails with HashOK=false.
+	snapDir := filepath.Join(eng.Dir, filepath.FromSlash(sum.Path))
+	target := filepath.Join(snapDir, filepath.FromSlash(rep.Files[0].Path))
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data[len(data)/2] ^= 0x01
+	if err := os.WriteFile(target, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var rep2 BackupVerifyReportDTO
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/verify", editor,
+		BackupVerifyRequest{Path: sum.Path}, &rep2); code != http.StatusOK {
+		t.Fatalf("verify corrupted: status = %d", code)
+	}
+	if rep2.OK || rep2.Files[0].HashOK {
+		t.Errorf("corrupted verify report = %+v, want !OK with HashOK=false", rep2)
+	}
+}
+
+func TestBackupRestoreValidation(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	s := newTaskTestServer(t)
+	ts := httptest.NewServer(s.routes())
+	t.Cleanup(ts.Close)
+	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")
+
+	// No engine → 503.
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/restore", editor,
+		BackupRestoreRequest{Path: "manual/x", Confirm: "x"}, nil); code != http.StatusServiceUnavailable {
+		t.Fatalf("restore without engine: status = %d, want 503", code)
+	}
+
+	withTestEngine(t, s)
+
+	// Path escape → 400.
+	for _, bad := range []string{"../outside", "manual/../../etc", "/abs"} {
+		if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/restore", editor,
+			BackupRestoreRequest{Path: bad, Confirm: filepath.Base(bad)}, nil); code != http.StatusBadRequest {
+			t.Errorf("restore path %q: status = %d, want 400", bad, code)
+		}
+	}
+
+	// Confirm mismatch → 400, even for a plausible path.
+	var sum BackupSummaryDTO
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/run", editor, nil, &sum); code != http.StatusOK {
+		t.Fatalf("run: status = %d", code)
+	}
+	for _, confirm := range []string{"", "wrong", "manual/" + filepath.Base(sum.Path)} {
+		if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/restore", editor,
+			BackupRestoreRequest{Path: sum.Path, Confirm: confirm}, nil); code != http.StatusBadRequest {
+			t.Errorf("restore confirm %q: status = %d, want 400", confirm, code)
+		}
+	}
+}
+
+// TestBackupRestoreEndToEndMigration proves the restore → schema-migration
+// tie: a snapshot holding a v1-era tasks.json restores cleanly, and the
+// tasks store then migrates it forward on next load (.v1.bak snapshot, v2 +
+// stamp on next save) — old backups stay restorable forever.
+func TestBackupRestoreEndToEndMigration(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	s := newTaskTestServer(t)
+	ts := httptest.NewServer(s.routes())
+	t.Cleanup(ts.Close)
+	editor := login(t, s, "u-editor", "Ed Editor", "editor@x.io")
+	eng := withTestEngine(t, s)
+
+	// Hand-build a snapshot holding a v1-era tasks.json with a manifest that
+	// declares schemaVersion 1 and the matching hash.
+	const v1Tasks = `{
+  "version": 1,
+  "projectId": "urn:proj:restored",
+  "hubId": "hub-1",
+  "projectName": "Restored Project",
+  "nextTaskId": 2,
+  "tasks": [{"id": "t1", "num": 1, "title": "From the v1 era", "status": "todo",
+    "priority": "medium", "createdBy": {"id": "u1"}, "createdAt": "2025-01-02T03:04:05Z",
+    "updatedAt": "2025-01-02T03:04:05Z", "docRefs": [], "rank": 1024}]
+}`
+	snapName := "20250101-000000"
+	snapDir := filepath.Join(eng.Dir, "manual", snapName)
+	rel := "tasks/urn_proj_restored/tasks.json"
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(snapDir, filepath.FromSlash(rel))), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(snapDir, filepath.FromSlash(rel)), []byte(v1Tasks), 0600); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(v1Tasks))
+	manifest := backup.Manifest{
+		ManifestVersion: backup.ManifestVersion,
+		AppVersion:      "test",
+		CreatedAt:       time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		Kind:            backup.KindManual,
+		Files: []backup.ManifestFile{{
+			Path: rel, Store: "tasks", SHA256: hex.EncodeToString(sum[:]),
+			Size: int64(len(v1Tasks)), SchemaVersion: 1,
+		}},
+	}
+	mdata, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(snapDir, "manifest.json"), mdata, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Restore through the endpoint with the typed confirmation.
+	var resp BackupRestoreResponse
+	if code := chatDo(t, ts.URL, http.MethodPost, "/api/admin/backups/restore", editor,
+		BackupRestoreRequest{Path: "manual/" + snapName, Confirm: snapName}, &resp); code != http.StatusOK {
+		t.Fatalf("restore: status = %d, want 200", code)
+	}
+	if !resp.Restarting {
+		t.Error("restore response restarting = false")
+	}
+
+	// The pre-restore safety snapshot was taken before any write.
+	preEntries, err := os.ReadDir(filepath.Join(eng.Dir, "pre-restore"))
+	if err != nil || len(preEntries) != 1 {
+		t.Fatalf("pre-restore tier = %v, %v (want exactly 1)", preEntries, err)
+	}
+
+	// The v1 file landed in the config dir byte-identical.
+	configDir, err := config.Dir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := filepath.Join(configDir, filepath.FromSlash(rel))
+	got, err := os.ReadFile(restored)
+	if err != nil {
+		t.Fatalf("restored file: %v", err)
+	}
+	if string(got) != v1Tasks {
+		t.Errorf("restored tasks.json differs from the snapshot copy")
+	}
+
+	// A store over the restored dir loads it, migrating v1→v2: the load
+	// snapshots the v1 bytes, and the next save persists version 2 + stamp.
+	st, err := tasks.NewStore(filepath.Join(configDir, "tasks"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := st.List("urn:proj:restored")
+	if err != nil {
+		t.Fatalf("List after restore: %v", err)
+	}
+	if len(list) != 1 || list[0].Title != "From the v1 era" {
+		t.Fatalf("restored data = %+v", list)
+	}
+	bak, err := os.ReadFile(restored + ".v1.bak")
+	if err != nil {
+		t.Fatalf("no .v1.bak after migrating load: %v", err)
+	}
+	if !strings.Contains(string(bak), `"version": 1`) {
+		t.Errorf(".v1.bak is not the v1 original")
+	}
+	if _, err := st.Create("urn:proj:restored", "hub-1", "Restored Project",
+		tasks.Draft{Title: "post-restore"}, tasks.UserRef{ID: "u1"}); err != nil {
+		t.Fatal(err)
+	}
+	var pf struct {
+		Version int `json:"version"`
+		Schema  struct {
+			CreatedAt time.Time `json:"createdAt"`
+		} `json:"schema"`
+	}
+	data, err := os.ReadFile(restored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &pf); err != nil {
+		t.Fatal(err)
+	}
+	if pf.Version != 2 || pf.Schema.CreatedAt.IsZero() {
+		t.Errorf("post-save envelope = version %d, stamp %v; want v2 with a backfilled stamp", pf.Version, pf.Schema.CreatedAt)
 	}
 }

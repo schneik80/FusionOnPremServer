@@ -14,6 +14,10 @@ import (
 // whole channel refuse to load rather than risk misreading it.
 const recordVersion = 1
 
+// RecordVersion exposes the current message-log record version to the
+// backup verify/restore wiring.
+func RecordVersion() int { return recordVersion }
+
 // Log record operations. A channel's msg-<id>.jsonl is an append-only event
 // log: message state is derived by replaying it, so nothing is ever
 // rewritten in place and a crash can at worst lose the final, partially

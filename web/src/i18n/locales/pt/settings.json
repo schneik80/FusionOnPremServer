@@ -96,6 +96,27 @@
       "up": "Subir um nível",
       "select": "Usar esta pasta",
       "empty": "Sem subpastas."
+    },
+    "verify": {
+      "action": "Verificar",
+      "checking": "Verificando…",
+      "ok": "Todos os {{files}} arquivos foram verificados.",
+      "failSummary": "{{failed}} de {{files}} arquivos falharam na verificação.",
+      "hide": "Ocultar",
+      "missing": "ausente",
+      "hash": "soma de verificação incorreta",
+      "parse": "não analisável",
+      "version": "versão de esquema futura"
+    },
+    "restore": {
+      "action": "Restaurar",
+      "title": "Restaurar backup",
+      "warning": "A restauração substitui os dados atuais do servidor por este backup. Antes é criada uma cópia de segurança dos dados atuais e, em seguida, o servidor é reiniciado.",
+      "typeToConfirm": "Digite <code>{{name}}</code> para confirmar.",
+      "confirmLabel": "Nome do snapshot",
+      "confirmButton": "Restaurar e reiniciar",
+      "restoring": "Restaurando…",
+      "reconnecting": "Backup restaurado — o servidor está reiniciando. Esta página será recarregada em breve…"
     }
   },
   "data": {

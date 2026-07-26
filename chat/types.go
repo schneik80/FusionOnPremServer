@@ -15,6 +15,10 @@ import "time"
 // metaVersion 2 added the schema provenance stamp (v1→v2 backfill).
 const metaVersion = 2
 
+// MetaVersion exposes the current meta.json schema version to the backup
+// verify/restore wiring, which must refuse files newer than this build.
+func MetaVersion() int { return metaVersion }
+
 // RootChannelName is the name of the auto-created root channel every
 // project gets on first chat access ("general", per design doc §2).
 const RootChannelName = "general"

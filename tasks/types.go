@@ -19,6 +19,10 @@ import (
 // from the file's ModTime at load).
 const fileVersion = 2
 
+// CurrentVersion exposes the tasks.json schema version this build writes,
+// for the backup verify/restore wiring.
+func CurrentVersion() int { return fileVersion }
+
 // Validation caps, enforced here as well as at the HTTP boundary so no
 // caller can bypass them.
 const (

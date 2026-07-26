@@ -96,6 +96,27 @@
       "up": "Up one level",
       "select": "Use this folder",
       "empty": "No subfolders."
+    },
+    "verify": {
+      "action": "Verify",
+      "checking": "Verifying…",
+      "ok": "All {{files}} files verified.",
+      "failSummary": "{{failed}} of {{files}} files failed verification.",
+      "hide": "Hide",
+      "missing": "missing",
+      "hash": "checksum mismatch",
+      "parse": "not parseable",
+      "version": "future schema version"
+    },
+    "restore": {
+      "action": "Restore",
+      "title": "Restore backup",
+      "warning": "Restoring replaces the server's current data with this backup. A safety backup of the current data is taken first, and the server restarts to finish.",
+      "typeToConfirm": "Type <code>{{name}}</code> to confirm.",
+      "confirmLabel": "Snapshot name",
+      "confirmButton": "Restore and restart",
+      "restoring": "Restoring…",
+      "reconnecting": "Backup restored — the server is restarting. This page will reload shortly…"
     }
   },
   "data": {

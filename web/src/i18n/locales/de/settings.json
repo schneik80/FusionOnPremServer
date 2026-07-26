@@ -96,6 +96,27 @@
       "up": "Eine Ebene nach oben",
       "select": "Diesen Ordner verwenden",
       "empty": "Keine Unterordner."
+    },
+    "verify": {
+      "action": "Prüfen",
+      "checking": "Wird geprüft…",
+      "ok": "Alle {{files}} Dateien erfolgreich geprüft.",
+      "failSummary": "{{failed}} von {{files}} Dateien haben die Prüfung nicht bestanden.",
+      "hide": "Ausblenden",
+      "missing": "fehlt",
+      "hash": "Prüfsummenfehler",
+      "parse": "nicht lesbar",
+      "version": "zukünftige Schemaversion"
+    },
+    "restore": {
+      "action": "Wiederherstellen",
+      "title": "Sicherung wiederherstellen",
+      "warning": "Beim Wiederherstellen werden die aktuellen Daten des Servers durch diese Sicherung ersetzt. Zuvor wird eine Sicherheitskopie der aktuellen Daten erstellt; anschließend startet der Server neu.",
+      "typeToConfirm": "Geben Sie zur Bestätigung <code>{{name}}</code> ein.",
+      "confirmLabel": "Snapshot-Name",
+      "confirmButton": "Wiederherstellen und neu starten",
+      "restoring": "Wird wiederhergestellt…",
+      "reconnecting": "Sicherung wiederhergestellt — der Server startet neu. Diese Seite wird gleich neu geladen…"
     }
   },
   "data": {

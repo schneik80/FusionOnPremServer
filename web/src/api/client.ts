@@ -9,7 +9,9 @@ import type {
   AuthMe,
   BackupConfig,
   BackupList,
+  BackupRestoreResponse,
   BackupSummary,
+  BackupVerifyReport,
   BOMRow,
   Classify,
   ComponentRef,
@@ -176,6 +178,20 @@ export const api = {
     request<BackupConfig>('/api/admin/backups/config', {
       method: 'POST',
       body: JSON.stringify(cfg),
+    }),
+
+  // Verify re-checks one snapshot against its manifest; restore replaces the
+  // live data (server-side typed confirmation, then a listener restart).
+  adminBackupVerify: (path: string) =>
+    request<BackupVerifyReport>('/api/admin/backups/verify', {
+      method: 'POST',
+      body: JSON.stringify({ path }),
+    }),
+
+  adminBackupRestore: (path: string, confirm: string) =>
+    request<BackupRestoreResponse>('/api/admin/backups/restore', {
+      method: 'POST',
+      body: JSON.stringify({ path, confirm }),
     }),
 
   adminFsDirs: (path?: string) => request<FsDirs>(`/api/admin/fs/dirs${qs({ path })}`),

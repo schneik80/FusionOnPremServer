@@ -21,6 +21,10 @@ import (
 // fileVersion 2 added the schema provenance stamp (v1→v2 backfill).
 const fileVersion = 2
 
+// CurrentVersion exposes the whiteboards.json schema version this build
+// writes, for the backup verify/restore wiring.
+func CurrentVersion() int { return fileVersion }
+
 // Validation caps, enforced in the store as well as at the HTTP boundary so no
 // caller can bypass them.
 const (

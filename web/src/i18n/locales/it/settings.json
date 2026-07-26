@@ -96,6 +96,27 @@
       "up": "Su di un livello",
       "select": "Usa questa cartella",
       "empty": "Nessuna sottocartella."
+    },
+    "verify": {
+      "action": "Verifica",
+      "checking": "Verifica in corso…",
+      "ok": "Tutti i {{files}} file sono stati verificati.",
+      "failSummary": "{{failed}} file su {{files}} non hanno superato la verifica.",
+      "hide": "Nascondi",
+      "missing": "mancante",
+      "hash": "checksum non corrispondente",
+      "parse": "non analizzabile",
+      "version": "versione di schema futura"
+    },
+    "restore": {
+      "action": "Ripristina",
+      "title": "Ripristina backup",
+      "warning": "Il ripristino sostituisce i dati attuali del server con questo backup. Prima viene creata una copia di sicurezza dei dati attuali, poi il server si riavvia.",
+      "typeToConfirm": "Digita <code>{{name}}</code> per confermare.",
+      "confirmLabel": "Nome dello snapshot",
+      "confirmButton": "Ripristina e riavvia",
+      "restoring": "Ripristino in corso…",
+      "reconnecting": "Backup ripristinato — il server si sta riavviando. Questa pagina verrà ricaricata a breve…"
     }
   },
   "data": {

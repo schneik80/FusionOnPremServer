@@ -24,6 +24,10 @@ import (
 // cursorsVersion 2 added the schema provenance stamp.
 const cursorsVersion = 2
 
+// CursorsVersion exposes the current cursors.json schema version to the
+// backup verify/restore wiring.
+func CursorsVersion() int { return cursorsVersion }
+
 // cursorsFile mirrors cursors.json: user key → channel id → last-read seq.
 // The user key is the caller's stable identity (OIDC sub, with the
 // handler's email fallback), matching the ExtraUserIDs the hub targets

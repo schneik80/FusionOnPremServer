@@ -20,6 +20,10 @@ import (
 // version+schema envelope shared by every other store.
 const fileVersion = 1
 
+// CurrentVersion exposes the pins-file schema version this build writes,
+// for the backup verify/restore wiring.
+func CurrentVersion() int { return fileVersion }
+
 // ErrFutureVersion is returned when a hub's pins were written by a newer
 // build; the caller must refuse rather than risk rewriting them.
 var ErrFutureVersion = errors.New("pins: data written by a newer version")

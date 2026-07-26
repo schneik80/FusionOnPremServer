@@ -129,6 +129,18 @@ export const useAdminBackupRun = () => {
   })
 }
 
+// Verify is a pure read (re-hashing happens server-side); nothing to
+// invalidate. Restore is followed by a full page reload once the server
+// restarts, so it too invalidates nothing.
+export const useAdminBackupVerify = () =>
+  useMutation({ mutationFn: (path: string) => api.adminBackupVerify(path) })
+
+export const useAdminBackupRestore = () =>
+  useMutation({
+    mutationFn: (v: { path: string; confirm: string }) =>
+      api.adminBackupRestore(v.path, v.confirm),
+  })
+
 export const useAdminBackupConfigSet = () => {
   const qc = useQueryClient()
   return useMutation({

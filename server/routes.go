@@ -114,6 +114,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/admin/backups/run", prot(s.handleAdminBackupRun))
 	mux.HandleFunc("GET /api/admin/backups/config", prot(s.handleAdminBackupConfigGet))
 	mux.HandleFunc("POST /api/admin/backups/config", prot(s.handleAdminBackupConfigSet))
+	// Verify re-hashes a snapshot against its manifest; restore replaces the
+	// live data (typed confirmation, pre-restore safety snapshot, restart).
+	mux.HandleFunc("POST /api/admin/backups/verify", prot(s.handleAdminBackupVerify))
+	mux.HandleFunc("POST /api/admin/backups/restore", prot(s.handleAdminBackupRestore))
 	mux.HandleFunc("GET /api/admin/fs/dirs", prot(s.handleAdminFsDirs))
 
 	// Production (light MES job & batch tracker; local store, chat-authz

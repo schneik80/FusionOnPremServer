@@ -56,6 +56,15 @@ func NewStore(dir string) (*Store, error) {
 	return &Store{dir: dir, projects: make(map[string]*projectState)}, nil
 }
 
+// Reset drops all in-memory project state so the next access reloads from
+// disk. Required after a backup restore replaces the files under a
+// still-running process (the listener rebind does not recreate the store).
+func (s *Store) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.projects = make(map[string]*projectState)
+}
+
 // ---- reads ----
 
 // ListJobs returns copies of a project's jobs, never nil, newest first.

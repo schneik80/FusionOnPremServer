@@ -65,6 +65,35 @@ export interface BackupList {
   backups: BackupSummary[]
 }
 
+// BackupFileResult mirrors server.BackupFileResultDTO: one file's verify
+// outcome. A file passed when none of the failure flags trip and detail is
+// empty (detail marks structural findings like a stray file).
+export interface BackupFileResult {
+  path: string
+  hashOK: boolean
+  parseOK: boolean
+  versionOK: boolean
+  missing: boolean
+  detail?: string
+}
+
+// BackupVerifyReport mirrors server.BackupVerifyReportDTO
+// (POST /api/admin/backups/verify).
+export interface BackupVerifyReport {
+  path: string
+  kind: string
+  createdAt: string
+  ok: boolean
+  files: BackupFileResult[]
+}
+
+// BackupRestoreResponse mirrors server.BackupRestoreResponse: the server
+// acks, then restarts its listener (same reconnect contract as a port
+// change).
+export interface BackupRestoreResponse {
+  restarting: boolean
+}
+
 // FsDirs mirrors server.FsDirsDTO (GET /api/admin/fs/dirs): one directory
 // level of the backup-folder picker — directories only, never files.
 export interface FsDirs {

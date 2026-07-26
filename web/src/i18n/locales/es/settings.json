@@ -96,6 +96,27 @@
       "up": "Subir un nivel",
       "select": "Usar esta carpeta",
       "empty": "Sin subcarpetas."
+    },
+    "verify": {
+      "action": "Verificar",
+      "checking": "Verificando…",
+      "ok": "Se verificaron los {{files}} archivos.",
+      "failSummary": "{{failed}} de {{files}} archivos no superaron la verificación.",
+      "hide": "Ocultar",
+      "missing": "falta",
+      "hash": "suma de comprobación incorrecta",
+      "parse": "no analizable",
+      "version": "versión de esquema futura"
+    },
+    "restore": {
+      "action": "Restaurar",
+      "title": "Restaurar copia de seguridad",
+      "warning": "La restauración sustituye los datos actuales del servidor por esta copia de seguridad. Antes se crea una copia de seguridad de los datos actuales y, a continuación, el servidor se reinicia.",
+      "typeToConfirm": "Escribe <code>{{name}}</code> para confirmar.",
+      "confirmLabel": "Nombre de la instantánea",
+      "confirmButton": "Restaurar y reiniciar",
+      "restoring": "Restaurando…",
+      "reconnecting": "Copia de seguridad restaurada — el servidor se está reiniciando. Esta página se recargará en breve…"
     }
   },
   "data": {
