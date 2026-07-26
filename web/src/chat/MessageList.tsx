@@ -9,6 +9,7 @@ import { splitRefTokens } from '../components/reftokens'
 import { TaskCard } from '../components/taskcard/TaskCard'
 import { REACTION_EMOJI, type ChatCaps, type ChatMessage } from './types'
 import { fmtChatTime } from './fmt'
+import { firstGrapheme } from '../fmt/graphemes'
 
 // MessageList renders a scrollable, ascending timeline. It backs both the
 // channel view (top-level messages with thread badges) and the thread panel
@@ -143,7 +144,7 @@ function MessageRow({
       }}
     >
       <Avatar sx={{ width: 28, height: 28, fontSize: 13, mt: 0.25 }}>
-        {(msg.authorName || '?').slice(0, 1).toUpperCase()}
+        {firstGrapheme(msg.authorName || '?').toUpperCase()}
       </Avatar>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" spacing={1} alignItems="baseline">

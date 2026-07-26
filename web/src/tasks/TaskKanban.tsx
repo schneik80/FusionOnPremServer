@@ -30,6 +30,7 @@ import {
   type TaskList,
   type TaskStatus,
 } from './types'
+import { localizeApiError } from '../i18n/apiError'
 
 // Pointer-based collision detection. closestCorners (and closestCenter)
 // measure the DRAGGED card's corners against each column's, so once columns
@@ -66,6 +67,7 @@ export function TaskKanban({
   loading: boolean
   error: Error | null
 }) {
+  const { t } = useTranslation('tasks')
   const qc = useQueryClient()
   const muts = useTaskMutations(projectId)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
@@ -154,7 +156,7 @@ export function TaskKanban({
     return (
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Typography variant="body2" color="error">
-          {error.message}
+          {localizeApiError(t, error)}
         </Typography>
       </Box>
     )

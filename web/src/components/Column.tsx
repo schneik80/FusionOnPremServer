@@ -7,6 +7,7 @@ import {
 } from '@mui/material'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { localizeApiError } from '../i18n/apiError'
 
 // The width of a project app's left-hand list rail — every tab in ProjectPanel
 // that has one: Tasks, Wiki, Production, Whiteboards and Chat. They had drifted
@@ -97,7 +98,7 @@ export function Column({
         ) : error ? (
           <Centered>
             <Typography variant="body2" color="error" sx={{ px: 2, textAlign: 'center' }}>
-              {error.message}
+              {localizeApiError(t, error)}
             </Typography>
           </Centered>
         ) : empty ? (

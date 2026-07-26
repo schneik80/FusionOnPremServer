@@ -3,5 +3,8 @@
   "forbidden": "No tiene acceso a este recurso.",
   "rate_limited": "Límite de peticiones alcanzado — inténtelo de nuevo en breve.",
   "upstream_timeout": "La solicitud al servicio externo agotó el tiempo de espera.",
-  "upstream_failed": "El servicio externo notificó un error."
+  "upstream_failed": "El servicio externo notificó un error.",
+  "service_unavailable": "Esta función no está disponible en este servidor en este momento.",
+  "server_error": "El servidor encontró un error inesperado.",
+  "conflict": "La solicitud entra en conflicto con el estado actual: recargue e inténtelo de nuevo."
 }

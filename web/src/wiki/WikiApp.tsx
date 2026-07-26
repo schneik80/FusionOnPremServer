@@ -22,6 +22,7 @@ import { MarkdownView } from './MarkdownView'
 import { useWikiDrafts } from './useDrafts'
 import { WikiEditor } from './WikiEditor'
 import { WikiSidebar, type WikiEntry, type WikiEntryStatus } from './WikiSidebar'
+import { foldSearch } from '../fmt/graphemes'
 
 // reconcileStatus derives a linked draft's shown status by comparing what it was
 // based on against the page's live tip: the remote moving ahead is 'behind' when
@@ -118,8 +119,8 @@ export function WikiApp({ active = true }: { active?: boolean }) {
       out.push({ id: d.key, kind: 'draft', title: d.title, status: d.status, draftKey: d.key })
     }
     out.sort((a, b) => a.title.localeCompare(b.title))
-    const q = query.trim().toLowerCase()
-    return q ? out.filter((e) => e.title.toLowerCase().includes(q)) : out
+    const q = foldSearch(query.trim())
+    return q ? out.filter((e) => foldSearch(e.title).includes(q)) : out
   }, [pagesQ.data, drafts, query])
 
   const selectedEntry = entries.find((e) => e.id === selectedId) ?? null

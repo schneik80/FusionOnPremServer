@@ -12,6 +12,7 @@ import { useNav } from '../state/nav'
 import { useUploads } from '../state/uploads'
 import { AttachDocDialog } from './AttachDocDialog'
 import type { DocPin } from './types'
+import { truncateGraphemes } from '../fmt/graphemes'
 
 // DocSourceButton lets a user supply a document from either of the two sources
 // the product calls for — browsing the Fusion Team hub, or uploading a local
@@ -212,7 +213,7 @@ export function folderSafe(name: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/[. ]+$/, '') // trailing dots/spaces are invalid on Windows
-  return cleaned.slice(0, 120)
+  return truncateGraphemes(cleaned, 120)
 }
 
 // kindHint maps an uploaded filename to an Item kind for the thumbnail/icon.

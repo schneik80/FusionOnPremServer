@@ -252,9 +252,38 @@ function DueFlag({
   )
 }
 
-// truncate clips a label to roughly the pixels available (~5.8 px/char at
-// this font size) — cheap, no canvas measurement.
+// truncate clips a label to the pixels available using real text
+// measurement (a per-char estimate breaks on CJK, whose glyphs are ~2×
+// Latin width, and code-unit slicing can split surrogate pairs). One shared
+// canvas context; grapheme-safe binary search on the cut point.
+let measureCtx: CanvasRenderingContext2D | null = null
+function measure(s: string): number {
+  if (!measureCtx) {
+    measureCtx = document.createElement('canvas').getContext('2d')
+    if (!measureCtx) return s.length * 5.8 // canvas unavailable (tests)
+    measureCtx.font = '10.5px "Montserrat", system-ui, sans-serif'
+  }
+  return measureCtx.measureText(s).width
+}
+
 function truncate(s: string, px: number): string {
-  const chars = Math.floor(px / 5.8)
-  return s.length <= chars ? s : chars <= 1 ? '' : s.slice(0, chars - 1) + '…'
+  if (measure(s) <= px) return s
+  const parts = graphemeSplit(s)
+  const ell = '…'
+  let lo = 0
+  let hi = parts.length
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (measure(parts.slice(0, mid).join('') + ell) <= px) lo = mid
+    else hi = mid - 1
+  }
+  return lo === 0 ? '' : parts.slice(0, lo).join('') + ell
+}
+
+const segmenter =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    : null
+function graphemeSplit(s: string): string[] {
+  return segmenter ? [...segmenter.segment(s)].map((x) => x.segment) : Array.from(s)
 }

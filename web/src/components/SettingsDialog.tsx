@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Stack,
   TextField,
   ToggleButton,
@@ -14,7 +15,9 @@ import {
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { useMeta, useSetPort } from '../api/queries'
+import { LOCALE_LABEL, type Locale } from '../i18n'
 import { useColorMode } from '../state/colorMode'
+import { useLocale } from '../state/locale'
 
 const MIN_PORT = 1024
 const MAX_PORT = 65535
@@ -26,6 +29,7 @@ const RECONNECT_DELAY_MS = 2500
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation('settings')
   const { preference, setPreference } = useColorMode()
+  const { locale, setLocale, available } = useLocale()
   const metaQ = useMeta()
   const meta = metaQ.data
 
@@ -45,6 +49,22 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               <ToggleButton value="dark">{t('theme.dark')}</ToggleButton>
               <ToggleButton value="system">{t('theme.system')}</ToggleButton>
             </ToggleButtonGroup>
+          </Field>
+
+          <Field label={t('language.label')}>
+            <TextField
+              select
+              size="small"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              sx={{ width: 200 }}
+            >
+              {available.map((l) => (
+                <MenuItem key={l} value={l}>
+                  {LOCALE_LABEL[l]}
+                </MenuItem>
+              ))}
+            </TextField>
           </Field>
 
           <Field label={t('port.label')}>

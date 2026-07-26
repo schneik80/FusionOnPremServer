@@ -45,12 +45,13 @@ import {
   useWhereUsed,
 } from '../api/queries'
 import type { ComponentRef, Details, DrawingRef, Item, Measure } from '../api/types'
-import { documentState, documentStateLabel, type DocumentState } from '../api/documentState'
+import { documentState, type DocumentState } from '../api/documentState'
 import { thumbnailSrc } from '../api/thumbnails'
 import { useNav } from '../state/nav'
 import { useGoToDocument } from '../state/goto'
 import { ItemIcon } from './entityIcons'
 import { TAB_SLIDE_TIMEOUT } from './motion'
+import { docStateLabel } from '../i18n/enums'
 import ActivityHeatmap from './ActivityHeatmap'
 import HistoryGraph from './HistoryGraph'
 import PermissionsExplorer from './PermissionsExplorer'
@@ -464,6 +465,7 @@ function Thumbnail({
 // (WIP / Version / Released - Rev X). Colors key off the theme: neutral for WIP,
 // the brand accent for a milestone version, success for a release.
 function StateBadge({ state }: { state: DocumentState }) {
+  const { t } = useTranslation('details')
   const theme = useTheme()
   const color =
     state.kind === 'released'
@@ -493,7 +495,7 @@ function StateBadge({ state }: { state: DocumentState }) {
       }}
     >
       {state.kind === 'released' && <FontAwesomeIcon icon={faCircleCheck} style={{ fontSize: 10 }} />}
-      {documentStateLabel(state)}
+      {docStateLabel(t, state)}
     </Box>
   )
 }

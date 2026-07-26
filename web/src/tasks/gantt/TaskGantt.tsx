@@ -47,6 +47,7 @@ import {
   type TimeUnit,
 } from './ganttMath'
 import { useGanttDrag } from './useGanttDrag'
+import { localizeApiError } from '../../i18n/apiError'
 
 // Width of the sticky label column between the backlog rail and the chart.
 const LABEL_W = 230
@@ -184,7 +185,7 @@ export function TaskGantt({
     return (
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Typography variant="body2" color="error">
-          {error.message}
+          {localizeApiError(t, error)}
         </Typography>
       </Box>
     )

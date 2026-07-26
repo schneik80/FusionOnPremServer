@@ -63,10 +63,14 @@ import type {
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  // Stable machine token from the server's error envelope; the SPA maps it
+  // to localized text (i18n/apiError.ts) and falls back to `message`.
+  code?: string
+  constructor(status: number, message: string, code?: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
   }
 }
 
@@ -92,9 +96,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     let msg = `request failed (HTTP ${res.status})`
+    let code: string | undefined
     try {
-      const body = (await res.json()) as { error?: string }
+      const body = (await res.json()) as { error?: string; code?: string }
       if (body?.error) msg = body.error
+      if (body?.code) code = body.code
     } catch {
       /* non-JSON error body — keep the generic message */
     }
@@ -102,7 +108,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // /api/auth/me probe never 401s (it returns 200 with authenticated:false),
     // so this can't loop on the login gate.
     if (res.status === 401) redirectToLogin()
-    throw new ApiError(res.status, msg)
+    throw new ApiError(res.status, msg, code)
   }
   // 204/empty bodies shouldn't happen on our GET endpoints, but guard anyway.
   if (res.status === 204) return undefined as T

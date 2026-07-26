@@ -28,6 +28,7 @@ import { usePermissionsPath } from '../api/queries'
 import { roleLabel } from '../i18n/enums'
 import { useNav } from '../state/nav'
 import type { Item, PermLayer } from '../api/types'
+import { firstGrapheme, truncateGraphemes } from '../fmt/graphemes'
 
 // PermissionsExplorer adapts the "Permission Explorer" prototype to the real
 // Fusion model. Each layer of a document's path — the project, then each folder —
@@ -113,8 +114,8 @@ function resolve(layers: PermLayer[], kind: 'group' | 'user', id: string) {
 }
 
 const initials = (name: string) =>
-  name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
-const truncate = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+  name.split(/\s+/).map((w) => firstGrapheme(w)).slice(0, 2).join('').toUpperCase()
+const truncate = (s: string, n: number) => truncateGraphemes(s, n)
 
 export default function PermissionsExplorer({ hubId, item }: { hubId: string | null; item: Item }) {
   const { t } = useTranslation('details')

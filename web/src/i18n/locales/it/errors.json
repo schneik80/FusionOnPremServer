@@ -3,5 +3,8 @@
   "forbidden": "Non hai accesso a questa risorsa.",
   "rate_limited": "Limite di richieste raggiunto — riprova tra poco.",
   "upstream_timeout": "La richiesta al servizio remoto è scaduta.",
-  "upstream_failed": "Il servizio remoto ha segnalato un errore."
+  "upstream_failed": "Il servizio remoto ha segnalato un errore.",
+  "service_unavailable": "Questa funzionalità non è al momento disponibile su questo server.",
+  "server_error": "Il server ha riscontrato un errore imprevisto.",
+  "conflict": "La richiesta è in conflitto con lo stato attuale: ricaricare e riprovare."
 }

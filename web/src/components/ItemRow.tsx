@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useClassify } from '../api/queries'
 import { thumbnailSrc } from '../api/thumbnails'
 import type { Item } from '../api/types'
+import { typeTagLabel } from '../i18n/enums'
 import { useNav } from '../state/nav'
 import { isPinnable } from '../state/pins'
 import { typeTag } from './icons'
@@ -59,7 +60,7 @@ export function ItemRow({
     subtype: item.subtype || classify.data?.subtype,
   }
 
-  const tag = typeTag(display)
+  const tag = typeTagLabel(t, typeTag(display))
   const showStar = !!onTogglePin && isPinnable(item.kind)
 
   // Show the document's preview in place of the icon: designs via their MFGDM

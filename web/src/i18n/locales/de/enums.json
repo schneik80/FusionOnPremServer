@@ -30,5 +30,21 @@
     "ADMINISTRATOR": "Administrator",
     "PROJECT_ADMIN": "Projektadministrator",
     "OWNER": "Eigentümer"
+  },
+  "typeTag": {
+    "asm": "asm",
+    "part": "part",
+    "design": "design",
+    "cfg": "cfg",
+    "tmpl": "tmpl",
+    "dwg": "dwg",
+    "sch": "sch",
+    "pcb": "pcb",
+    "ecad": "ecad"
+  },
+  "docState": {
+    "wip": "In Arbeit",
+    "version": "Version",
+    "released": "Freigegeben – Rev. {{revision}}"
   }
 }

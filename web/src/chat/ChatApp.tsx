@@ -20,6 +20,7 @@ import { ThreadPanel } from './ThreadPanel'
 import { TypingIndicator } from './TypingIndicator'
 import { useTypingNames, useTypingPing } from './typing'
 import type { ChatCaps } from './types'
+import { localizeApiError } from '../i18n/apiError'
 
 const NO_CAPS: ChatCaps = { post: false, createChannel: false, moderate: false }
 
@@ -94,7 +95,7 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
         <Alert severity="warning">
           {t('unavailable', {
             message:
-              channelsQ.error instanceof Error ? channelsQ.error.message : t('unknownError'),
+              channelsQ.error ? localizeApiError(t, channelsQ.error) : t('unknownError'),
           })}
         </Alert>
       </Box>

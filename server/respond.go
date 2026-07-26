@@ -9,8 +9,11 @@ import (
 )
 
 // errorResponse is the uniform error envelope every failing endpoint returns.
+// Code is a stable machine token the SPA maps to localized text; Error stays
+// the human-readable (English) detail and the fallback for unmapped codes.
 type errorResponse struct {
 	Error string `json:"error"`
+	Code  string `json:"code,omitempty"`
 }
 
 // writeJSON serialises v as JSON with the given status code. Encoding happens
@@ -22,9 +25,44 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// writeError sends the uniform {"error": "..."} envelope with the given status.
+// writeError sends the uniform error envelope with the given status. The
+// code derives from the status: category-level statuses (auth, rate limit,
+// upstream) get catalog-mapped codes the SPA localizes outright, while
+// invalid_request/not_found deliberately stay OUT of the SPA catalog so
+// their specific store messages ("end date is before start date") surface
+// verbatim rather than being flattened to a generic sentence.
 func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, errorResponse{Error: msg})
+	writeJSON(w, status, errorResponse{Error: msg, Code: codeForStatus(status)})
+}
+
+// codeForStatus is the status→code table for the error envelope. Stable —
+// the SPA's errors catalog keys off these tokens.
+func codeForStatus(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "invalid_request"
+	case http.StatusUnauthorized:
+		return "unauthorized"
+	case http.StatusForbidden:
+		return "forbidden"
+	case http.StatusNotFound:
+		return "not_found"
+	case http.StatusConflict:
+		return "conflict"
+	case http.StatusTooManyRequests:
+		return "rate_limited"
+	case http.StatusServiceUnavailable:
+		return "service_unavailable"
+	case http.StatusGatewayTimeout:
+		return "upstream_timeout"
+	case http.StatusBadGateway:
+		return "upstream_failed"
+	default:
+		if status >= 500 {
+			return "server_error"
+		}
+		return ""
+	}
 }
 
 // statusForError maps an api/auth error to an HTTP status code. The wrapped

@@ -28,7 +28,23 @@
     "READER": "Lecteur",
     "CONTRIBUTOR": "Contributeur",
     "ADMINISTRATOR": "Administrateur",
-    "PROJECT_ADMIN": "Admin du projet",
+    "PROJECT_ADMIN": "Administrateur de projet",
     "OWNER": "Propriétaire"
+  },
+  "typeTag": {
+    "asm": "asm",
+    "part": "part",
+    "design": "design",
+    "cfg": "cfg",
+    "tmpl": "tmpl",
+    "dwg": "dwg",
+    "sch": "sch",
+    "pcb": "pcb",
+    "ecad": "ecad"
+  },
+  "docState": {
+    "wip": "En cours",
+    "version": "Version",
+    "released": "Publié – Rév. {{revision}}"
   }
 }

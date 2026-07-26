@@ -29,7 +29,11 @@ const light = {
 
 export type ColorMode = 'light' | 'dark'
 
-const fontFamily = '"Montserrat", Helvetica, Arial, sans-serif'
+// Montserrat carries no CJK/Arabic glyphs; system-ui and the Noto/Segoe
+// entries let the OS supply coverage for scripts we don't bundle, instead
+// of falling through to an unmanaged default.
+const fontFamily =
+  '"Montserrat", system-ui, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif'
 
 export function makeTheme(mode: ColorMode): Theme {
   const t = mode === 'dark' ? dark : light

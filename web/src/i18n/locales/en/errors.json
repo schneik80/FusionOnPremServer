@@ -3,5 +3,8 @@
   "forbidden": "You do not have access to this resource.",
   "rate_limited": "Rate limited — please retry shortly.",
   "upstream_timeout": "The upstream request timed out.",
-  "upstream_failed": "The upstream service reported an error."
+  "upstream_failed": "The upstream service reported an error.",
+  "service_unavailable": "This feature is unavailable on this server right now.",
+  "server_error": "The server hit an unexpected error.",
+  "conflict": "The request conflicts with the current state — reload and try again."
 }

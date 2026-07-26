@@ -3,5 +3,8 @@
   "forbidden": "Vous n'avez pas accès à cette ressource.",
   "rate_limited": "Limite de débit atteinte — veuillez réessayer dans un instant.",
   "upstream_timeout": "La requête vers le service distant a expiré.",
-  "upstream_failed": "Le service distant a signalé une erreur."
+  "upstream_failed": "Le service distant a signalé une erreur.",
+  "service_unavailable": "Cette fonctionnalité est actuellement indisponible sur ce serveur.",
+  "server_error": "Le serveur a rencontré une erreur inattendue.",
+  "conflict": "La requête est en conflit avec l’état actuel — rechargez et réessayez."
 }

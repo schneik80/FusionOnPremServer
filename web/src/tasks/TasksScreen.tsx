@@ -25,6 +25,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from './types'
+import { foldSearch } from '../fmt/graphemes'
 
 type StatusFilter = 'open' | 'all' | TaskStatus
 type PriorityFilter = 'all' | TaskPriority
@@ -54,12 +55,12 @@ export function TasksScreen({ active }: { active: boolean }) {
   }, [tasks])
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = foldSearch(search.trim())
     return tasks.filter((t) => {
       if (status === 'open' ? t.status === 'done' : status !== 'all' && t.status !== status) return false
       if (priority !== 'all' && t.priority !== priority) return false
       if (projectId !== 'all' && t.projectId !== projectId) return false
-      if (q && !`${t.title}\n${t.description ?? ''}`.toLowerCase().includes(q)) return false
+      if (q && !foldSearch(`${t.title}\n${t.description ?? ''}`).includes(q)) return false
       return true
     })
   }, [tasks, search, status, priority, projectId])

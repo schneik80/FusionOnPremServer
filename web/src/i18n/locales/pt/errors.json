@@ -3,5 +3,8 @@
   "forbidden": "Não tem acesso a este recurso.",
   "rate_limited": "Limite de pedidos atingido — tente novamente dentro de momentos.",
   "upstream_timeout": "O pedido ao serviço a montante excedeu o tempo limite.",
-  "upstream_failed": "O serviço a montante devolveu um erro."
+  "upstream_failed": "O serviço a montante devolveu um erro.",
+  "service_unavailable": "Esta funcionalidade não está disponível neste servidor de momento.",
+  "server_error": "O servidor encontrou um erro inesperado.",
+  "conflict": "O pedido entra em conflito com o estado atual — recarregue e tente novamente."
 }

@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { useTasks } from '../api/queries'
 import { TaskRow } from './TaskListView'
 import type { Task } from './types'
+import { foldSearch } from '../fmt/graphemes'
 
 // AttachTaskDialog picks one of the current project's tasks — the task
 // sibling of the hub browser's document pick. Chat's composer and the wiki
@@ -37,9 +38,9 @@ export function AttachTaskDialog({
   const tasksQ = useTasks(projectId, open)
   const [search, setSearch] = useState('')
 
-  const q = search.trim().toLowerCase()
+  const q = foldSearch(search.trim())
   const tasks = (tasksQ.data?.tasks ?? [])
-    .filter((t) => !q || t.title.toLowerCase().includes(q))
+    .filter((t) => !q || foldSearch(t.title).includes(q))
     .sort((a, b) => b.num - a.num)
 
   return (

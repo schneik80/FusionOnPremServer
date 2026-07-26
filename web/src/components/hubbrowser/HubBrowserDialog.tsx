@@ -30,6 +30,8 @@ import type { Item } from '../../api/types'
 import { iconForItem, typeTag } from '../icons'
 import { ItemIcon } from '../entityIcons'
 import { extOf, viewerKindFor } from '../viewers/kind'
+import { foldSearch } from '../../fmt/graphemes'
+import { typeTagLabel } from '../../i18n/enums'
 
 // HubBrowserDialog is the shared in-place hub browser: an overlay for picking a
 // document (or a folder) anywhere in the hub without leaving the current view.
@@ -246,8 +248,8 @@ function TreePane({
   const projectsQ = useProjects(c.hubId)
   const projects = useMemo(() => {
     const all = projectsQ.data ?? []
-    const q = filter.trim().toLowerCase()
-    return q ? all.filter((p) => p.name.toLowerCase().includes(q)) : all
+    const q = foldSearch(filter.trim())
+    return q ? all.filter((p) => foldSearch(p.name).includes(q)) : all
   }, [projectsQ.data, filter])
 
   return (
@@ -586,9 +588,10 @@ function ContentsRow({
   onClick?: () => void
   onDoubleClick?: () => void
 }) {
+  const { t } = useTranslation('browse')
   // Fall back to the file extension when the row has no design-type tag, so
   // plain uploads (images, PDFs, …) still read at a glance.
-  const tag = typeTag(item) || (item.isContainer ? '' : extOf(item.name))
+  const tag = typeTagLabel(t, typeTag(item)) || (item.isContainer ? '' : extOf(item.name))
   return (
     <ListItemButton
       dense
