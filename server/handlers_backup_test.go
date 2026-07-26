@@ -564,7 +564,7 @@ func TestBackupRestoreRefusesForeignAndLegacyManifests(t *testing.T) {
 // over two hubs with DIFFERENT destinations and schedules: min-next selection
 // (pure, controlled clock), each hub's snapshots landing in its own tree with
 // zero foreign bytes, a disabled hub skipped, and one hub's failure never
-// stopping the other. _unassigned without a hub.json never participates.
+// stopping the other. A profile without a hub.json never participates.
 func TestBackupSchedulerPerHubProfiles(t *testing.T) {
 	s := newIsoTestServer(t)
 	setA := hubSet(t, s, isoHubA)
@@ -585,14 +585,14 @@ func TestBackupSchedulerPerHubProfiles(t *testing.T) {
 	if err := saveHubBackupConfig(setB.root, hubBackupConfig{BackupDir: dirB, BackupTime: "02:00", BackupEnabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	// An _unassigned profile with an enabled config but no hub.json: the
-	// scheduler must skip it (getBySlug cannot resolve a hub identity).
-	unassignedRoot := filepath.Join(s.hubs.configDir, "hubs", "_unassigned")
-	if err := os.MkdirAll(unassignedRoot, 0700); err != nil {
+	// A profile with an enabled config but no hub.json: the scheduler must
+	// skip it (getBySlug cannot resolve a hub identity).
+	orphanRoot := filepath.Join(s.hubs.configDir, "hubs", "orphan-profile")
+	if err := os.MkdirAll(orphanRoot, 0700); err != nil {
 		t.Fatal(err)
 	}
 	dirU := t.TempDir()
-	if err := saveHubBackupConfig(unassignedRoot, hubBackupConfig{BackupDir: dirU, BackupTime: "01:00", BackupEnabled: true}); err != nil {
+	if err := saveHubBackupConfig(orphanRoot, hubBackupConfig{BackupDir: dirU, BackupTime: "01:00", BackupEnabled: true}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -627,7 +627,7 @@ func TestBackupSchedulerPerHubProfiles(t *testing.T) {
 		t.Fatalf("hub B daily snapshots = %d, want 1", n)
 	}
 	if entries, _ := os.ReadDir(dirU); len(entries) != 0 {
-		t.Errorf("_unassigned was backed up: %v", entries)
+		t.Errorf("hub.json-less profile was backed up: %v", entries)
 	}
 	for _, chk := range []struct{ dir, slug, own, foreign string }{
 		{dirA, isoHubA, "SCHED-MARKER-A", "SCHED-MARKER-B"},

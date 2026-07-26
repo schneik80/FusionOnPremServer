@@ -203,7 +203,7 @@ func (h *hubStores) readHubJSON(slug string) (hubJSONFile, error) {
 }
 
 // getBySlug resolves a profile directory already on disk into its storeSet
-// via hub.json. Profiles without a readable hub id (e.g. _unassigned) refuse.
+// via hub.json. Profiles without a readable hub id refuse.
 func (h *hubStores) getBySlug(slug string) (*storeSet, error) {
 	if h == nil {
 		return nil, errors.New("local storage is unavailable on this server")

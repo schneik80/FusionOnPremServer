@@ -70,9 +70,8 @@ type ManifestFile struct {
 // Manifest is manifest.json at a snapshot dir's root: what was backed up,
 // when, by which app version — everything verify/restore needs. Hub and
 // HubSlug (v2) stamp WHOSE data the snapshot holds: Hub is the raw hub id
-// ("" only for the transient _unassigned quarantine profile) and HubSlug is
-// the profile directory slug, always set for real hubs. Restore refuses any
-// manifest whose identity doesn't match the engine's.
+// and HubSlug is the profile directory slug. Restore refuses any manifest
+// whose identity doesn't match the engine's.
 type Manifest struct {
 	ManifestVersion int            `json:"manifestVersion"`
 	AppVersion      string         `json:"appVersion"`
@@ -106,7 +105,7 @@ type Engine struct {
 	Dir        string
 	Sources    []Source
 	AppVersion string
-	Hub        string // raw hub id ("" only for the _unassigned profile)
+	Hub        string // raw hub id
 	HubSlug    string // hub profile directory slug
 }
 

@@ -170,10 +170,8 @@ func (s *Server) pokeBackupScheduler() {
 // until it, then runs every hub whose slot arrived — per-hub failures are
 // logged and skipped, never stopping the other hubs. There is deliberately NO
 // missed-window catch-up (settled decision): a server that was down at 03:30
-// backs up at the next 03:30, not at startup. _unassigned participates only
-// if it carries its own enabled backup.json (default: none — quarantine is
-// transient). Idles while nothing is enabled; a poke (config change)
-// re-evaluates immediately; exits with ctx.
+// backs up at the next 03:30, not at startup. Idles while nothing is enabled;
+// a poke (config change) re-evaluates immediately; exits with ctx.
 func (s *Server) runBackupScheduler(ctx context.Context) {
 	for {
 		now := time.Now()

@@ -22,7 +22,6 @@ commits on `admin` (H1 `a116065`, H2 `ffab132`, H3 `845dfdd`, H4 `7fb9a47`).
      backup.json       # per-hub backup config (dir, HH:MM, enabled)
      chat/ tasks/ production/ whiteboards/   # that hub's store roots
      pins-<hubslug>.json
-   hubs/_unassigned/   # migration quarantine (see below)
    sessions.enc, session.key, config.json, server.json, tls-*.pem,
    server.log          # global: auth/TLS/ops — never hub data
    ```
@@ -50,18 +49,14 @@ commits on `admin` (H1 `a116065`, H2 `ffab132`, H3 `845dfdd`, H4 `7fb9a47`).
 - `/api/tasks/mine`, `/api/production/mine`, admin disk/delete/cleanup, and
   the backup endpoints all operate on the session hub's profile only.
 
-## Migration (`internal/hubmigrate`, runs once at startup)
+## Pre-isolation layouts are unsupported
 
-Relocates a pre-isolation layout into hub profiles: one atomic rename per
-project dir (EXDEV → copy then remove-source-last), hub identity read from
-each envelope's self-describing `hubId`. Chat's envelope predates the field,
-so chat dirs resolve through a sibling map that includes the
-already-migrated tree — a crash between phases still routes chat correctly
-on rerun. Unresolvable or corrupt dirs land in `hubs/_unassigned/` with
-bytes preserved; quarantined chat adopts into the session's hub on its
-first roster-authorized access. Legacy global backup settings fan out into
-every profile's `backup.json` before retiring from `server.json`. The
-`.migrated` marker is an optimization — every pass is rerunnable.
+The one-time startup migration (`internal/hubmigrate`, plus chat-quarantine
+adoption and the legacy single-file pins promotion) was retired after the
+only deployed server migrated. A config dir laid out pre-isolation reads as
+empty — there is deliberately no code path that reads outside a hub profile.
+Backups from before isolation carry v1 manifests and refuse to restore
+(that runtime guard remains).
 
 ## Frontend
 
@@ -81,10 +76,6 @@ without fetching.
   ends (APS-proxied routes fail naturally; the gate and every re-lock
   re-validate membership). Bounded to data they once legitimately
   accessed. A TTL re-check in `requireHub` is a possible future hardening.
-- **`_unassigned` quarantine** is not backed up by default (no
-  `backup.json`) and adoption exists only for chat — tasks/production/
-  whiteboards only quarantine on corrupt/unreadable envelopes, which
-  should not occur for healthy data.
 - **In-flight request during a switch**: a request that resolved its
   store-set immediately before a hub re-lock completes against the old
   hub (its own hub — never a third party's). The full-reload switch makes

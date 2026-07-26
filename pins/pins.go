@@ -99,16 +99,6 @@ func sanitizeHubID(hubID string) string {
 	return hubslug.Slug(hubID)
 }
 
-// legacyPinsPath is the historical single-file location pre-dating
-// hub-scoped storage. It's only read by MigrateLegacy.
-func legacyPinsPath() (string, error) {
-	dir, err := config.Dir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "pins.json"), nil
-}
-
 // Load reads pinned items for the given hub. Absent → empty. A legacy bare
 // []Pin array (v0) is wrapped into the v1 envelope in memory — with a
 // .v0.bak snapshot — and rewritten on the next Save. Corrupt files rename
@@ -216,55 +206,6 @@ func Save(hubID string, ps []Pin) error {
 		return err
 	}
 	return atomicfile.WriteFile(path, data, 0600)
-}
-
-// MigrateLegacy promotes any pins from the historical single-file
-// pins.json into hub-scoped files. Called once at startup; idempotent
-// thereafter because the legacy file is renamed to pins.json.bak on
-// success. Pins lacking a HubID are dropped (they predate the hub field
-// and have no way to be located deterministically).
-func MigrateLegacy() error {
-	legacy, err := legacyPinsPath()
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(legacy)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	var ps []Pin
-	if err := json.Unmarshal(data, &ps); err != nil {
-		// Corrupt — back up and bail out; per-hub files start clean.
-		return os.Rename(legacy, legacy+".bak")
-	}
-	byHub := make(map[string][]Pin, 4)
-	for _, p := range ps {
-		if p.HubID == "" {
-			continue
-		}
-		byHub[p.HubID] = append(byHub[p.HubID], p)
-	}
-	for hubID, hubPins := range byHub {
-		existing, _ := Load(hubID)
-		merged := append(existing, hubPins...)
-		// Dedupe by ID — last write wins (existing first, then legacy).
-		seen := make(map[string]struct{}, len(merged))
-		out := merged[:0:0]
-		for _, p := range merged {
-			if _, ok := seen[p.ID]; ok {
-				continue
-			}
-			seen[p.ID] = struct{}{}
-			out = append(out, p)
-		}
-		if err := Save(hubID, out); err != nil {
-			return err
-		}
-	}
-	return os.Rename(legacy, legacy+".bak")
 }
 
 // IsPinned reports whether the given item ID is in the pin list.

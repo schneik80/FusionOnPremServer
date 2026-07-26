@@ -10,7 +10,7 @@ references (uses / where-used / drawings), thumbnails, BOM, and pins.
 - `api/` — APS clients: Manufacturing Data Model **GraphQL** (`client.go`, `queries.go`, `details.go`, `refs.go`, …). **Design activity** is GraphQL-sourced (`activity_graphql.go` → `activity_report.go`); `activity.go` keeps the shared types + `HubSlug` (the notifications feed it once used is first-party-gated — removed).
 - `server/` — Go 1.22 `net/http.ServeMux`; routes in `routes.go`; handlers `handlers_*.go`; DTOs in `dto*.go`; session/auth middleware (`fls_session` cookie).
 - **Local per-project stores** — features whose data is ours, not APS's. All share one posture: one JSON/JSONL file per project, atomic writes via `internal/atomicfile`, a per-project mutex, `.bak` on corruption, a future-version guard, a **schema provenance stamp** (`internal/schemameta` — createdAt/createdByVersion/updatedAt/updatedByVersion) on a versioned envelope, per-store migration registries (`internal/migrate` — v(n)→v(n+1) steps with pre-migration `.vN.bak` snapshots), and authorization delegated to `chat.Authorizer` (APS project role → capability) rather than a parallel permission system.
-  - **HUB ISOLATION (security invariant — hubs are IP boundaries between clients):** every store roots under `hubs/<hubslug>/<store>/` (see `docs/hubs/STATUS.md`). The server holds one lazily-built store-set per hub; the session locks to a hub (`POST /api/session/hub`); the `requireHub` middleware wraps every data route (409 `hub_not_selected`, 403 `hub_mismatch`); handlers resolve stores from the **session**, never from client-supplied hubId. `internal/hubmigrate` relocates pre-hub layouts once at startup. Never add a code path that reads another hub's profile.
+  - **HUB ISOLATION (security invariant — hubs are IP boundaries between clients):** every store roots under `hubs/<hubslug>/<store>/` (see `docs/hubs/STATUS.md`). The server holds one lazily-built store-set per hub; the session locks to a hub (`POST /api/session/hub`); the `requireHub` middleware wraps every data route (409 `hub_not_selected`, 403 `hub_mismatch`); handlers resolve stores from the **session**, never from client-supplied hubId. Pre-isolation layouts are unsupported (the one-time startup migration was retired after the only deployed server migrated). Never add a code path that reads another hub's profile.
   - `chat/` — append-only channel logs + the shared `Authorizer` / `Limiter`.
   - `tasks/` — `tasks.json` per project (Kanban + Gantt schedule: start/end dates, progress, dependsOn, milestone, stage).
   - `production/` — `production.json` per project (jobs, step DAG, version-pinned documents, batches). See `docs/production/STATUS.md`.
@@ -55,9 +55,10 @@ most recent feature waves:
    deletion + disk usage).
 2. **Hub isolation** (`docs/hubs/STATUS.md`): hubs are IP boundaries — all
    local data partitions under `hubs/<hubslug>/`, the session locks to one
-   hub, every data route enforces it, backups/restore/settings are per-hub,
-   and a startup migration relocates pre-hub layouts. **Any new feature that
-   stores or lists local data must go through the session's store-set.**
+   hub, every data route enforces it, and backups/restore/settings are
+   per-hub (pre-isolation layouts and backups are unsupported). **Any new
+   feature that stores or lists local data must go through the session's
+   store-set.**
 
 Previously: **Whiteboards** — a per-project tldraw board (fifth project app)
 with live `fls:` app cards and assembly expansion; tldraw is lazy-loaded and

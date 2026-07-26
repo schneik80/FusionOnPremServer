@@ -58,7 +58,7 @@ C4Container
         Component(config, "config", "Go package", "Three-layer config loader: env vars → config.json → build-time linker default. Resolves client id, optional client secret, and APS region.")
         Component(auth, "auth", "Go package", "Transport-agnostic OAuth 2.0 PKCE primitives: NewPKCE, BuildAuthURL, ExchangeCode, Refresh, FetchUserProfile, TokenData. No browser, no listener, no persistence.")
         Component(api, "api", "Go package", "Typed GraphQL client. Cursor-paginated hierarchy queries, item details, refs, async assembly classification, thumbnails, physical properties. Redacting -v debug tracing.")
-        Component(pins, "pins", "Go package", "Per-hub bookmark storage. Load/Save scoped by sanitized hub ID; MigrateLegacy promotes the pre-hub-scoping single-file pins.json on first run.")
+        Component(pins, "pins", "Go package", "Per-hub bookmark storage. Load/Save scoped by sanitized hub ID inside the hub profile directory.")
     }
 
     System_Ext(aps_auth, "APS Auth v2", "https://developer.api.autodesk.com/authentication/v2")
@@ -340,9 +340,8 @@ fusionlocalserver/
 │                            request/response tracing routed to the server's console+file sink under -v
 │
 ├── pins/
-│   └── pins.go              Hub-scoped bookmark storage (~/.config/fusionlocalserver/pins-<hubID>.json);
-│                            Load(hubID), Save(hubID, pins), MigrateLegacy() (one-shot pins.json split
-│                            into per-hub files), sanitizeHubID() for cross-platform filenames
+│   └── pins.go              Hub-scoped bookmark storage (hubs/<hubslug>/pins-<hubslug>.json);
+│                            Load(hubID), Save(hubID, pins), sanitizeHubID() for cross-platform filenames
 │
 ├── server/                  The HTTP service: JSON API + embedded React/MUI SPA
 │   ├── server.go            Run(), Options, listener (re)bind loop, LAN-URL/open-network warning,

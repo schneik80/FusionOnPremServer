@@ -882,7 +882,7 @@ func (s *Store) logPath(projectID, channelID string) string {
 // loadMeta reads a project's meta.json. Absent → fresh empty meta. Newer
 // version → ErrFutureVersion (never rewrite what we don't understand).
 // Corrupt → rename to .bak and start clean rather than block chat for the
-// whole project (pins.MigrateLegacy precedent).
+// whole project (shared store posture).
 func (s *Store) loadMeta(projectID string) (*projectMeta, error) {
 	path := s.metaPath(projectID)
 	fresh := &projectMeta{

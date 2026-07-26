@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// Unassigned is the reserved profile name for local data whose owning hub
-// could not be determined (chat projects predating the self-describing
-// envelope). It is not a valid Slug output for any real hub id — real ids
-// never start with their sanitized form being "_unassigned" unless the id
-// literally is that string, which APS urn-style ids never are.
-const Unassigned = "_unassigned"
-
 // Slug maps a hub ID to a filesystem-safe slug: any character outside
 // [A-Za-z0-9_.\-] is replaced with '_'. The result is capped at 120 chars to
 // stay well clear of per-platform path length limits. Byte-identical to the
