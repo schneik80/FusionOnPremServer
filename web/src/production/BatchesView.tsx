@@ -18,7 +18,9 @@ import {
 } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useBatchMutations } from '../api/queries'
+import { batchKindLabel } from '../i18n/enums'
 import { BatchDetail, PRODUCTION_ACCENT } from './BatchDetail'
 import { BatchTimeline } from './BatchTimeline'
 import type { Job } from './types'
@@ -42,6 +44,7 @@ export function BatchesView({
   canModerate: boolean
   myId: string
 }) {
+  const { t } = useTranslation('production')
   const { createBatch } = useBatchMutations(projectId, jobId)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -70,10 +73,10 @@ export function BatchesView({
           sx={{ px: 1, py: 0.75, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}
         >
           <Typography variant="subtitle2" sx={{ flex: 1, pl: 0.5 }}>
-            Batches
+            {t('batchesView.title')}
           </Typography>
           {canWrite && (
-            <Tooltip title="New batch">
+            <Tooltip title={t('batchesView.newBatch')}>
               <Button
                 size="small"
                 variant="contained"
@@ -81,7 +84,7 @@ export function BatchesView({
                 startIcon={<FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} />}
                 sx={{ py: 0.25, textTransform: 'none' }}
               >
-                New
+                {t('batchesView.new')}
               </Button>
             </Tooltip>
           )}
@@ -89,7 +92,7 @@ export function BatchesView({
         <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {batches.length === 0 ? (
             <Typography variant="caption" color="text.secondary" sx={{ p: 2, display: 'block' }}>
-              No batches yet. Create a run to snapshot the plan and supply documents.
+              {t('batchesView.emptyRail')}
             </Typography>
           ) : (
             <List dense disablePadding>
@@ -119,7 +122,7 @@ export function BatchesView({
                     </Typography>
                   </Stack>
                   <Typography variant="caption" color="text.secondary">
-                    {b.kind} · {new Date(b.runAt).toLocaleDateString()}
+                    {batchKindLabel(t, b.kind)} · {new Date(b.runAt).toLocaleDateString()}
                   </Typography>
                 </ListItemButton>
               ))}
@@ -149,7 +152,7 @@ export function BatchesView({
           />
         ) : (
           <Box sx={{ flex: 1, display: 'grid', placeItems: 'center', color: 'text.secondary', fontSize: 13, px: 3, textAlign: 'center' }}>
-            {canWrite ? 'Create a batch to run this job.' : 'This job has no batches yet.'}
+            {canWrite ? t('batchesView.emptyCanWrite') : t('batchesView.emptyReadOnly')}
           </Box>
         )}
       </Box>
@@ -180,19 +183,20 @@ function CreateBatchDialog({
   onClose: () => void
   onCreate: (name: string, kind: string) => void
 }) {
+  const { t } = useTranslation('production')
   const [name, setName] = useState('')
   const [kind, setKind] = useState<'prove' | 'production'>('prove')
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>New batch</DialogTitle>
+      <DialogTitle>{t('createBatch.title')}</DialogTitle>
       <DialogContent>
         <TextField
           autoFocus
           fullWidth
           size="small"
-          label="Batch name"
-          placeholder="e.g. Batch 1 (prove)"
+          label={t('createBatch.nameLabel')}
+          placeholder={t('createBatch.namePlaceholder')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           sx={{ mt: 1 }}
@@ -204,21 +208,21 @@ function CreateBatchDialog({
           onChange={(_, v) => v && setKind(v)}
           sx={{ mt: 2, '& .MuiToggleButton-root': { textTransform: 'none', px: 2 } }}
         >
-          <ToggleButton value="prove">Prove-out</ToggleButton>
+          <ToggleButton value="prove">{t('createBatch.proveOut')}</ToggleButton>
           <ToggleButton
             value="production"
             sx={{ '&.Mui-selected': { color: PRODUCTION_ACCENT, borderColor: alpha(PRODUCTION_ACCENT, 0.5) } }}
           >
-            Production
+            {t('createBatch.production')}
           </ToggleButton>
         </ToggleButtonGroup>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-          Creating the batch freezes the current version of every plan document. The run date is set to now (editable later).
+          {t('createBatch.freezeNote')}
         </Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} sx={{ textTransform: 'none' }}>
-          Cancel
+          {t('common:cancel')}
         </Button>
         <Button
           variant="contained"
@@ -226,7 +230,7 @@ function CreateBatchDialog({
           onClick={() => onCreate(name.trim(), kind)}
           sx={{ textTransform: 'none' }}
         >
-          Create batch
+          {t('createBatch.create')}
         </Button>
       </DialogActions>
     </Dialog>

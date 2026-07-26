@@ -1,0 +1,173 @@
+{
+  "appLayout": {
+    "changeHub": "Changer de hub",
+    "selectHub": "Sélectionner un hub",
+    "switchToLight": "Passer en mode clair",
+    "switchToDark": "Passer en mode sombre",
+    "toggleTheme": "Basculer le thème",
+    "signOut": "Se déconnecter"
+  },
+  "breadcrumb": {
+    "noHub": "Aucun hub sélectionné — choisissez-en un dans la barre latérale"
+  },
+  "column": {
+    "emptyDefault": "Rien ici"
+  },
+  "projectsColumn": {
+    "title": "Projets",
+    "emptyInHub": "Aucun projet dans ce hub",
+    "selectHubHint": "Sélectionnez un hub pour commencer"
+  },
+  "contents": {
+    "title": "Contenu",
+    "uploadHere": "Téléverser des fichiers ici",
+    "uploadAria": "Téléverser des fichiers",
+    "sort": "Trier",
+    "sortAria": "Trier le contenu",
+    "sortName": "Nom (A–Z)",
+    "sortModified": "Dernière modification",
+    "sortType": "Type",
+    "emptyFolder": "Dossier vide",
+    "selectProject": "Sélectionnez un projet"
+  },
+  "itemRow": {
+    "pin": "Épingler",
+    "unpin": "Désépingler"
+  },
+  "hubSwitcher": {
+    "title": "Changer de hub"
+  },
+  "pins": {
+    "title": "Épingles",
+    "groupProjects": "Projets",
+    "groupFolders": "Dossiers",
+    "groupDocuments": "Documents",
+    "selectHub": "Sélectionnez un hub pour voir ses épingles.",
+    "empty": "Aucune épingle pour l'instant. Cliquez sur l'étoile d'un projet, d'un dossier ou d'un document pour le mettre en favori.",
+    "navigate": "Naviguer",
+    "openInsertSoon": "Ouvrir / Insérer (bientôt disponible)",
+    "removePin": "Retirer l'épingle",
+    "unknownProject": "(projet)"
+  },
+  "upload": {
+    "title": "Téléverser des fichiers",
+    "uploadingTo": "Téléversement vers <strong>{{target}}</strong>",
+    "chooseTarget": "Ouvrez un projet ou un dossier pour choisir la destination des fichiers.",
+    "dropHint": "Glissez-déposez les fichiers ici",
+    "addFiles": "Ajouter des fichiers",
+    "readyToUpload": "Prêt à téléverser ({{count}})",
+    "uploadsHeading": "Téléversements",
+    "clearFinished": "Effacer les terminés",
+    "uploading": "Téléversement…",
+    "upload": "Téléverser",
+    "uploadCount_one": "Téléverser {{count}} fichier",
+    "uploadCount_other": "Téléverser {{count}} fichiers",
+    "removeFile": "Retirer {{name}}",
+    "cancelUpload": "Annuler le téléversement",
+    "removeFromList": "Retirer de la liste",
+    "cancelUploadOf": "Annuler le téléversement de {{name}}",
+    "dismissFile": "Ignorer {{name}}",
+    "failedFallback": "échec du téléversement",
+    "status": {
+      "queued": "en attente",
+      "done": "terminé",
+      "error": "erreur",
+      "canceled": "annulé"
+    }
+  },
+  "uploadFooter": {
+    "starting": "Démarrage du téléversement…",
+    "progress": "Téléversement {{current}} sur {{total}} — {{pct}} %",
+    "doneAndFailed": "{{done}} téléversé(s), {{failed}} en échec",
+    "filesUploaded_one": "{{count}} fichier téléversé",
+    "filesUploaded_other": "{{count}} fichiers téléversés",
+    "view": "Afficher",
+    "dismiss": "Ignorer",
+    "dropTitle": "Déposez les fichiers à téléverser",
+    "dropTarget": "vers {{target}}"
+  },
+  "login": {
+    "tagline": "Connectez-vous avec votre compte Autodesk pour parcourir vos hubs, projets et conceptions Fusion.",
+    "signInButton": "Se connecter avec Autodesk",
+    "errors": {
+      "expired": "La tentative de connexion a expiré ou n'a pas pu être vérifiée. Veuillez réessayer.",
+      "incomplete": "Autodesk n'a pas finalisé la connexion. Veuillez réessayer.",
+      "session": "Le serveur n'a pas pu démarrer de session. Veuillez réessayer.",
+      "denied": "La connexion a été annulée ou l'accès a été refusé.",
+      "generic": "Échec de la connexion ({{reason}})."
+    }
+  },
+  "errorBoundary": {
+    "failed": "Le chargement de {{label}} a échoué.",
+    "unexpected": "Une erreur inattendue s'est produite.",
+    "tryAgain": "Réessayer"
+  },
+  "projectPanel": {
+    "tabs": {
+      "dashboard": "Tableau de bord",
+      "production": "Production",
+      "tasks": "Tâches",
+      "whiteboards": "Tableaux blancs",
+      "wiki": "Wiki",
+      "chat": "Chat"
+    }
+  },
+  "railHeader": {
+    "new": "Nouveau"
+  },
+  "hubBrowser": {
+    "filterPlaceholder": "Filtrer les projets",
+    "loadProjectsFailed": "Impossible de charger les projets.",
+    "loadFolderFailed": "Impossible de charger ce dossier.",
+    "emptyFolder": "Ce dossier est vide.",
+    "nonePickable": "Aucun de ces documents ne peut être choisi ici.",
+    "selectProjectToBrowse": "Sélectionnez un projet à parcourir.",
+    "notBrowsable": "Ce projet ne peut pas être parcouru (aucun identifiant Data Management).",
+    "selectProjectOrFolder": "Sélectionnez un projet ou un dossier.",
+    "selectDocument": "Sélectionnez un document.",
+    "selectThisFolder": "Sélectionner ce dossier",
+    "select": "Sélectionner"
+  },
+  "docCard": {
+    "open": "Aller à ce document",
+    "locating": "Localisation…",
+    "locationUnavailable": "Emplacement indisponible"
+  },
+  "taskCard": {
+    "open": "Ouvrir cette tâche",
+    "notFound": "Tâche introuvable (supprimée)",
+    "unavailable": "Tâche indisponible",
+    "due": "échéance {{date}}"
+  },
+  "prodCard": {
+    "openJob": "Ouvrir cet ordre de fabrication",
+    "openBatch": "Ouvrir ce lot",
+    "jobNotFound": "Ordre de fabrication introuvable",
+    "batchNotFound": "Lot introuvable",
+    "jobUnavailable": "Ordre de fabrication indisponible",
+    "batchUnavailable": "Lot indisponible",
+    "steps_one": "{{count}} étape",
+    "steps_other": "{{count}} étapes",
+    "batches_one": "{{count}} lot",
+    "batches_other": "{{count}} lots"
+  },
+  "prodView": {
+    "jobGone": "Cet ordre de fabrication n'est plus disponible.",
+    "batchGone": "Ce lot n'est plus disponible.",
+    "batchDeletedFrom": "Ce lot a été supprimé de {{job}}.",
+    "stepsHeading": "Étapes",
+    "noSteps": "aucune étape pour l'instant",
+    "noDocuments": "aucun document"
+  },
+  "viewer": {
+    "previewUnavailable": "Aperçu indisponible pour ce document.",
+    "noInlinePreview": "Pas d'aperçu intégré pour ce type de fichier.",
+    "download": "Télécharger",
+    "openInFusion": "Ouvrir dans Fusion",
+    "imageFailed": "Cette image n'a pas pu être affichée.",
+    "videoFailed": "Ce format vidéo ne peut pas être lu ici.",
+    "pdfFailed": "Ce PDF n'a pas pu être affiché.",
+    "tooLarge": "Ce fichier est trop volumineux pour être prévisualisé.",
+    "loadFailed": "Échec du chargement du fichier"
+  }
+}

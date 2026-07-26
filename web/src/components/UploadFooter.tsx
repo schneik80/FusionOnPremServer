@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCloudArrowUp } from '@fortawesome/free-solid-svg-icons'
 import { Box, Button, LinearProgress, Paper, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { isActiveUpload, useUploads } from '../state/uploads'
 
 // UploadFooter is the persistent overlay shown while background uploads exist:
@@ -9,6 +10,7 @@ import { isActiveUpload, useUploads } from '../state/uploads'
 // modals, and disappears once the job list is dismissed or pruned.
 
 export function UploadFooter() {
+  const { t } = useTranslation('browse')
   const up = useUploads()
   if (up.jobs.length === 0 && !up.submitting) return null
 
@@ -26,12 +28,16 @@ export function UploadFooter() {
   const busy = active.length > 0 || up.submitting
   const summary =
     up.submitting && up.jobs.length === 0
-      ? 'Starting upload…'
+      ? t('uploadFooter.starting')
       : busy
-        ? `Uploading ${Math.min(done.length + 1, up.jobs.length)} of ${up.jobs.length}${up.submitting ? '+' : ''} — ${pct}%`
+        ? t('uploadFooter.progress', {
+            current: Math.min(done.length + 1, up.jobs.length),
+            total: `${up.jobs.length}${up.submitting ? '+' : ''}`,
+            pct,
+          })
         : failed.length > 0
-          ? `${done.length} uploaded, ${failed.length} failed`
-          : `${done.length} file${done.length === 1 ? '' : 's'} uploaded`
+          ? t('uploadFooter.doneAndFailed', { done: done.length, failed: failed.length })
+          : t('uploadFooter.filesUploaded', { count: done.length })
 
   const cancelAll = () => active.forEach((j) => up.cancelJob(j.id))
 
@@ -57,15 +63,15 @@ export function UploadFooter() {
           {summary}
         </Typography>
         <Button size="small" onClick={up.openDialog}>
-          View
+          {t('uploadFooter.view')}
         </Button>
         {busy ? (
           <Button size="small" color="inherit" onClick={cancelAll} disabled={active.length === 0}>
-            Cancel
+            {t('common:cancel')}
           </Button>
         ) : (
           <Button size="small" color="inherit" onClick={() => up.dismissFinished()}>
-            Dismiss
+            {t('uploadFooter.dismiss')}
           </Button>
         )}
       </Box>
@@ -84,6 +90,7 @@ export function UploadFooter() {
 // over the app with a valid target folder. Purely visual (pointer-events off) —
 // the actual drop is handled by the window listeners in UploadsProvider.
 export function UploadDropOverlay() {
+  const { t } = useTranslation('browse')
   const up = useUploads()
   if (!up.dragActive || !up.target) return null
   return (
@@ -112,10 +119,10 @@ export function UploadDropOverlay() {
       >
         <FontAwesomeIcon icon={faCloudArrowUp} style={{ fontSize: 34, opacity: 0.7 }} />
         <Typography variant="h6" sx={{ mt: 1 }}>
-          Drop files to upload
+          {t('uploadFooter.dropTitle')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          to {up.target.label}
+          {t('uploadFooter.dropTarget', { target: up.target.label })}
         </Typography>
       </Paper>
     </Box>

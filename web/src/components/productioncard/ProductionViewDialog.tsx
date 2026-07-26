@@ -11,7 +11,9 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { useJob } from '../../api/queries'
+import { batchKindLabel, batchStatusLabel } from '../../i18n/enums'
 import { PinnedDocChip } from '../../production/PinnedDocChip'
 import { jobDisplayId } from '../../production/types'
 import type { BatchRef, JobRef } from './prodref'
@@ -34,6 +36,7 @@ export function ProductionViewDialog({
   batchRef?: BatchRef
   onClose: () => void
 }) {
+  const { t } = useTranslation('browse')
   const jobQ = useJob(jobRef.projectId, jobRef.jobId, true)
   const job = jobQ.data
   const batch = batchRef ? job?.batches.find((b) => b.id === batchRef.batchId) : undefined
@@ -67,14 +70,14 @@ export function ProductionViewDialog({
           </Box>
         ) : gone ? (
           <Typography variant="body2" color="text.secondary">
-            This {batchRef ? 'batch' : 'job'} is no longer available.
+            {batchRef ? t('prodView.batchGone') : t('prodView.jobGone')}
           </Typography>
         ) : batchRef ? (
           batch ? (
             <BatchSummary batch={batch} />
           ) : (
             <Typography variant="body2" color="text.secondary">
-              This batch was deleted from {job?.name}.
+              {t('prodView.batchDeletedFrom', { job: job?.name })}
             </Typography>
           )
         ) : (
@@ -86,6 +89,7 @@ export function ProductionViewDialog({
 }
 
 function JobSummary({ job }: { job: NonNullable<ReturnType<typeof useJob>['data']> }) {
+  const { t } = useTranslation('browse')
   return (
     <Stack spacing={1.5}>
       {job.description && (
@@ -94,11 +98,11 @@ function JobSummary({ job }: { job: NonNullable<ReturnType<typeof useJob>['data'
         </Typography>
       )}
       <Typography variant="caption" color="text.secondary">
-        {job.steps.length} step{job.steps.length === 1 ? '' : 's'} · {job.batches.length} batch
-        {job.batches.length === 1 ? '' : 'es'}
+        {t('prodCard.steps', { count: job.steps.length })} ·{' '}
+        {t('prodCard.batches', { count: job.batches.length })}
       </Typography>
       <Divider />
-      <Typography variant="subtitle2">Steps</Typography>
+      <Typography variant="subtitle2">{t('prodView.stepsHeading')}</Typography>
       <Stack spacing={0.5}>
         {job.steps.map((s) => (
           <Typography key={s.id} variant="body2">
@@ -107,7 +111,7 @@ function JobSummary({ job }: { job: NonNullable<ReturnType<typeof useJob>['data'
         ))}
         {job.steps.length === 0 && (
           <Typography variant="caption" color="text.disabled">
-            no steps yet
+            {t('prodView.noSteps')}
           </Typography>
         )}
       </Stack>
@@ -116,12 +120,13 @@ function JobSummary({ job }: { job: NonNullable<ReturnType<typeof useJob>['data'
 }
 
 function BatchSummary({ batch }: { batch: NonNullable<ReturnType<typeof useJob>['data']>['batches'][number] }) {
+  const { t } = useTranslation('browse')
   return (
     <Stack spacing={1.5}>
       <Stack direction="row" spacing={1} alignItems="center">
         <Chip
           size="small"
-          label={batch.kind}
+          label={batchKindLabel(t, batch.kind)}
           sx={{
             height: 20,
             fontSize: 11,
@@ -131,7 +136,7 @@ function BatchSummary({ batch }: { batch: NonNullable<ReturnType<typeof useJob>[
               : { color: 'primary.contrastText', bgcolor: 'primary.main' }),
           }}
         />
-        <Chip size="small" variant="outlined" label={batch.status} sx={{ height: 20, fontSize: 11, textTransform: 'capitalize' }} />
+        <Chip size="small" variant="outlined" label={batchStatusLabel(t, batch.status)} sx={{ height: 20, fontSize: 11, textTransform: 'capitalize' }} />
         <Typography variant="caption" color="text.secondary">
           {new Date(batch.runAt).toLocaleString()}
         </Typography>
@@ -152,7 +157,7 @@ function BatchSummary({ batch }: { batch: NonNullable<ReturnType<typeof useJob>[
               ))}
               {step.planDocs.length === 0 && asRun.length === 0 && (
                 <Typography variant="caption" color="text.disabled">
-                  no documents
+                  {t('prodView.noDocuments')}
                 </Typography>
               )}
             </Box>

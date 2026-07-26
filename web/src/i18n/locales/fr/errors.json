@@ -1,0 +1,7 @@
+{
+  "unauthorized": "Vous n'êtes pas connecté.",
+  "forbidden": "Vous n'avez pas accès à cette ressource.",
+  "rate_limited": "Limite de débit atteinte — veuillez réessayer dans un instant.",
+  "upstream_timeout": "La requête vers le service distant a expiré.",
+  "upstream_failed": "Le service distant a signalé une erreur."
+}

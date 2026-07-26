@@ -11,6 +11,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthMe, useTaskMutations } from '../api/queries'
 import { docRefFromItem, encodeDocRef } from '../components/doccard/docref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
@@ -38,6 +39,7 @@ export function TaskDetails({
   caps?: TaskCaps
   onDeleted?: () => void
 }) {
+  const { t } = useTranslation('tasks')
   const me = useAuthMe().data?.user
   const muts = useTaskMutations(task.projectId)
   const [editOpen, setEditOpen] = useState(false)
@@ -62,7 +64,7 @@ export function TaskDetails({
   }
 
   function confirmDelete() {
-    if (!window.confirm(`Delete ${taskDisplayId(task)} "${task.title}"? This cannot be undone.`)) return
+    if (!window.confirm(t('details.deleteConfirm', { id: taskDisplayId(task), title: task.title }))) return
     muts.remove.mutate(task.id, { onSuccess: onDeleted })
   }
 
@@ -74,15 +76,15 @@ export function TaskDetails({
           {task.title}
         </Typography>
         {canWrite && (
-          <Tooltip title="Edit task">
-            <IconButton size="small" onClick={() => setEditOpen(true)} aria-label="Edit task">
+          <Tooltip title={t('details.editTask')}>
+            <IconButton size="small" onClick={() => setEditOpen(true)} aria-label={t('details.editTask')}>
               <FontAwesomeIcon icon={faPen} style={{ fontSize: 14 }} />
             </IconButton>
           </Tooltip>
         )}
         {canDelete && (
-          <Tooltip title="Delete task">
-            <IconButton size="small" onClick={confirmDelete} aria-label="Delete task">
+          <Tooltip title={t('details.deleteTask')}>
+            <IconButton size="small" onClick={confirmDelete} aria-label={t('details.deleteTask')}>
               <FontAwesomeIcon icon={faTrash} style={{ fontSize: 14 }} />
             </IconButton>
           </Tooltip>
@@ -104,15 +106,15 @@ export function TaskDetails({
           mt: 2,
         }}
       >
-        <FieldRow label="Status" value={<StatusChip status={task.status} />} />
-        <FieldRow label="Priority" value={<PriorityChip priority={task.priority} />} />
-        <FieldRow label="Project" value={task.projectName} />
+        <FieldRow label={t('details.statusLabel')} value={<StatusChip status={task.status} />} />
+        <FieldRow label={t('details.priorityLabel')} value={<PriorityChip priority={task.priority} />} />
+        <FieldRow label={t('details.projectLabel')} value={task.projectName} />
         <FieldRow
-          label="Assignee"
+          label={t('details.assigneeLabel')}
           value={task.assignee ? task.assignee.name || task.assignee.email : undefined}
         />
         <FieldRow
-          label="Due"
+          label={t('details.dueLabel')}
           value={
             task.dueDate ? (
               <Typography
@@ -121,18 +123,18 @@ export function TaskDetails({
                 color={isOverdue(task.dueDate, task.status) ? 'error.main' : undefined}
               >
                 {fmtDue(task.dueDate)}
-                {isOverdue(task.dueDate, task.status) ? ' (overdue)' : ''}
+                {isOverdue(task.dueDate, task.status) ? ` ${t('details.overdueSuffix')}` : ''}
               </Typography>
             ) : undefined
           }
         />
         <FieldRow
-          label="Schedule"
+          label={t('details.scheduleLabel')}
           value={
             task.startDate && task.endDate ? (
               <Typography component="span" variant="body2">
                 {fmtDue(task.startDate)} → {fmtDue(task.endDate)}
-                {task.milestone ? ' (milestone)' : ''}
+                {task.milestone ? ` ${t('details.milestoneSuffix')}` : ''}
                 {task.stage ? ` · ${task.stage}` : ''}
                 {!task.milestone && (task.progress ?? 0) > 0 ? ` · ${task.progress}%` : ''}
               </Typography>
@@ -140,18 +142,18 @@ export function TaskDetails({
           }
         />
         <FieldRow
-          label="Depends on"
+          label={t('details.dependsOnLabel')}
           value={task.dependsOn.length ? task.dependsOn.map((id) => `T-${id.replace(/^t/, '')}`).join(', ') : undefined}
         />
-        <FieldRow label="Created by" value={task.createdBy.name || task.createdBy.email} />
-        <FieldRow label="Created" value={fmtChatTime(task.createdAt)} />
-        <FieldRow label="Updated" value={fmtChatTime(task.updatedAt)} />
+        <FieldRow label={t('details.createdByLabel')} value={task.createdBy.name || task.createdBy.email} />
+        <FieldRow label={t('details.createdLabel')} value={fmtChatTime(task.createdAt)} />
+        <FieldRow label={t('details.updatedLabel')} value={fmtChatTime(task.updatedAt)} />
       </Box>
 
       {task.description && (
         <Box sx={{ mt: 2 }}>
           <Typography variant="overline" color="text.secondary">
-            Description
+            {t('details.descriptionHeading')}
           </Typography>
           <Markdown>{task.description}</Markdown>
         </Box>
@@ -160,7 +162,7 @@ export function TaskDetails({
       <Box sx={{ mt: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
-            Attached documents
+            {t('details.attachedHeading')}
           </Typography>
           {canWrite && (
             <>
@@ -170,7 +172,7 @@ export function TaskDetails({
                 onClick={() => setAttachOpen(true)}
                 disabled={muts.update.isPending}
               >
-                Attach
+                {t('details.attach')}
               </Button>
               <Button
                 size="small"
@@ -178,14 +180,14 @@ export function TaskDetails({
                 onClick={() => setProdPickOpen(true)}
                 disabled={muts.update.isPending}
               >
-                Link job/batch
+                {t('details.linkJobBatch')}
               </Button>
             </>
           )}
         </Stack>
         {task.docRefs.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            Nothing attached.
+            {t('details.nothingAttached')}
           </Typography>
         ) : (
           <Stack spacing={0.5} alignItems="flex-start">
@@ -193,12 +195,12 @@ export function TaskDetails({
               <Stack key={token} direction="row" alignItems="center" spacing={0.5} sx={{ maxWidth: '100%' }}>
                 <RefCard token={token} />
                 {canWrite && (
-                  <Tooltip title="Remove attachment">
+                  <Tooltip title={t('details.removeAttachment')}>
                     <IconButton
                       size="small"
                       onClick={() => removeDoc(token)}
                       disabled={muts.update.isPending}
-                      aria-label="Remove attachment"
+                      aria-label={t('details.removeAttachment')}
                     >
                       <FontAwesomeIcon icon={faTrash} style={{ fontSize: 12 }} />
                     </IconButton>
@@ -224,8 +226,8 @@ export function TaskDetails({
         <HubBrowserDialog
           open={attachOpen}
           hubId={task.hubId || null}
-          title="Attach a document"
-          pickLabel="Attach"
+          title={t('details.attachDocTitle')}
+          pickLabel={t('details.attach')}
           onClose={() => setAttachOpen(false)}
           onPick={(pick) => {
             setAttachOpen(false)

@@ -9,6 +9,7 @@ import {
   TextField,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useTaskMutations } from '../api/queries'
 import type { Task } from './types'
 
@@ -33,6 +34,7 @@ export function QuickTaskDialog({
   projectName: string
   onCreated: (task: Task) => void
 }) {
+  const { t } = useTranslation('tasks')
   const muts = useTaskMutations(projectId)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -62,12 +64,12 @@ export function QuickTaskDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>New task in {projectName}</DialogTitle>
+      <DialogTitle>{t('quickDialog.title', { project: projectName })}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 0.5 }}>
           {err && <Alert severity="error">{err.message}</Alert>}
           <TextField
-            label="Title"
+            label={t('quickDialog.titleLabel')}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
@@ -82,7 +84,7 @@ export function QuickTaskDialog({
             }}
           />
           <TextField
-            label="Description (optional)"
+            label={t('quickDialog.descriptionLabel')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
@@ -95,10 +97,10 @@ export function QuickTaskDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={muts.create.isPending}>
-          Cancel
+          {t('common:cancel')}
         </Button>
         <Button variant="contained" onClick={create} disabled={muts.create.isPending || !title.trim()}>
-          Create
+          {t('common:create')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,0 +1,28 @@
+{
+  "title": "Paramètres",
+  "theme": {
+    "label": "Thème",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
+  },
+  "language": {
+    "label": "Langue"
+  },
+  "port": {
+    "label": "Port du serveur",
+    "applyRestart": "Appliquer et redémarrer",
+    "applying": "Application…",
+    "fixedAtStartup": "Fixé au démarrage (lancé avec <cmd>-addr</cmd> ou en mode développement).",
+    "restarting": "Redémarrage du serveur. Reconnexion à <lnk>{{url}}</lnk>…",
+    "rangeHelp": "{{min}}–{{max}}. Changer le port redémarre le serveur ; vous serez reconnecté sur le nouveau port."
+  },
+  "region": {
+    "label": "Région",
+    "help": "Définie au démarrage du serveur (lecture seule)."
+  },
+  "about": {
+    "label": "À propos",
+    "buildNote": "L'ouverture/insertion dans Fusion et le téléchargement STEP ne sont pas encore disponibles dans cette version."
+  }
+}

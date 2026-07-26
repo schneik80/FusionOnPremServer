@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, IconButton, Paper, Tooltip, Typography } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { thumbnailSrc } from '../api/thumbnails'
 import { iconForItem } from '../components/icons'
 import { useGoToDocument } from '../state/goto'
@@ -51,6 +52,7 @@ export function PinnedDocChip({
   onRemove?: () => void
   asRun?: boolean
 }) {
+  const { t } = useTranslation('production')
   const [imgFailed, setImgFailed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const goTo = useGoToDocument()
@@ -140,11 +142,11 @@ export function PinnedDocChip({
               bgcolor: 'primary.main',
             }}
           >
-            v{doc.versionNumber || '?'}
+            {t('pinnedDoc.versionBadge', { num: doc.versionNumber || '?' })}
           </Box>
           {asRun && (
             <Typography variant="caption" sx={{ fontSize: 10, color: 'warning.main', fontWeight: 600 }}>
-              as-run
+              {t('pinnedDoc.asRun')}
             </Typography>
           )}
           <FontAwesomeIcon
@@ -154,7 +156,7 @@ export function PinnedDocChip({
         </Box>
       </Box>
       {onRemove && (
-        <Tooltip title="Remove">
+        <Tooltip title={t('common:remove')}>
           <IconButton
             size="small"
             onClick={(e) => {

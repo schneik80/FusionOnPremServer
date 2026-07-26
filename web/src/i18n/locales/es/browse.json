@@ -1,0 +1,173 @@
+{
+  "appLayout": {
+    "changeHub": "Cambiar de hub",
+    "selectHub": "Seleccione un hub",
+    "switchToLight": "Cambiar a claro",
+    "switchToDark": "Cambiar a oscuro",
+    "toggleTheme": "Alternar tema",
+    "signOut": "Cerrar sesión"
+  },
+  "breadcrumb": {
+    "noHub": "Ningún hub seleccionado — elija uno en la barra lateral"
+  },
+  "column": {
+    "emptyDefault": "No hay nada aquí"
+  },
+  "projectsColumn": {
+    "title": "Proyectos",
+    "emptyInHub": "No hay proyectos en este hub",
+    "selectHubHint": "Seleccione un hub para empezar"
+  },
+  "contents": {
+    "title": "Contenido",
+    "uploadHere": "Cargar archivos aquí",
+    "uploadAria": "Cargar archivos",
+    "sort": "Ordenar",
+    "sortAria": "Ordenar contenido",
+    "sortName": "Nombre (A–Z)",
+    "sortModified": "Última modificación",
+    "sortType": "Tipo",
+    "emptyFolder": "Carpeta vacía",
+    "selectProject": "Seleccione un proyecto"
+  },
+  "itemRow": {
+    "pin": "Anclar",
+    "unpin": "Desanclar"
+  },
+  "hubSwitcher": {
+    "title": "Cambiar de hub"
+  },
+  "pins": {
+    "title": "Anclados",
+    "groupProjects": "Proyectos",
+    "groupFolders": "Carpetas",
+    "groupDocuments": "Documentos",
+    "selectHub": "Seleccione un hub para ver sus elementos anclados.",
+    "empty": "Aún no hay elementos anclados. Haga clic en la estrella de cualquier proyecto, carpeta o documento para marcarlo.",
+    "navigate": "Navegar",
+    "openInsertSoon": "Abrir / Insertar (próximamente)",
+    "removePin": "Quitar anclaje",
+    "unknownProject": "(proyecto)"
+  },
+  "upload": {
+    "title": "Cargar archivos",
+    "uploadingTo": "Cargando en <strong>{{target}}</strong>",
+    "chooseTarget": "Abra un proyecto o una carpeta para elegir el destino de los archivos.",
+    "dropHint": "Arrastre y suelte archivos aquí",
+    "addFiles": "Añadir archivos",
+    "readyToUpload": "Listo para cargar ({{count}})",
+    "uploadsHeading": "Cargas",
+    "clearFinished": "Quitar finalizadas",
+    "uploading": "Cargando…",
+    "upload": "Cargar",
+    "uploadCount_one": "Cargar {{count}} archivo",
+    "uploadCount_other": "Cargar {{count}} archivos",
+    "removeFile": "Quitar {{name}}",
+    "cancelUpload": "Cancelar carga",
+    "removeFromList": "Quitar de la lista",
+    "cancelUploadOf": "Cancelar la carga de {{name}}",
+    "dismissFile": "Descartar {{name}}",
+    "failedFallback": "la carga falló",
+    "status": {
+      "queued": "en cola",
+      "done": "hecho",
+      "error": "error",
+      "canceled": "cancelado"
+    }
+  },
+  "uploadFooter": {
+    "starting": "Iniciando la carga…",
+    "progress": "Cargando {{current}} de {{total}} — {{pct}}%",
+    "doneAndFailed": "{{done}} cargados, {{failed}} fallidos",
+    "filesUploaded_one": "{{count}} archivo cargado",
+    "filesUploaded_other": "{{count}} archivos cargados",
+    "view": "Ver",
+    "dismiss": "Descartar",
+    "dropTitle": "Suelte los archivos para cargarlos",
+    "dropTarget": "en {{target}}"
+  },
+  "login": {
+    "tagline": "Inicie sesión con su cuenta de Autodesk para explorar sus hubs, proyectos y diseños de Fusion.",
+    "signInButton": "Iniciar sesión con Autodesk",
+    "errors": {
+      "expired": "El intento de inicio de sesión caducó o no se pudo verificar. Inténtelo de nuevo.",
+      "incomplete": "Autodesk no completó el inicio de sesión. Inténtelo de nuevo.",
+      "session": "El servidor no pudo iniciar una sesión. Inténtelo de nuevo.",
+      "denied": "El inicio de sesión se canceló o el acceso fue denegado.",
+      "generic": "El inicio de sesión falló ({{reason}})."
+    }
+  },
+  "errorBoundary": {
+    "failed": "No se pudo cargar este {{label}}.",
+    "unexpected": "Se produjo un error inesperado.",
+    "tryAgain": "Reintentar"
+  },
+  "projectPanel": {
+    "tabs": {
+      "dashboard": "Panel",
+      "production": "Producción",
+      "tasks": "Tareas",
+      "whiteboards": "Pizarras",
+      "wiki": "Wiki",
+      "chat": "Chat"
+    }
+  },
+  "railHeader": {
+    "new": "Nuevo"
+  },
+  "hubBrowser": {
+    "filterPlaceholder": "Filtrar proyectos",
+    "loadProjectsFailed": "No se pudieron cargar los proyectos.",
+    "loadFolderFailed": "No se pudo cargar esta carpeta.",
+    "emptyFolder": "Esta carpeta está vacía.",
+    "nonePickable": "Ninguno de estos documentos se puede elegir aquí.",
+    "selectProjectToBrowse": "Seleccione un proyecto para explorarlo.",
+    "notBrowsable": "Este proyecto no se puede explorar (sin id de Data Management).",
+    "selectProjectOrFolder": "Seleccione un proyecto o una carpeta.",
+    "selectDocument": "Seleccione un documento.",
+    "selectThisFolder": "Seleccionar esta carpeta",
+    "select": "Seleccionar"
+  },
+  "docCard": {
+    "open": "Ir a este documento",
+    "locating": "Localizando…",
+    "locationUnavailable": "Ubicación no disponible"
+  },
+  "taskCard": {
+    "open": "Abrir esta tarea",
+    "notFound": "Tarea no encontrada (eliminada)",
+    "unavailable": "Tarea no disponible",
+    "due": "vence {{date}}"
+  },
+  "prodCard": {
+    "openJob": "Abrir este trabajo",
+    "openBatch": "Abrir este lote",
+    "jobNotFound": "Trabajo no encontrado",
+    "batchNotFound": "Lote no encontrado",
+    "jobUnavailable": "Trabajo no disponible",
+    "batchUnavailable": "Lote no disponible",
+    "steps_one": "{{count}} paso",
+    "steps_other": "{{count}} pasos",
+    "batches_one": "{{count}} lote",
+    "batches_other": "{{count}} lotes"
+  },
+  "prodView": {
+    "jobGone": "Este trabajo ya no está disponible.",
+    "batchGone": "Este lote ya no está disponible.",
+    "batchDeletedFrom": "Este lote se eliminó de {{job}}.",
+    "stepsHeading": "Pasos",
+    "noSteps": "aún no hay pasos",
+    "noDocuments": "sin documentos"
+  },
+  "viewer": {
+    "previewUnavailable": "Vista previa no disponible para este documento.",
+    "noInlinePreview": "No hay vista previa integrada para este tipo de archivo.",
+    "download": "Descargar",
+    "openInFusion": "Abrir en Fusion",
+    "imageFailed": "No se pudo mostrar esta imagen.",
+    "videoFailed": "Este formato de vídeo no se puede reproducir aquí.",
+    "pdfFailed": "No se pudo representar este PDF.",
+    "tooLarge": "Este archivo es demasiado grande para la vista previa.",
+    "loadFailed": "No se pudo cargar el archivo"
+  }
+}

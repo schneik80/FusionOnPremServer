@@ -13,14 +13,14 @@ import {
   Typography,
 } from '@mui/material'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMyTasks } from '../api/queries'
+import { taskPriorityLabel, taskStatusLabel } from '../i18n/enums'
 import { TaskDetails } from './TaskDetails'
 import { TaskRow } from './TaskListView'
 import {
   PRIORITIES,
-  PRIORITY_LABEL,
   STATUSES,
-  STATUS_LABEL,
   type Task,
   type TaskPriority,
   type TaskStatus,
@@ -36,6 +36,7 @@ type PriorityFilter = 'all' | TaskPriority
 // can't know the caller's per-project role cheaply, so write affordances
 // stay enabled and a 403 surfaces from the server.
 export function TasksScreen({ active }: { active: boolean }) {
+  const { t } = useTranslation('tasks')
   const myQ = useMyTasks(active)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<StatusFilter>('open')
@@ -95,7 +96,7 @@ export function TasksScreen({ active }: { active: boolean }) {
         <Stack spacing={1} sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
           <TextField
             size="small"
-            placeholder="Search my tasks"
+            placeholder={t('screen.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{
@@ -110,31 +111,31 @@ export function TasksScreen({ active }: { active: boolean }) {
             <TextField
               select
               size="small"
-              label="Status"
+              label={t('screen.statusFilterLabel')}
               value={status}
               onChange={(e) => setStatus(e.target.value as StatusFilter)}
               sx={{ flex: 1 }}
             >
-              <MenuItem value="open">Open</MenuItem>
-              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="open">{t('screen.filterOpen')}</MenuItem>
+              <MenuItem value="all">{t('screen.filterAll')}</MenuItem>
               {STATUSES.map((s) => (
                 <MenuItem key={s} value={s}>
-                  {STATUS_LABEL[s]}
+                  {taskStatusLabel(t, s)}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
               select
               size="small"
-              label="Priority"
+              label={t('screen.priorityFilterLabel')}
               value={priority}
               onChange={(e) => setPriority(e.target.value as PriorityFilter)}
               sx={{ flex: 1 }}
             >
-              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="all">{t('screen.filterAll')}</MenuItem>
               {PRIORITIES.map((p) => (
                 <MenuItem key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
+                  {taskPriorityLabel(t, p)}
                 </MenuItem>
               ))}
             </TextField>
@@ -142,11 +143,11 @@ export function TasksScreen({ active }: { active: boolean }) {
           <TextField
             select
             size="small"
-            label="Project"
+            label={t('screen.projectFilterLabel')}
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
           >
-            <MenuItem value="all">All projects</MenuItem>
+            <MenuItem value="all">{t('screen.allProjects')}</MenuItem>
             {projects.map(([id, name]) => (
               <MenuItem key={id} value={id}>
                 {name}
@@ -169,9 +170,7 @@ export function TasksScreen({ active }: { active: boolean }) {
           ) : filtered.length === 0 ? (
             <Centered>
               <Typography variant="body2" color="text.secondary" sx={{ px: 2, textAlign: 'center' }}>
-                {tasks.length === 0
-                  ? 'No tasks assigned to or created by you yet'
-                  : 'No tasks match the current filters'}
+                {tasks.length === 0 ? t('screen.emptyNoTasks') : t('screen.emptyFiltered')}
               </Typography>
             </Centered>
           ) : (
@@ -210,7 +209,7 @@ export function TasksScreen({ active }: { active: boolean }) {
         ) : (
           <Centered>
             <Typography variant="body2" color="text.secondary">
-              Select a task to view its details
+              {t('list.selectPrompt')}
             </Typography>
           </Centered>
         )}

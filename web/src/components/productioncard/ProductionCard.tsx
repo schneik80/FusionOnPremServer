@@ -2,7 +2,9 @@ import { faArrowUpRightFromSquare, faDiagramProject, faFlask } from '@fortawesom
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, Tooltip, Typography } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useJob } from '../../api/queries'
+import { batchStatusLabel } from '../../i18n/enums'
 import { ProductionViewDialog } from './ProductionViewDialog'
 import type { BatchRef, JobRef } from './prodref'
 
@@ -13,6 +15,7 @@ import type { BatchRef, JobRef } from './prodref'
 // depend on the browser's nav state. Built from span elements so it is valid
 // inside a markdown <p>.
 export function ProductionCard({ jobRef, batchRef }: { jobRef: JobRef; batchRef?: BatchRef }) {
+  const { t } = useTranslation('browse')
   const jobQ = useJob(jobRef.projectId, jobRef.jobId, true)
   const [open, setOpen] = useState(false)
 
@@ -24,18 +27,26 @@ export function ProductionCard({ jobRef, batchRef }: { jobRef: JobRef; batchRef?
   const isProdBatch = batch?.kind === 'production'
 
   const subtitle = gone
-    ? `${batchRef ? 'Batch' : 'Job'} not found`
+    ? batchRef
+      ? t('prodCard.batchNotFound')
+      : t('prodCard.jobNotFound')
     : batchRef
       ? batch
-        ? [jobRef.projectName, jobRef.jobName, batch.status].filter(Boolean).join(' · ')
+        ? [jobRef.projectName, jobRef.jobName, batchStatusLabel(t, batch.status)]
+            .filter(Boolean)
+            .join(' · ')
         : jobQ.isLoading
-          ? 'Loading…'
-          : 'Batch unavailable'
+          ? t('common:loading')
+          : t('prodCard.batchUnavailable')
       : job
-        ? [jobRef.projectName, `${job.steps.length} steps`, `${job.batches.length} batches`].join(' · ')
+        ? [
+            jobRef.projectName,
+            t('prodCard.steps', { count: job.steps.length }),
+            t('prodCard.batches', { count: job.batches.length }),
+          ].join(' · ')
         : jobQ.isLoading
-          ? 'Loading…'
-          : 'Job unavailable'
+          ? t('common:loading')
+          : t('prodCard.jobUnavailable')
 
   const card = (
     <Box
@@ -112,7 +123,7 @@ export function ProductionCard({ jobRef, batchRef }: { jobRef: JobRef; batchRef?
 
   return (
     <>
-      {gone ? card : <Tooltip title={`Open this ${batchRef ? 'batch' : 'job'}`}>{card}</Tooltip>}
+      {gone ? card : <Tooltip title={batchRef ? t('prodCard.openBatch') : t('prodCard.openJob')}>{card}</Tooltip>}
       {open && <ProductionViewDialog jobRef={jobRef} batchRef={batchRef} onClose={() => setOpen(false)} />}
     </>
   )

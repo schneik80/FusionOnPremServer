@@ -1,0 +1,39 @@
+{
+  "list": {
+    "title": "Whiteboards",
+    "loading": "Whiteboards werden geladen…",
+    "loadFailed": "Whiteboards konnten nicht geladen werden.",
+    "empty": "Noch keine Whiteboards.",
+    "namePlaceholder": "Whiteboard-Name",
+    "readOnlyReason": "Ihre Projektrolle ist schreibgeschützt — zum Erstellen von Whiteboards ist Editor-Zugriff erforderlich",
+    "deleteTooltip": "Whiteboard löschen",
+    "deleteConfirm": "Whiteboard „{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+    "renameHint": "Zum Umbenennen auf einen Namen doppelklicken"
+  },
+  "emptyState": {
+    "canWrite": "Noch keine Whiteboards. Erstellen Sie eines zum Skizzieren und legen Sie Aufgaben-, Auftrags-, Chargen- und Dokumentkarten darauf ab.",
+    "readOnly": "Dieses Projekt hat noch keine Whiteboards."
+  },
+  "canvas": {
+    "loadFailed": "Dieses Whiteboard konnte nicht geladen werden",
+    "placeCard": "Karte platzieren",
+    "taskButton": "Aufgabe",
+    "jobBatchButton": "Auftrag / Charge",
+    "documentButton": "Dokument",
+    "assemblyButton": "Baugruppe",
+    "saving": "Wird gespeichert…",
+    "saved": "Gespeichert",
+    "placeDocumentTitle": "Dokumentkarte platzieren",
+    "place": "Platzieren"
+  },
+  "assembly": {
+    "expandTitle": "Baugruppe erweitern",
+    "expand": "Erweitern",
+    "noComponentVersion": "„{{name}}“ konnte nicht aufgelöst werden — keine Komponentenversion zum Erweitern.",
+    "noChildren": "„{{name}}“ hat keine Unterkomponenten zum Erweitern.",
+    "placedSkipped_one": "{{count}} Komponente platziert; {{skipped}} ohne eigenes Dokument übersprungen.",
+    "placedSkipped_other": "{{count}} Komponenten platziert; {{skipped}} ohne eigenes Dokument übersprungen.",
+    "expandFailed": "Diese Baugruppe konnte nicht erweitert werden."
+  },
+  "errorLabel": "Whiteboard"
+}

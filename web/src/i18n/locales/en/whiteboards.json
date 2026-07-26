@@ -1,0 +1,39 @@
+{
+  "list": {
+    "title": "Whiteboards",
+    "loading": "Loading whiteboards…",
+    "loadFailed": "Failed to load whiteboards.",
+    "empty": "No whiteboards yet.",
+    "namePlaceholder": "Whiteboard name",
+    "readOnlyReason": "Your project role is read-only — creating whiteboards needs Editor access",
+    "deleteTooltip": "Delete whiteboard",
+    "deleteConfirm": "Delete whiteboard \"{{name}}\"? This cannot be undone.",
+    "renameHint": "Double-click a name to rename"
+  },
+  "emptyState": {
+    "canWrite": "No whiteboards yet. Create one to sketch, and drop task, job, batch and document cards onto it.",
+    "readOnly": "This project has no whiteboards yet."
+  },
+  "canvas": {
+    "loadFailed": "could not load this whiteboard",
+    "placeCard": "Place a card",
+    "taskButton": "Task",
+    "jobBatchButton": "Job / batch",
+    "documentButton": "Document",
+    "assemblyButton": "Assembly",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "placeDocumentTitle": "Place a document card",
+    "place": "Place"
+  },
+  "assembly": {
+    "expandTitle": "Expand an assembly",
+    "expand": "Expand",
+    "noComponentVersion": "Couldn't resolve \"{{name}}\" — no component version to expand.",
+    "noChildren": "\"{{name}}\" has no sub-components to expand.",
+    "placedSkipped_one": "Placed {{count}} component; skipped {{skipped}} with no separate document.",
+    "placedSkipped_other": "Placed {{count}} components; skipped {{skipped}} with no separate document.",
+    "expandFailed": "Could not expand this assembly."
+  },
+  "errorLabel": "whiteboard"
+}

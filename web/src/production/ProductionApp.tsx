@@ -1,5 +1,6 @@
 import { Box } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useJobs } from '../api/queries'
 import { useNav } from '../state/nav'
 import { JobDetail } from './JobDetail'
@@ -10,6 +11,7 @@ import { JobList } from './JobList'
 // of jobs on the left, the selected job's flow on the right. P1 renders the
 // job's steps as a plain list; the interactive flow canvas lands in P2.
 export function ProductionApp({ active = true }: { active?: boolean }) {
+  const { t } = useTranslation('production')
   const nav = useNav()
   const projectId = nav.project?.id ?? null
   const jobsQ = useJobs(projectId, active)
@@ -65,9 +67,7 @@ export function ProductionApp({ active = true }: { active?: boolean }) {
               textAlign: 'center',
             }}
           >
-            {jobsQ.isLoading
-              ? 'Loading jobs…'
-              : 'No jobs yet. Create a job to plan its steps and run batches.'}
+            {jobsQ.isLoading ? t('app.loadingJobs') : t('app.emptyJobs')}
           </Box>
         )}
       </Box>

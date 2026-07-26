@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../api/client'
 import { useWikiPage, useWikiPages, useWikiPublish, useWikiRename } from '../api/queries'
 import { useNav } from '../state/nav'
@@ -44,6 +45,7 @@ const AUTOSAVE_MS = 600
 // authoring local drafts, reading published pages, pulling one down as a draft —
 // works under the current read-only scope.
 export function WikiApp({ active = true }: { active?: boolean }) {
+  const { t } = useTranslation('wiki')
   const nav = useNav()
   const project = nav.project
   const hubId = nav.hubId
@@ -142,10 +144,10 @@ export function WikiApp({ active = true }: { active?: boolean }) {
       return
     }
     setSaved(false)
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       void save({
         ...base,
-        title: workingTitle || 'Untitled',
+        title: workingTitle || t('untitledPage'),
         // Once linked to a published page, the slug (filename) is frozen — only
         // an explicit Rename changes it, so title edits don't silently refile.
         slug: base.baseItemId ? base.slug : slugify(workingTitle || 'untitled'),
@@ -154,7 +156,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
         updatedAt: Date.now(),
       }).then(() => setSaved(true))
     }, AUTOSAVE_MS)
-    return () => clearTimeout(t)
+    return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workingMd, workingTitle, editingKey])
 
@@ -163,7 +165,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
     if (base && (base.markdown !== workingMd || base.title !== workingTitle)) {
       await save({
         ...base,
-        title: workingTitle || 'Untitled',
+        title: workingTitle || t('untitledPage'),
         slug: base.baseItemId ? base.slug : slugify(workingTitle || 'untitled'),
         markdown: workingMd,
         status: base.baseItemId ? 'modified' : 'draft',
@@ -174,7 +176,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
   }
 
   async function handleNew() {
-    const d = await create('Untitled')
+    const d = await create(t('untitledPage'))
     beginEdit(d)
   }
 
@@ -194,7 +196,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
   // 409 (the page moved upstream) it offers to overwrite.
   async function handlePublish(force = false): Promise<void> {
     if (!editingDraft || !canWrite) return
-    const title = workingTitle || editingDraft.title || 'Untitled'
+    const title = workingTitle || editingDraft.title || t('untitledPage')
     // A linked page keeps its published filename; a new page derives it from the
     // title. Renaming a published page is a separate, explicit action.
     const slug = editingDraft.baseItemId ? editingDraft.slug : slugify(title || 'untitled')
@@ -220,13 +222,13 @@ export function WikiApp({ active = true }: { active?: boolean }) {
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         // eslint-disable-next-line no-alert
-        if (window.confirm('This page changed since you opened it. Overwrite the published version?')) {
+        if (window.confirm(t('publish.conflictConfirm'))) {
           await handlePublish(true)
         }
         return
       }
       // eslint-disable-next-line no-alert
-      alert(e instanceof Error ? e.message : 'Publish failed.')
+      alert(e instanceof Error ? e.message : t('alerts.publishFailed'))
     }
   }
 
@@ -257,7 +259,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
       setRenameTarget(null)
     } catch (e) {
       // eslint-disable-next-line no-alert
-      alert(e instanceof Error ? e.message : 'Rename failed.')
+      alert(e instanceof Error ? e.message : t('alerts.renameFailed'))
     }
   }
 
@@ -297,7 +299,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
       }
     } catch (e) {
       // eslint-disable-next-line no-alert
-      alert(e instanceof Error ? e.message : 'Refresh failed.')
+      alert(e instanceof Error ? e.message : t('alerts.refreshFailed'))
     }
   }
 
@@ -322,7 +324,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
       <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {pagesQ.error && (
           <Alert severity="warning" variant="outlined" square sx={{ borderLeft: 0, borderRight: 0, borderTop: 0 }}>
-            Couldn't load published pages. Local drafts are still available.
+            {t('alerts.pagesLoadFailed')}
           </Alert>
         )}
 
@@ -389,9 +391,10 @@ function RenameDialog({
   onCancel: () => void
   onSave: () => void
 }) {
+  const { t } = useTranslation('wiki')
   return (
     <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
-      <DialogTitle>Rename page</DialogTitle>
+      <DialogTitle>{t('renameDialog.title')}</DialogTitle>
       <DialogContent>
         <TextField
           autoFocus
@@ -407,10 +410,10 @@ function RenameDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel} color="inherit">
-          Cancel
+          {t('common:cancel')}
         </Button>
         <Button onClick={onSave} variant="contained" disabled={busy || !value.trim()}>
-          {busy ? 'Renaming…' : 'Rename'}
+          {busy ? t('renameDialog.renaming') : t('renameDialog.rename')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -418,17 +421,17 @@ function RenameDialog({
 }
 
 function EmptyState({ onNew }: { onNew: () => void }) {
+  const { t } = useTranslation('wiki')
   return (
     <Stack spacing={1.5} alignItems="center" justifyContent="center" sx={{ flex: 1, p: 4, textAlign: 'center' }}>
       <Typography variant="h6" color="text.secondary">
-        Project Wiki
+        {t('empty.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
-        Author markdown pages for this project. Drafts are saved on this device until you
-        publish them to the project's Wiki folder.
+        {t('empty.body')}
       </Typography>
       <Button variant="outlined" onClick={onNew}>
-        New page
+        {t('empty.newPage')}
       </Button>
     </Stack>
   )
@@ -451,6 +454,7 @@ function DraftReader({
   onRename: () => void
   onRefresh: () => void
 }) {
+  const { t } = useTranslation('wiki')
   if (!draft) return <EmptyState onNew={() => {}} />
   const behind = status === 'behind'
   const conflict = status === 'conflict'
@@ -467,13 +471,13 @@ function DraftReader({
         </Typography>
         <StatusChip status={status} />
         <Button size="small" variant="contained" onClick={() => onEdit(draft)}>
-          Edit
+          {t('common:edit')}
         </Button>
         <Button size="small" color="inherit" onClick={onRename}>
-          Rename
+          {t('reader.rename')}
         </Button>
         <Button size="small" color="error" onClick={() => onDelete(draft.key)}>
-          Delete
+          {t('common:delete')}
         </Button>
       </Stack>
       {(behind || conflict) && (
@@ -483,13 +487,11 @@ function DraftReader({
           sx={{ borderRadius: 0 }}
           action={
             <Button color="inherit" size="small" onClick={onRefresh}>
-              {conflict ? 'Take latest' : 'Update'}
+              {conflict ? t('reader.takeLatest') : t('reader.update')}
             </Button>
           }
         >
-          {conflict
-            ? 'A newer version was published on another device, and you have unpublished local edits. Take latest discards your edits; Edit → Publish keeps yours.'
-            : 'A newer version was published on another device.'}
+          {conflict ? t('reader.conflictBody') : t('reader.behindBody')}
         </Alert>
       )}
       <MarkdownView>{draft.markdown}</MarkdownView>
@@ -510,6 +512,7 @@ function PublishedReader({
   onEditAsDraft: (payload: { itemId: string; title: string; tipVersion?: string; markdown: string }) => void
   onRename?: () => void
 }) {
+  const { t } = useTranslation('wiki')
   const contentQ = useWikiPage(dmProjectId, page?.itemId ?? null, !!page)
 
   if (!page) return null
@@ -539,11 +542,11 @@ function PublishedReader({
             })
           }
         >
-          Edit as draft
+          {t('reader.editAsDraft')}
         </Button>
         {onRename && (
           <Button size="small" color="inherit" onClick={onRename}>
-            Rename
+            {t('reader.rename')}
           </Button>
         )}
       </Stack>
@@ -554,7 +557,7 @@ function PublishedReader({
       ) : contentQ.error ? (
         <Box sx={{ flex: 1, p: 2 }}>
           <Alert severity="error" variant="outlined">
-            Couldn't download this page.
+            {t('reader.downloadFailed')}
           </Alert>
         </Box>
       ) : (
@@ -565,17 +568,18 @@ function PublishedReader({
 }
 
 function StatusChip({ status }: { status: WikiEntryStatus }) {
+  const { t } = useTranslation('wiki')
   const meta =
     status === 'draft'
-      ? { label: 'Local draft', color: 'default' as const }
+      ? { label: t('status.localDraft'), color: 'default' as const }
       : status === 'modified'
-        ? { label: 'Unpublished changes', color: 'warning' as const }
+        ? { label: t('status.unpublishedChanges'), color: 'warning' as const }
         : status === 'behind'
-          ? { label: 'Update available', color: 'info' as const }
+          ? { label: t('status.updateAvailable'), color: 'info' as const }
           : status === 'conflict'
-            ? { label: 'Conflict', color: 'error' as const }
+            ? { label: t('status.conflict'), color: 'error' as const }
             : status === 'published'
-              ? { label: 'Synced', color: 'success' as const }
-              : { label: 'Published', color: 'info' as const }
+              ? { label: t('status.synced'), color: 'success' as const }
+              : { label: t('status.published'), color: 'info' as const }
   return <Chip size="small" label={meta.label} color={meta.color} variant="outlined" sx={{ height: 20 }} />
 }

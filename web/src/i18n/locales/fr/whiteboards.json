@@ -1,0 +1,39 @@
+{
+  "list": {
+    "title": "Tableaux blancs",
+    "loading": "Chargement des tableaux blancs…",
+    "loadFailed": "Échec du chargement des tableaux blancs.",
+    "empty": "Aucun tableau blanc pour l'instant.",
+    "namePlaceholder": "Nom du tableau blanc",
+    "readOnlyReason": "Votre rôle sur le projet est en lecture seule — la création de tableaux blancs requiert l'accès Éditeur",
+    "deleteTooltip": "Supprimer le tableau blanc",
+    "deleteConfirm": "Supprimer le tableau blanc « {{name}} » ? Cette action est irréversible.",
+    "renameHint": "Double-cliquez sur un nom pour le renommer"
+  },
+  "emptyState": {
+    "canWrite": "Aucun tableau blanc pour l'instant. Créez-en un pour esquisser et y déposer des cartes de tâches, d'ordres, de lots et de documents.",
+    "readOnly": "Ce projet n'a pas encore de tableaux blancs."
+  },
+  "canvas": {
+    "loadFailed": "impossible de charger ce tableau blanc",
+    "placeCard": "Placer une carte",
+    "taskButton": "Tâche",
+    "jobBatchButton": "Ordre / lot",
+    "documentButton": "Document",
+    "assemblyButton": "Assemblage",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "placeDocumentTitle": "Placer une carte de document",
+    "place": "Placer"
+  },
+  "assembly": {
+    "expandTitle": "Développer un assemblage",
+    "expand": "Développer",
+    "noComponentVersion": "Impossible de résoudre « {{name}} » — aucune version de composant à développer.",
+    "noChildren": "« {{name}} » n'a aucun sous-composant à développer.",
+    "placedSkipped_one": "{{count}} composant placé ; {{skipped}} ignoré(s) sans document distinct.",
+    "placedSkipped_other": "{{count}} composants placés ; {{skipped}} ignoré(s) sans document distinct.",
+    "expandFailed": "Impossible de développer cet assemblage."
+  },
+  "errorLabel": "tableau blanc"
+}

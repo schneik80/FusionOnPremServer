@@ -2,6 +2,7 @@ import { Box, IconButton, Menu, MenuItem, Tooltip } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowDownWideShort, faCloudArrowUp } from '@fortawesome/free-solid-svg-icons'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useFolderContents, useProjectContents } from '../api/queries'
 import type { Item } from '../api/types'
 import { useNav } from '../state/nav'
@@ -68,6 +69,7 @@ function sortItems(list: Item[], sort: SortKey): Item[] {
 }
 
 function SortMenu({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  const { t } = useTranslation('browse')
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const pick = (v: SortKey) => {
     onChange(v)
@@ -75,10 +77,10 @@ function SortMenu({ value, onChange }: { value: SortKey; onChange: (v: SortKey) 
   }
   return (
     <>
-      <Tooltip title="Sort">
+      <Tooltip title={t('contents.sort')}>
         <IconButton
           size="small"
-          aria-label="Sort contents"
+          aria-label={t('contents.sortAria')}
           onClick={(e) => setAnchor(e.currentTarget)}
           sx={{ color: 'text.secondary' }}
         >
@@ -87,13 +89,13 @@ function SortMenu({ value, onChange }: { value: SortKey; onChange: (v: SortKey) 
       </Tooltip>
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
         <MenuItem selected={value === 'name'} onClick={() => pick('name')}>
-          Name (A–Z)
+          {t('contents.sortName')}
         </MenuItem>
         <MenuItem selected={value === 'modified'} onClick={() => pick('modified')}>
-          Last modified
+          {t('contents.sortModified')}
         </MenuItem>
         <MenuItem selected={value === 'type'} onClick={() => pick('type')}>
-          Type
+          {t('contents.sortType')}
         </MenuItem>
       </Menu>
     </>
@@ -101,6 +103,7 @@ function SortMenu({ value, onChange }: { value: SortKey; onChange: (v: SortKey) 
 }
 
 export function ContentsColumn() {
+  const { t } = useTranslation('browse')
   const nav = useNav()
   const { pinnedIds, toggle } = usePinToggle()
   const uploads = useUploads()
@@ -127,16 +130,16 @@ export function ContentsColumn() {
 
   return (
     <Column
-      title="Contents"
+      title={t('contents.title')}
       flex={1}
       action={
         uploads.target || list.length > 0 ? (
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {uploads.target && (
-              <Tooltip title="Upload files here">
+              <Tooltip title={t('contents.uploadHere')}>
                 <IconButton
                   size="small"
-                  aria-label="Upload files"
+                  aria-label={t('contents.uploadAria')}
                   onClick={uploads.openDialog}
                   sx={{ color: 'text.secondary' }}
                 >
@@ -151,7 +154,7 @@ export function ContentsColumn() {
       loading={activeQ.isLoading}
       error={activeQ.error as Error | null}
       empty={!activeQ.isLoading && list.length === 0}
-      emptyText={nav.project ? 'Empty folder' : 'Select a project'}
+      emptyText={nav.project ? t('contents.emptyFolder') : t('contents.selectProject')}
     >
       {sorted.map((item) => (
         <ItemRow

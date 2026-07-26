@@ -107,21 +107,11 @@ export interface TaskShiftResult {
 // STATUSES doubles as the Kanban column order (mirrors tasks.Statuses).
 export const STATUSES: TaskStatus[] = ['todo', 'inprogress', 'blocked', 'done']
 
-export const STATUS_LABEL: Record<TaskStatus, string> = {
-  todo: 'To do',
-  inprogress: 'In progress',
-  blocked: 'Blocked',
-  done: 'Done',
-}
+// Status/priority display labels live in i18n (enums:taskStatus.* /
+// enums:taskPriority.*, via i18n/enums.ts helpers) — never render the raw
+// tokens.
 
 export const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent']
-
-export const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
-}
 
 // taskDisplayId is the human-readable per-project task number.
 export function taskDisplayId(t: { num: number }): string {

@@ -1,8 +1,10 @@
 import { Box, ListItem, ListItemButton, Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { APP_RAIL_WIDTH, Column } from '../components/Column'
+import { taskStatusLabel } from '../i18n/enums'
 import { PriorityDot, fmtDue, isOverdue } from './chips'
 import { TaskDetails } from './TaskDetails'
-import { STATUS_LABEL, taskDisplayId, type Task, type TaskCaps } from './types'
+import { taskDisplayId, type Task, type TaskCaps } from './types'
 
 // TaskListView is the project tab's list-with-details view: a Column-shell
 // task list beside the shared TaskDetails pane (ProjectsColumn ›
@@ -22,18 +24,19 @@ export function TaskListView({
   selectedId: string | null
   onSelect: (id: string | null) => void
 }) {
+  const { t } = useTranslation('tasks')
   const sorted = [...tasks].sort((a, b) => b.num - a.num) // newest first
   const selected = tasks.find((t) => t.id === selectedId) ?? null
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
       <Column
-        title="Tasks"
+        title={t('list.title')}
         width={APP_RAIL_WIDTH}
         loading={loading}
         error={error}
         empty={!loading && tasks.length === 0}
-        emptyText="No tasks in this project yet"
+        emptyText={t('list.empty')}
       >
         {sorted.map((t) => (
           <TaskRow key={t.id} task={t} selected={t.id === selectedId} onClick={() => onSelect(t.id)} />
@@ -45,7 +48,7 @@ export function TaskListView({
         ) : (
           <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              Select a task to view its details
+              {t('list.selectPrompt')}
             </Typography>
           </Box>
         )}
@@ -66,12 +69,13 @@ export function TaskRow({
   onClick: () => void
   showProject?: boolean
 }) {
+  const { t } = useTranslation('tasks')
   const overdue = isOverdue(task.dueDate, task.status)
   const meta = [
     taskDisplayId(task),
-    showProject ? task.projectName : STATUS_LABEL[task.status],
+    showProject ? task.projectName : taskStatusLabel(t, task.status),
     task.assignee?.name || task.assignee?.email,
-    task.dueDate ? `due ${fmtDue(task.dueDate)}` : undefined,
+    task.dueDate ? t('row.due', { date: fmtDue(task.dueDate) }) : undefined,
   ]
     .filter(Boolean)
     .join(' · ')

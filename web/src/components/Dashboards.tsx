@@ -14,6 +14,8 @@ import { alpha, useTheme } from '@mui/material/styles'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUsers } from '@fortawesome/free-solid-svg-icons'
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useQueries } from '@tanstack/react-query'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import { api } from '../api/client'
@@ -26,6 +28,7 @@ import {
   useRollupActivity,
 } from '../api/queries'
 import type { Item, PermMember, Pin, ProjectGroup } from '../api/types'
+import { roleLabel } from '../i18n/enums'
 import { useGoToDocument } from '../state/goto'
 import { useNav } from '../state/nav'
 import { usePinToggle } from '../state/pins'
@@ -191,21 +194,22 @@ const spinner = <CircularProgress size={18} />
 
 // ── hub dashboard (placeholder) ────────────────────────────────────
 export function HubDashboard() {
+  const { t } = useTranslation('details')
   const nav = useNav()
   const projectsQ = useProjects(nav.hubId)
   const { pinnedIds } = usePinToggle()
   return (
     <DashboardShell
-      title={nav.hubName ?? 'Hub'}
-      subtitle="Select a project to browse its contents."
+      title={nav.hubName ?? t('dashboards.hub')}
+      subtitle={t('dashboards.hubSubtitle')}
       stats={[
-        { label: 'Projects', value: projectsQ.isLoading ? spinner : (projectsQ.data?.length ?? 0) },
-        { label: 'Pinned', value: pinnedIds.size },
+        { label: t('dashboards.statProjects'), value: projectsQ.isLoading ? spinner : (projectsQ.data?.length ?? 0) },
+        { label: t('dashboards.statPinned'), value: pinnedIds.size },
       ]}
     >
       <Box sx={{ border: 1, borderStyle: 'dashed', borderColor: 'divider', borderRadius: 1.5, p: 4, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          Hub dashboard widgets coming soon
+          {t('dashboards.hubWidgetsComingSoon')}
         </Typography>
       </Box>
     </DashboardShell>
@@ -225,6 +229,7 @@ export function HubDashboard() {
 // dimensions — the 0x0 box that made it log "width(0) and height(0)" was an
 // artefact of the `display: none` this replaced.
 export function ProjectDashboard({ active = true }: { active?: boolean }) {
+  const { t } = useTranslation('details')
   const nav = useNav()
   const project = nav.project
   const goTo = useGoToDocument()
@@ -239,7 +244,7 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
   const items = atRoot ? (rootQ.data?.items ?? []) : (folderQ.data ?? []).filter((i) => !i.isContainer)
 
   const folder = nav.folderStack[nav.folderStack.length - 1]
-  const title = folder?.name ?? project?.name ?? 'Project'
+  const title = folder?.name ?? project?.name ?? t('dashboards.project')
 
   // People & groups: effective access at the current container — the deepest
   // layer of the permissions path (the project at root, the folder once inside).
@@ -298,8 +303,8 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
   const typeCounts = (() => {
     const map = new Map<string, number>()
     for (const it of items) {
-      const t = docTypeOf(it, it.componentVersionId ? subtypeByCv.get(it.componentVersionId) : undefined)
-      map.set(t, (map.get(t) ?? 0) + 1)
+      const ty = docTypeOf(t, it, it.componentVersionId ? subtypeByCv.get(it.componentVersionId) : undefined)
+      map.set(ty, (map.get(ty) ?? 0) + 1)
     }
     return [...map.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value)
   })()
@@ -323,7 +328,7 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
   )
 
   return (
-    <DashboardShell title={title} subtitle="Select a document to view its details." fill>
+    <DashboardShell title={title} subtitle={t('dashboards.projectSubtitle')} fill>
       <Stack spacing={1.5} sx={{ flex: 1, minHeight: 0 }}>
         {/* The three small widgets get their own grid (no full-width siblings)
             so auto-fit collapses any empty track and they fill the row evenly
@@ -336,10 +341,10 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
             flexShrink: 0,
           }}
         >
-          <WidgetCard title="Document types">
-            {contentsLoading ? <Hint>Loading…</Hint> : <TypeDonut data={typeCounts} />}
+          <WidgetCard title={t('dashboards.documentTypes')}>
+            {contentsLoading ? <Hint>{t('common:loading')}</Hint> : <TypeDonut data={typeCounts} />}
           </WidgetCard>
-          <WidgetCard title="People & groups">
+          <WidgetCard title={t('dashboards.peopleGroups')}>
             <PeopleGroups
               members={currentLayer?.members ?? []}
               groups={currentLayer?.groups ?? []}
@@ -347,34 +352,40 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
               error={!!permQ.error}
             />
           </WidgetCard>
-          <WidgetCard title={`Pins${containerPins.length ? ` · ${containerPins.length}` : ''}`}>
+          <WidgetCard
+            title={
+              containerPins.length
+                ? t('dashboards.pinsWithCount', { count: containerPins.length })
+                : t('dashboards.pins')
+            }
+          >
             <PinsList pins={containerPins} loading={pinsQ.isLoading} onOpen={(p) => goTo({ itemId: p.id, name: p.name, kind: p.kind })} />
           </WidgetCard>
         </Box>
-        <WidgetCard title="Project activity" fill>
+        <WidgetCard title={t('dashboards.projectActivity')} fill>
           {designIds.length === 0 ? (
-            <Hint>No design documents to chart activity for</Hint>
+            <Hint>{t('dashboards.noDesignDocuments')}</Hint>
           ) : (
             <>
               {capped && (
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1, flexShrink: 0 }}>
                   <Typography variant="caption" color="text.secondary">
                     {activityCapped
-                      ? `Aggregating the first ${ACTIVITY_CAP} of ${designIds.length} designs`
-                      : `Aggregating all ${designIds.length} designs`}
-                    {classifyCapped &&
-                      `; ${designs.length - CLASSIFY_CAP} not yet split into assemblies/parts`}
-                    .
+                      ? t('dashboards.aggregatingFirst', { cap: ACTIVITY_CAP, total: designIds.length })
+                      : t('dashboards.aggregatingAll', { count: designIds.length })}
+                    {classifyCapped && (
+                      <> {t('dashboards.notYetClassified', { count: designs.length - CLASSIFY_CAP })}</>
+                    )}
                   </Typography>
                   <Button size="small" onClick={() => setLoadAll(true)} disabled={rollupQ.isFetching}>
-                    {rollupQ.isFetching ? 'Loading…' : 'Load all'}
+                    {rollupQ.isFetching ? t('common:loading') : t('dashboards.loadAll')}
                   </Button>
                 </Stack>
               )}
               {rollupQ.isFetching && !rollupQ.data ? (
-                <Hint>Aggregating activity…</Hint>
+                <Hint>{t('dashboards.aggregatingActivity')}</Hint>
               ) : rollupQ.error ? (
-                <Hint>Activity unavailable</Hint>
+                <Hint>{t('dashboards.activityUnavailable')}</Hint>
               ) : rollupQ.data ? (
                 // Fill the card's leftover height so the heatmap (height:100%)
                 // uses the pane, matching the document Activity tab.
@@ -382,7 +393,7 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
                   <ActivityHeatmap report={rollupQ.data} />
                 </Box>
               ) : (
-                <Hint>No activity recorded</Hint>
+                <Hint>{t('dashboards.noActivityRecorded')}</Hint>
               )}
             </>
           )}
@@ -411,29 +422,36 @@ function extOf(name: string): string {
 // docTypeOf maps an item to a document-type bucket for the donut: designs split
 // into Assemblies/Parts (from the classify subtype, "Designs" until known),
 // drawings, electronics, and uploaded files by extension.
-function docTypeOf(item: Item, subtype: string | undefined): string {
-  if (item.kind === 'folder') return 'Folders'
+function docTypeOf(t: TFunction, item: Item, subtype: string | undefined): string {
+  if (item.kind === 'folder') return t('dashboards.docType.folders')
   if (item.kind === 'design' || item.kind === 'configured') {
     const st = subtype || item.subtype
-    return st === 'assembly' ? 'Assemblies' : st === 'part' ? 'Parts' : 'Designs'
+    return st === 'assembly'
+      ? t('dashboards.docType.assemblies')
+      : st === 'part'
+        ? t('dashboards.docType.parts')
+        : t('dashboards.docType.designs')
   }
-  if (item.kind === 'drawing') return item.subtype === 'template' ? 'Templates' : 'Drawings'
-  if (item.kind === 'schematic') return 'Schematics'
-  if (item.kind === 'pcb') return 'PCB'
-  if (item.kind === 'ecad') return 'ECAD'
+  if (item.kind === 'drawing')
+    return item.subtype === 'template' ? t('dashboards.docType.templates') : t('dashboards.docType.drawings')
+  if (item.kind === 'schematic') return t('dashboards.docType.schematics')
+  if (item.kind === 'pcb') return t('dashboards.docType.pcb')
+  if (item.kind === 'ecad') return t('dashboards.docType.ecad')
   const ext = extOf(item.name)
-  if (ext === 'pdf') return 'PDF'
-  if (['txt', 'md', 'csv', 'json', 'xml', 'log', 'rtf'].includes(ext)) return 'Text'
-  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'tif', 'tiff', 'heic'].includes(ext)) return 'Images'
-  if (['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v'].includes(ext)) return 'Video'
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'Archives'
-  return ext ? ext.toUpperCase() : 'Other'
+  if (ext === 'pdf') return t('dashboards.docType.pdf')
+  if (['txt', 'md', 'csv', 'json', 'xml', 'log', 'rtf'].includes(ext)) return t('dashboards.docType.text')
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'tif', 'tiff', 'heic'].includes(ext))
+    return t('dashboards.docType.images')
+  if (['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v'].includes(ext)) return t('dashboards.docType.video')
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return t('dashboards.docType.archives')
+  return ext ? ext.toUpperCase() : t('dashboards.docType.other')
 }
 
 function TypeDonut({ data }: { data: Array<{ label: string; value: number }> }) {
+  const { t } = useTranslation('details')
   const theme = useTheme()
   const total = data.reduce((s, d) => s + d.value, 0)
-  if (total === 0) return <Hint>Empty project</Hint>
+  if (total === 0) return <Hint>{t('dashboards.emptyProject')}</Hint>
   return (
     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
       <Box sx={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
@@ -469,7 +487,7 @@ function TypeDonut({ data }: { data: Array<{ label: string; value: number }> }) 
             {total}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            items
+            {t('dashboards.items')}
           </Typography>
         </Box>
       </Box>
@@ -494,11 +512,15 @@ function TypeDonut({ data }: { data: Array<{ label: string; value: number }> }) 
 }
 
 function RoleChip({ role }: { role: string }) {
+  const { t } = useTranslation('details')
   if (!role) return null
+  // roleLabel falls back to the raw uppercased token when the role is missing
+  // from the enums catalog; keep the old lowercase+capitalize rendering there.
+  const translated = roleLabel(t, role)
   return (
     <Chip
       size="small"
-      label={role.toLowerCase()}
+      label={translated === role.toUpperCase() ? role.toLowerCase() : translated}
       sx={{ height: 18, fontSize: 10, textTransform: 'capitalize', flexShrink: 0 }}
     />
   )
@@ -520,16 +542,17 @@ function PeopleGroups({
   loading: boolean
   error: boolean
 }) {
-  if (loading) return <Hint>Loading…</Hint>
-  if (error) return <Hint>Access info unavailable</Hint>
-  if (members.length === 0 && groups.length === 0) return <Hint>No people or groups</Hint>
+  const { t } = useTranslation('details')
+  if (loading) return <Hint>{t('common:loading')}</Hint>
+  if (error) return <Hint>{t('dashboards.accessUnavailable')}</Hint>
+  if (members.length === 0 && groups.length === 0) return <Hint>{t('dashboards.noPeopleOrGroups')}</Hint>
   const shownMembers = members.slice(0, 8)
   return (
     <Stack spacing={1.5}>
       {groups.length > 0 && (
         <Box>
           <Typography variant="caption" color="text.secondary">
-            {groups.length} group{groups.length === 1 ? '' : 's'}
+            {t('dashboards.groupCount', { count: groups.length })}
           </Typography>
           <Stack spacing={0.5} sx={{ mt: 0.5 }}>
             {groups.map((g) => (
@@ -547,7 +570,7 @@ function PeopleGroups({
       {members.length > 0 && (
         <Box>
           <Typography variant="caption" color="text.secondary">
-            {members.length} member{members.length === 1 ? '' : 's'}
+            {t('dashboards.memberCount', { count: members.length })}
           </Typography>
           <Stack spacing={0.5} sx={{ mt: 0.5 }}>
             {shownMembers.map((m) => (
@@ -561,7 +584,7 @@ function PeopleGroups({
             ))}
             {members.length > shownMembers.length && (
               <Typography variant="caption" color="text.secondary" sx={{ pl: 3.5 }}>
-                +{members.length - shownMembers.length} more
+                {t('dashboards.moreMembers', { count: members.length - shownMembers.length })}
               </Typography>
             )}
           </Stack>
@@ -581,8 +604,9 @@ function pinContainerId(p: Pin): string | null {
 }
 
 function PinsList({ pins, loading, onOpen }: { pins: Pin[]; loading: boolean; onOpen: (p: Pin) => void }) {
-  if (loading) return <Hint>Loading…</Hint>
-  if (pins.length === 0) return <Hint>No pins here</Hint>
+  const { t } = useTranslation('details')
+  if (loading) return <Hint>{t('common:loading')}</Hint>
+  if (pins.length === 0) return <Hint>{t('dashboards.noPinsHere')}</Hint>
   return (
     <List dense disablePadding>
       {pins.map((p) => (

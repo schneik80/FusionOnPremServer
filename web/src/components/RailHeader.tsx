@@ -1,6 +1,7 @@
 import { faPlus } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, Button, Stack, TextField, Tooltip, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 // RailHeader is the top of a project app's left rail — the strip above the
 // list in Production, Whiteboards, Wiki and Chat.
@@ -45,6 +46,7 @@ export function RailHeader({
   newDisabledReason,
   search,
 }: RailHeaderProps) {
+  const { t } = useTranslation('browse')
   return (
     <>
       <Stack
@@ -68,7 +70,7 @@ export function RailHeader({
                 onClick={onNew}
                 sx={{ py: 0.25, textTransform: 'none' }}
               >
-                New
+                {t('railHeader.new')}
               </Button>
             </span>
           </Tooltip>

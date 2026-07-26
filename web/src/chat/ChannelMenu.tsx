@@ -27,7 +27,9 @@ import {
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useChatChannelAdmin, useChatMembers } from '../api/queries'
+import { roleLabel } from '../i18n/enums'
 import type { ChatCaps, ChatChannel } from './types'
 
 // ChannelMenu is the per-channel management menu in the channel header
@@ -46,6 +48,7 @@ export function ChannelMenu({
   caps: ChatCaps
   meId: string
 }) {
+  const { t } = useTranslation('chat')
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [dialog, setDialog] = useState<'edit' | 'members' | 'archive' | null>(null)
   const admin = useChatChannelAdmin(projectId)
@@ -55,14 +58,19 @@ export function ChannelMenu({
   const canLeave = channel.isPrivate && isMember && channel.createdBy !== meId
   const canArchive = canManage && !channel.isRoot && !channel.archivedAt
   const items: { label: string; icon: typeof faPen; onClick: () => void }[] = []
-  if (canManage) items.push({ label: 'Edit channel…', icon: faPen, onClick: () => setDialog('edit') })
+  if (canManage)
+    items.push({ label: t('channelMenu.edit'), icon: faPen, onClick: () => setDialog('edit') })
   if (channel.isPrivate && canManage)
-    items.push({ label: 'Members…', icon: faUserGroup, onClick: () => setDialog('members') })
+    items.push({ label: t('channelMenu.members'), icon: faUserGroup, onClick: () => setDialog('members') })
   if (canArchive)
-    items.push({ label: 'Archive channel…', icon: faBoxArchive, onClick: () => setDialog('archive') })
+    items.push({
+      label: t('channelMenu.archive'),
+      icon: faBoxArchive,
+      onClick: () => setDialog('archive'),
+    })
   if (canLeave)
     items.push({
-      label: 'Leave channel',
+      label: t('channelMenu.leave'),
       icon: faRightFromBracket,
       onClick: () => {
         if (projectId && meId) admin.removeMember.mutate({ channelId: channel.id, userId: meId })
@@ -72,8 +80,12 @@ export function ChannelMenu({
 
   return (
     <>
-      <Tooltip title="Channel options">
-        <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)} aria-label="channel options">
+      <Tooltip title={t('channelMenu.options')}>
+        <IconButton
+          size="small"
+          onClick={(e) => setAnchor(e.currentTarget)}
+          aria-label={t('channelMenu.options')}
+        >
           <FontAwesomeIcon icon={faEllipsisVertical} size="xs" />
         </IconButton>
       </Tooltip>
@@ -104,14 +116,12 @@ export function ChannelMenu({
         <MembersDialog projectId={projectId} channel={channel} meId={meId} onClose={() => setDialog(null)} />
       )}
       <Dialog open={dialog === 'archive'} onClose={() => setDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Archive #{channel.name}?</DialogTitle>
+        <DialogTitle>{t('archiveDialog.title', { name: channel.name })}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            The channel stays readable, but nobody can post in it anymore. There is no unarchive.
-          </DialogContentText>
+          <DialogContentText>{t('archiveDialog.body')}</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialog(null)}>Cancel</Button>
+          <Button onClick={() => setDialog(null)}>{t('common:cancel')}</Button>
           <Button
             color="warning"
             variant="contained"
@@ -123,7 +133,7 @@ export function ChannelMenu({
                 .finally(() => setDialog(null))
             }}
           >
-            Archive
+            {t('archiveDialog.confirm')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -140,6 +150,7 @@ function EditChannelDialog({
   channel: ChatChannel
   onClose: () => void
 }) {
+  const { t } = useTranslation('chat')
   const admin = useChatChannelAdmin(projectId)
   const [name, setName] = useState(channel.name)
   const [topic, setTopic] = useState(channel.topic)
@@ -156,25 +167,25 @@ function EditChannelDialog({
       })
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'could not update channel')
+      setError(e instanceof Error ? e.message : t('editDialog.updateFailed'))
     }
   }
 
   return (
     <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Edit #{channel.name}</DialogTitle>
+      <DialogTitle>{t('editDialog.title', { name: channel.name })}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
         <TextField
-          label="Name"
+          label={t('editDialog.name')}
           size="small"
           value={name}
           disabled={channel.isRoot}
-          helperText={channel.isRoot ? 'The root channel cannot be renamed' : undefined}
+          helperText={channel.isRoot ? t('editDialog.rootNoRename') : undefined}
           onChange={(e) => setName(e.target.value)}
           inputProps={{ maxLength: 80 }}
         />
         <TextField
-          label="Topic"
+          label={t('editDialog.topic')}
           size="small"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
@@ -187,13 +198,13 @@ function EditChannelDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:cancel')}</Button>
         <Button
           variant="contained"
           disabled={(!channel.isRoot && !name.trim()) || admin.update.isPending}
           onClick={() => void submit()}
         >
-          Save
+          {t('common:save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -211,6 +222,7 @@ function MembersDialog({
   meId: string
   onClose: () => void
 }) {
+  const { t } = useTranslation('chat')
   const admin = useChatChannelAdmin(projectId)
   const membersQ = useChatMembers(projectId, true)
   const roster = membersQ.data ?? []
@@ -222,12 +234,12 @@ function MembersDialog({
 
   const act = (p: Promise<unknown>) => {
     setError(null)
-    p.catch((e) => setError(e instanceof Error ? e.message : 'membership change failed'))
+    p.catch((e) => setError(e instanceof Error ? e.message : t('membersDialog.changeFailed')))
   }
 
   return (
     <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>#{channel.name} members</DialogTitle>
+      <DialogTitle>{t('membersDialog.title', { name: channel.name })}</DialogTitle>
       <DialogContent sx={{ pt: '8px !important' }}>
         <Autocomplete
           size="small"
@@ -239,8 +251,8 @@ function MembersDialog({
           onChange={(_, m) => {
             if (m) act(admin.addMember.mutateAsync({ channelId: channel.id, userId: m.userId }))
           }}
-          renderInput={(params) => <TextField {...params} label="Add a project member" />}
-          noOptionsText="Everyone on the project is already here"
+          renderInput={(params) => <TextField {...params} label={t('membersDialog.addMember')} />}
+          noOptionsText={t('membersDialog.everyoneHere')}
         />
         <List dense>
           {inChannel.map((uid) => {
@@ -254,7 +266,11 @@ function MembersDialog({
                   // The creator/owner row is fixed — orphaning a private
                   // channel from its own management UI helps nobody.
                   !isCreator && (
-                    <Tooltip title={uid === meId ? 'Leave channel' : 'Remove from channel'}>
+                    <Tooltip
+                      title={
+                        uid === meId ? t('channelMenu.leave') : t('membersDialog.removeFromChannel')
+                      }
+                    >
                       <IconButton
                         size="small"
                         edge="end"
@@ -270,7 +286,9 @@ function MembersDialog({
               >
                 <ListItemText
                   primary={m ? m.name || m.email || uid : uid}
-                  secondary={isCreator ? 'owner' : m?.role.toLowerCase()}
+                  secondary={
+                    isCreator ? t('membersDialog.owner') : m ? roleLabel(t, m.role) : undefined
+                  }
                 />
               </ListItem>
             )
@@ -283,7 +301,7 @@ function MembersDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Done</Button>
+        <Button onClick={onClose}>{t('membersDialog.done')}</Button>
       </DialogActions>
     </Dialog>
   )

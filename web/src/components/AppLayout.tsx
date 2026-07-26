@@ -16,6 +16,7 @@ import {
 import { FusionLogo } from './FusionLogo'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { QUERY_CACHE_KEY } from '../queryPersist'
 import { useAuthMe, useHubs, useMeta } from '../api/queries'
@@ -35,6 +36,7 @@ import { UploadDropOverlay, UploadFooter } from './UploadFooter'
 type DialogKind = 'hubs' | 'pins' | 'settings' | null
 
 export function AppLayout() {
+  const { t } = useTranslation('browse')
   const [dialog, setDialog] = useState<DialogKind>(null)
   const nav = useNav()
   const metaQ = useMeta()
@@ -80,7 +82,7 @@ export function AppLayout() {
             <FusionLogo size={24} />
           </Box>
           {/* Active hub name; clicking opens the hub switcher. */}
-          <Tooltip title="Change hub">
+          <Tooltip title={t('appLayout.changeHub')}>
             <Box
               component="button"
               onClick={() => setDialog('hubs')}
@@ -99,7 +101,7 @@ export function AppLayout() {
               }}
             >
               <Typography className="hubName" variant="h6" noWrap sx={{ fontWeight: 600 }}>
-                {nav.hubName ?? 'Select a hub'}
+                {nav.hubName ?? t('appLayout.selectHub')}
               </Typography>
               <FontAwesomeIcon icon={faChevronDown} style={{ fontSize: 11, opacity: 0.55 }} />
             </Box>
@@ -110,8 +112,8 @@ export function AppLayout() {
             </Typography>
           )}
           <Box sx={{ flex: 1 }} />
-          <Tooltip title={mode === 'dark' ? 'Switch to light' : 'Switch to dark'}>
-            <IconButton aria-label="Toggle theme" onClick={toggle} sx={{ color: 'text.secondary' }}>
+          <Tooltip title={mode === 'dark' ? t('appLayout.switchToLight') : t('appLayout.switchToDark')}>
+            <IconButton aria-label={t('appLayout.toggleTheme')} onClick={toggle} sx={{ color: 'text.secondary' }}>
               <FontAwesomeIcon icon={mode === 'dark' ? faSun : faMoon} style={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
@@ -120,8 +122,8 @@ export function AppLayout() {
               {authQ.data.user.name || authQ.data.user.email}
             </Typography>
           )}
-          <Tooltip title="Sign out">
-            <IconButton aria-label="Sign out" onClick={logout} sx={{ color: 'text.secondary' }}>
+          <Tooltip title={t('appLayout.signOut')}>
+            <IconButton aria-label={t('appLayout.signOut')} onClick={logout} sx={{ color: 'text.secondary' }}>
               <FontAwesomeIcon icon={faRightFromBracket} style={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>

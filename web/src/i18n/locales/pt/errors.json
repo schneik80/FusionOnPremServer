@@ -1,0 +1,7 @@
+{
+  "unauthorized": "Não tem sessão iniciada.",
+  "forbidden": "Não tem acesso a este recurso.",
+  "rate_limited": "Limite de pedidos atingido — tente novamente dentro de momentos.",
+  "upstream_timeout": "O pedido ao serviço a montante excedeu o tempo limite.",
+  "upstream_failed": "O serviço a montante devolveu um erro."
+}

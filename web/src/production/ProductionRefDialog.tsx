@@ -10,7 +10,9 @@ import {
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useJob, useJobs } from '../api/queries'
+import { batchKindLabel } from '../i18n/enums'
 import { encodeBatchRef, encodeJobRef } from '../components/productioncard/prodref'
 import type { JobSummary } from './types'
 import { jobDisplayId } from './types'
@@ -35,6 +37,7 @@ export function ProductionRefDialog({
   // wiki) that need to wrap it in a markdown link. Chat/tasks ignore label.
   onPick: (token: string, label: string) => void
 }) {
+  const { t } = useTranslation('production')
   const jobsQ = useJobs(projectId, open)
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -62,11 +65,11 @@ export function ProductionRefDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Link a job or batch</DialogTitle>
+      <DialogTitle>{t('refDialog.title')}</DialogTitle>
       <DialogContent dividers>
         {jobs.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            {jobsQ.isLoading ? 'Loading…' : 'This project has no jobs yet.'}
+            {jobsQ.isLoading ? t('common:loading') : t('refDialog.emptyJobs')}
           </Typography>
         ) : (
           <List dense disablePadding>
@@ -78,8 +81,7 @@ export function ProductionRefDialog({
                       {j.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {jobDisplayId(j)} · {j.batchCount} batch{j.batchCount === 1 ? '' : 'es'} — click to link
-                      the job
+                      {jobDisplayId(j)} · {t('refDialog.jobRow', { count: j.batchCount })}
                     </Typography>
                   </Box>
                   {j.batchCount > 0 && (
@@ -92,7 +94,7 @@ export function ProductionRefDialog({
                       }}
                       sx={{ cursor: 'pointer', ml: 1, flexShrink: 0 }}
                     >
-                      {expanded === j.id ? 'hide batches' : 'or a batch…'}
+                      {expanded === j.id ? t('refDialog.hideBatches') : t('refDialog.orBatch')}
                     </Typography>
                   )}
                 </ListItemButton>
@@ -124,6 +126,7 @@ function BatchChoices({
   job: JobSummary
   onPick: (batchId: string, batchName: string) => void
 }) {
+  const { t } = useTranslation('production')
   const jobQ = useJob(projectId, job.id, true)
   const batches = jobQ.data?.batches ?? []
 
@@ -131,7 +134,7 @@ function BatchChoices({
     return (
       <Stack sx={{ pl: 3, py: 0.5 }}>
         <Typography variant="caption" color="text.secondary">
-          Loading batches…
+          {t('refDialog.loadingBatches')}
         </Typography>
       </Stack>
     )
@@ -145,7 +148,7 @@ function BatchChoices({
             {b.name}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-            {b.kind} · {new Date(b.runAt).toLocaleDateString()}
+            {batchKindLabel(t, b.kind)} · {new Date(b.runAt).toLocaleDateString()}
           </Typography>
         </ListItemButton>
       ))}

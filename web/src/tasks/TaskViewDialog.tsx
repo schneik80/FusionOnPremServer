@@ -7,6 +7,7 @@ import {
   DialogContent,
   Typography,
 } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api/client'
 import { useTask } from '../api/queries'
 import { TaskDetails } from './TaskDetails'
@@ -26,6 +27,7 @@ export function TaskViewDialog({
   taskId: string
   onClose: () => void
 }) {
+  const { t } = useTranslation('tasks')
   const taskQ = useTask(open ? projectId : null, taskId)
   const gone = taskQ.error instanceof ApiError && taskQ.error.status === 404
 
@@ -40,14 +42,14 @@ export function TaskViewDialog({
               <CircularProgress size={24} />
             ) : (
               <Typography variant="body2" color="text.secondary">
-                {gone ? 'This task no longer exists.' : ((taskQ.error as Error | null)?.message ?? 'Task unavailable.')}
+                {gone ? t('viewDialog.gone') : ((taskQ.error as Error | null)?.message ?? t('viewDialog.unavailable'))}
               </Typography>
             )}
           </Box>
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('common:close')}</Button>
       </DialogActions>
     </Dialog>
   )

@@ -12,7 +12,9 @@ import {
   Typography,
 } from '@mui/material'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMyProduction } from '../api/queries'
+import { batchStatusLabel } from '../i18n/enums'
 import { ProductionViewDialog } from '../components/productioncard/ProductionViewDialog'
 import type { BatchRef, JobRef } from '../components/productioncard/prodref'
 import { PRODUCTION_ACCENT } from './BatchDetail'
@@ -35,6 +37,7 @@ interface RunRow {
 const ACTIVE = new Set(['planned', 'running'])
 
 export function ProductionScreen({ active = true }: { active?: boolean }) {
+  const { t } = useTranslation('production')
   const q = useMyProduction(active)
   const [view, setView] = useState<'runs' | 'jobs'>('runs')
   const [open, setOpen] = useState<{ jobRef: JobRef; batchRef?: BatchRef } | null>(null)
@@ -74,7 +77,7 @@ export function ProductionScreen({ active = true }: { active?: boolean }) {
         sx={{ px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}
       >
         <Typography variant="subtitle1" fontWeight={600}>
-          Production
+          {t('screen.title')}
         </Typography>
         <Box sx={{ flex: 1 }} />
         <ToggleButtonGroup
@@ -86,7 +89,7 @@ export function ProductionScreen({ active = true }: { active?: boolean }) {
         >
           <ToggleButton value="runs">
             <FontAwesomeIcon icon={faFlask} style={{ fontSize: 12, marginRight: 6 }} />
-            Runs in flight
+            {t('screen.runsInFlight')}
             {runs.length > 0 && (
               <Box
                 component="span"
@@ -107,7 +110,7 @@ export function ProductionScreen({ active = true }: { active?: boolean }) {
           </ToggleButton>
           <ToggleButton value="jobs">
             <FontAwesomeIcon icon={faDiagramProject} style={{ fontSize: 12, marginRight: 6 }} />
-            My jobs
+            {t('screen.myJobs')}
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
@@ -119,11 +122,11 @@ export function ProductionScreen({ active = true }: { active?: boolean }) {
           </Box>
         ) : q.error ? (
           <Typography variant="body2" color="error">
-            Failed to load your production work.
+            {t('screen.loadFailed')}
           </Typography>
         ) : view === 'runs' ? (
           runs.length === 0 ? (
-            <Empty text="No runs in flight. Batches you create show up here while they're planned or running." />
+            <Empty text={t('screen.emptyRuns')} />
           ) : (
             <Stack spacing={1}>
               {runs.map(({ job, batch }) => (
@@ -137,7 +140,7 @@ export function ProductionScreen({ active = true }: { active?: boolean }) {
             </Stack>
           )
         ) : jobs.length === 0 ? (
-          <Empty text="No jobs yet. Jobs you create — or that carry a run you created — show up here." />
+          <Empty text={t('screen.emptyJobs')} />
         ) : (
           <Stack spacing={1}>
             {jobs.map((job) => (
@@ -174,6 +177,7 @@ function completenessOf(batch: ProdBatch): { filled: number; total: number; pct:
 }
 
 function RunCard({ job, batch, onOpen }: { job: Job; batch: ProdBatch; onOpen: () => void }) {
+  const { t } = useTranslation('production')
   const isProd = batch.kind === 'production'
   const { filled, total, pct } = completenessOf(batch)
   return (
@@ -198,7 +202,7 @@ function RunCard({ job, batch, onOpen }: { job: Job; batch: ProdBatch; onOpen: (
         </Typography>
         <Chip
           size="small"
-          label={batch.status}
+          label={batchStatusLabel(t, batch.status)}
           variant="outlined"
           sx={{ height: 18, fontSize: 10, textTransform: 'capitalize' }}
         />
@@ -228,6 +232,7 @@ function RunCard({ job, batch, onOpen }: { job: Job; batch: ProdBatch; onOpen: (
 }
 
 function JobCard({ job, onOpen }: { job: Job; onOpen: () => void }) {
+  const { t } = useTranslation('production')
   const activeRuns = job.batches.filter((b) => ACTIVE.has(b.status)).length
   return (
     <Paper
@@ -250,15 +255,14 @@ function JobCard({ job, onOpen }: { job: Job; onOpen: () => void }) {
         {activeRuns > 0 && (
           <Chip
             size="small"
-            label={`${activeRuns} in flight`}
+            label={t('counts.inFlight', { count: activeRuns })}
             sx={{ height: 18, fontSize: 10, bgcolor: 'primary.main', color: 'primary.contrastText' }}
           />
         )}
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, pl: 3 }}>
-        {job.projectName} · {jobDisplayId(job)} · {job.steps.length} step
-        {job.steps.length === 1 ? '' : 's'} · {job.batches.length} batch
-        {job.batches.length === 1 ? '' : 'es'}
+        {job.projectName} · {jobDisplayId(job)} · {t('counts.steps', { count: job.steps.length })} ·{' '}
+        {t('counts.batches', { count: job.batches.length })}
       </Typography>
     </Paper>
   )

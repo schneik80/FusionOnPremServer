@@ -1,0 +1,143 @@
+{
+  "app": {
+    "loadingJobs": "Loading jobs…",
+    "emptyJobs": "No jobs yet. Create a job to plan its steps and run batches."
+  },
+  "jobList": {
+    "title": "Jobs",
+    "readOnlyReason": "Your project role is read-only — creating jobs needs Editor access",
+    "namePlaceholder": "Job name",
+    "loadFailed": "Failed to load jobs.",
+    "empty": "No jobs yet."
+  },
+  "jobDetail": {
+    "notAvailable": "This job is no longer available.",
+    "namePlaceholder": "Job name",
+    "viewFlow": "Flow",
+    "viewList": "List",
+    "viewBatches": "Batches",
+    "deleteJob": "Delete job",
+    "deleteConfirm": "Delete job \"{{name}}\" and all its batches?",
+    "descPlaceholder": "Add a job description…",
+    "emptySteps": "No steps yet. Add the first step of this job’s flow.",
+    "newStepPlaceholder": "New step title",
+    "addStep": "Add step"
+  },
+  "stepCard": {
+    "namePlaceholder": "Step name",
+    "deleteStep": "Delete step",
+    "descPlaceholder": "Add a description…",
+    "placeholders": "Placeholders",
+    "leadsTo": "Leads to",
+    "connectTo": "Connect to…"
+  },
+  "placeholders": {
+    "addHint": "Add a placeholder (e.g. Setup 1 NC program)"
+  },
+  "canvas": {
+    "emptyCanWrite": "Add the first step to start building this job’s flow.",
+    "emptyReadOnly": "This job has no steps yet.",
+    "addStep": "Add step",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitToView": "Fit to view",
+    "dragToConnect": "Drag to connect",
+    "newStepTitle": "Step {{num}}"
+  },
+  "counts": {
+    "steps_one": "{{count}} step",
+    "steps_other": "{{count}} steps",
+    "batches_one": "{{count}} batch",
+    "batches_other": "{{count}} batches",
+    "docs_one": "{{count}} doc",
+    "docs_other": "{{count}} docs",
+    "slots_one": "{{count}} slot",
+    "slots_other": "{{count}} slots",
+    "inFlight_one": "{{count}} in flight",
+    "inFlight_other": "{{count}} in flight"
+  },
+  "empty": {
+    "none": "none",
+    "noneYet": "none yet",
+    "nothingYet": "nothing yet"
+  },
+  "stepEditor": {
+    "title": "Step",
+    "titleLabel": "Title",
+    "descriptionLabel": "Description",
+    "placeholdersCaption": "Placeholders — documents supplied per batch",
+    "planDocsCaption": "Plan documents — pinned to the version attached",
+    "attachDocument": "Attach a document",
+    "deleteStep": "Delete step",
+    "deleteConfirm": "Delete step \"{{title}}\"?"
+  },
+  "batchesView": {
+    "title": "Batches",
+    "newBatch": "New batch",
+    "new": "New",
+    "emptyRail": "No batches yet. Create a run to snapshot the plan and supply documents.",
+    "emptyCanWrite": "Create a batch to run this job.",
+    "emptyReadOnly": "This job has no batches yet."
+  },
+  "createBatch": {
+    "title": "New batch",
+    "nameLabel": "Batch name",
+    "namePlaceholder": "e.g. Batch 1 (prove)",
+    "proveOut": "Prove-out",
+    "production": "Production",
+    "freezeNote": "Creating the batch freezes the current version of every plan document. The run date is set to now (editable later).",
+    "create": "Create batch"
+  },
+  "batchDetail": {
+    "namePlaceholder": "Batch name",
+    "placeholdersSupplied_one": "{{filled}} of {{count}} placeholder supplied",
+    "placeholdersSupplied_other": "{{filled}} of {{count}} placeholders supplied",
+    "deleteBatch": "Delete batch",
+    "deleteConfirm": "Delete batch \"{{name}}\"?",
+    "relatedRefs": "Related tasks & documents",
+    "add": "Add",
+    "removeRef": "Remove reference",
+    "emptyPlan": "This batch froze an empty plan — the job had no steps when the run was created.",
+    "planDocsFrozen": "Plan documents (frozen at this run)",
+    "docsToSupply": "Documents to supply",
+    "supply": "Supply",
+    "notSupplied": "not supplied",
+    "asRunArtifacts": "As-run artifacts",
+    "addAsRunArtifact": "Add as-run artifact",
+    "linkTask": "Link a task…",
+    "linkDoc": "Link a document / wiki page…",
+    "linkDocTitle": "Link a document or wiki page",
+    "linkAction": "Link"
+  },
+  "attachDoc": {
+    "title": "Attach a document",
+    "attach": "Attach"
+  },
+  "docSource": {
+    "uploading": "Uploading {{name}}…",
+    "uploadFailed": "Upload failed",
+    "browseHub": "Browse the hub…",
+    "uploadFile": "Upload a file…"
+  },
+  "pinnedDoc": {
+    "versionBadge": "v{{num}}",
+    "asRun": "as-run"
+  },
+  "refDialog": {
+    "title": "Link a job or batch",
+    "emptyJobs": "This project has no jobs yet.",
+    "jobRow_one": "{{count}} batch — click to link the job",
+    "jobRow_other": "{{count}} batches — click to link the job",
+    "hideBatches": "hide batches",
+    "orBatch": "or a batch…",
+    "loadingBatches": "Loading batches…"
+  },
+  "screen": {
+    "title": "Production",
+    "runsInFlight": "Runs in flight",
+    "myJobs": "My jobs",
+    "loadFailed": "Failed to load your production work.",
+    "emptyRuns": "No runs in flight. Batches you create show up here while they're planned or running.",
+    "emptyJobs": "No jobs yet. Jobs you create — or that carry a run you created — show up here."
+  }
+}

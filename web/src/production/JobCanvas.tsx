@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, IconButton, Tooltip, Typography } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { useJobGraphMutations } from '../api/queries'
 import { ToolBtn } from '../components/canvas/ToolBtn'
 import { StepNumBadge } from './chips'
@@ -51,6 +52,7 @@ export function JobCanvas({
   selectedStepId: string | null
   onSelectStep: (id: string | null) => void
 }) {
+  const { t } = useTranslation('production')
   const theme = useTheme()
   const accent = theme.palette.primary.main
   const edgeColor = theme.palette.text.secondary
@@ -209,7 +211,7 @@ export function JobCanvas({
     const gx = (vp.clientWidth / 2 - view.tx) / view.scale - ox - W / 2
     const gy = (vp.clientHeight / 2 - view.ty) / view.scale - oy - H / 2
     graph.addStep.mutate(
-      { title: `Step ${job.steps.length + 1}`, x: gx, y: gy },
+      { title: t('canvas.newStepTitle', { num: job.steps.length + 1 }), x: gx, y: gy },
       { onSuccess: (j) => onSelectStep(j.steps[j.steps.length - 1]?.id ?? null) },
     )
   }
@@ -385,14 +387,14 @@ export function JobCanvas({
             px: 3,
           }}
         >
-          {canWrite ? 'Add the first step to start building this job’s flow.' : 'This job has no steps yet.'}
+          {canWrite ? t('canvas.emptyCanWrite') : t('canvas.emptyReadOnly')}
         </Box>
       )}
 
       {/* toolbar */}
       <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5, alignItems: 'center' }}>
         {canWrite && (
-          <Tooltip title="Add step">
+          <Tooltip title={t('canvas.addStep')}>
             <IconButton
               size="small"
               onMouseDown={(e) => e.stopPropagation()}
@@ -403,12 +405,12 @@ export function JobCanvas({
             </IconButton>
           </Tooltip>
         )}
-        <ToolBtn label="Zoom out" icon={faMagnifyingGlassMinus} onClick={() => zoomAt(0.83, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
+        <ToolBtn label={t('canvas.zoomOut')} icon={faMagnifyingGlassMinus} onClick={() => zoomAt(0.83, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
         <Typography variant="caption" sx={{ minWidth: 34, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
           {Math.round(view.scale * 100)}%
         </Typography>
-        <ToolBtn label="Zoom in" icon={faMagnifyingGlassPlus} onClick={() => zoomAt(1.2, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
-        <ToolBtn label="Fit to view" icon={faArrowsToDot} onClick={fit} />
+        <ToolBtn label={t('canvas.zoomIn')} icon={faMagnifyingGlassPlus} onClick={() => zoomAt(1.2, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
+        <ToolBtn label={t('canvas.fitToView')} icon={faArrowsToDot} onClick={fit} />
       </Box>
     </Box>
   )
@@ -444,6 +446,7 @@ const StepNode = memo(function StepNode({
   onEnter: (stepId: string) => void
   onLeave: (stepId: string) => void
 }) {
+  const { t } = useTranslation('production')
   const [hovered, setHovered] = useState(false)
   const docCount = step.planDocs.length
   const slotCount = step.placeholders.length
@@ -487,12 +490,12 @@ const StepNode = memo(function StepNode({
         </Typography>
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10.5 }}>
-        {docCount} doc{docCount === 1 ? '' : 's'} · {slotCount} slot{slotCount === 1 ? '' : 's'}
+        {t('counts.docs', { count: docCount })} · {t('counts.slots', { count: slotCount })}
       </Typography>
 
       {/* out-port: drag to another node to connect */}
       {canWrite && (
-        <Tooltip title="Drag to connect" placement="right">
+        <Tooltip title={t('canvas.dragToConnect')} placement="right">
           <Box
             onMouseDown={(e) => onPortDown(e, step.id)}
             sx={{

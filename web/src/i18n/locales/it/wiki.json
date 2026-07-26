@@ -1,0 +1,98 @@
+{
+  "untitledPage": "Senza titolo",
+  "pages": {
+    "title": "Pagine",
+    "searchPlaceholder": "Cerca pagine",
+    "noMatches": "Nessuna pagina corrispondente",
+    "empty": "Ancora nessuna pagina"
+  },
+  "statusShort": {
+    "draft": "Bozza",
+    "edited": "Modificata",
+    "synced": "Sincronizzata",
+    "update": "Aggiornamento",
+    "conflict": "Conflitto",
+    "published": "Pubblicata"
+  },
+  "status": {
+    "localDraft": "Bozza locale",
+    "unpublishedChanges": "Modifiche non pubblicate",
+    "updateAvailable": "Aggiornamento disponibile",
+    "conflict": "Conflitto",
+    "synced": "Sincronizzata",
+    "published": "Pubblicata"
+  },
+  "empty": {
+    "title": "Wiki di progetto",
+    "body": "Scrivi pagine markdown per questo progetto. Le bozze restano salvate su questo dispositivo finché non le pubblichi nella cartella Wiki del progetto.",
+    "newPage": "Nuova pagina"
+  },
+  "alerts": {
+    "pagesLoadFailed": "Impossibile caricare le pagine pubblicate. Le bozze locali restano disponibili.",
+    "publishFailed": "Pubblicazione non riuscita.",
+    "renameFailed": "Rinomina non riuscita.",
+    "refreshFailed": "Aggiornamento non riuscito."
+  },
+  "publish": {
+    "conflictConfirm": "Questa pagina è cambiata da quando l'hai aperta. Sovrascrivere la versione pubblicata?"
+  },
+  "reader": {
+    "rename": "Rinomina",
+    "update": "Aggiorna",
+    "takeLatest": "Prendi l'ultima versione",
+    "behindBody": "Una versione più recente è stata pubblicata da un altro dispositivo.",
+    "conflictBody": "Una versione più recente è stata pubblicata da un altro dispositivo e hai modifiche locali non pubblicate. \"Prendi l'ultima versione\" scarta le tue modifiche; Modifica → Pubblica conserva le tue.",
+    "editAsDraft": "Modifica come bozza",
+    "downloadFailed": "Impossibile scaricare questa pagina."
+  },
+  "renameDialog": {
+    "title": "Rinomina pagina",
+    "rename": "Rinomina",
+    "renaming": "Rinomina in corso…"
+  },
+  "editor": {
+    "titlePlaceholder": "Titolo della pagina",
+    "savedLocally": "Salvata in locale",
+    "saving": "Salvataggio…",
+    "publish": "Pubblica",
+    "publishing": "Pubblicazione…",
+    "publishTooltip": "Pubblica nella cartella Wiki del progetto",
+    "publishUnavailable": "Pubblicazione non disponibile",
+    "heading1Tooltip": "Titolo 1",
+    "heading2Tooltip": "Titolo 2",
+    "heading3Tooltip": "Titolo 3",
+    "boldTooltip": "Grassetto",
+    "italicTooltip": "Corsivo",
+    "inlineCodeTooltip": "Codice inline",
+    "bulletedListTooltip": "Elenco puntato",
+    "quoteTooltip": "Citazione",
+    "linkTooltip": "Collegamento",
+    "insertImageUploadTooltip": "Inserisci immagine (viene caricata nella pagina)",
+    "insertImageUrlTooltip": "Inserisci URL immagine",
+    "insertImageFromPublicUrlTooltip": "Inserisci immagine da un URL pubblico",
+    "embedHubImageTooltip": "Incorpora un'immagine archiviata in questo hub",
+    "insertDocCardTooltip": "Inserisci una scheda documento (esplora questo hub)",
+    "insertTaskCardTooltip": "Inserisci una scheda attività (attività di questo progetto)",
+    "createTaskCardTooltip": "Crea un'attività e inseriscine la scheda",
+    "insertProdCardTooltip": "Inserisci una scheda commessa o lotto (produzione di questo progetto)",
+    "imageUploadFailed": "Caricamento dell'immagine non riuscito.",
+    "hubImageDialogTitle": "Incorpora un'immagine dall'hub",
+    "embedImage": "Incorpora immagine",
+    "docCardDialogTitle": "Inserisci una scheda documento",
+    "insertCard": "Inserisci scheda",
+    "preview": "Anteprima",
+    "emptyPreview": "Ancora niente da mostrare in anteprima."
+  },
+  "imageUrlDialog": {
+    "title": "Inserisci immagine da URL",
+    "urlLabel": "URL immagine",
+    "urlHelper": "L'URL deve essere raggiungibile pubblicamente da chiunque legga la pagina.",
+    "altLabel": "Testo alternativo (facoltativo)",
+    "previewFailed": "Impossibile caricare un'anteprima — verifica che l'URL punti a un'immagine.",
+    "insert": "Inserisci"
+  },
+  "toc": {
+    "title": "In questa pagina",
+    "ariaLabel": "Sommario"
+  }
+}

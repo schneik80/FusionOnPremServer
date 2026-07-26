@@ -1,0 +1,39 @@
+{
+  "list": {
+    "title": "Quadros brancos",
+    "loading": "A carregar quadros brancos…",
+    "loadFailed": "Falha ao carregar os quadros brancos.",
+    "empty": "Ainda não há quadros brancos.",
+    "namePlaceholder": "Nome do quadro branco",
+    "readOnlyReason": "A sua função no projeto é só de leitura — criar quadros brancos requer acesso de Editor",
+    "deleteTooltip": "Eliminar quadro branco",
+    "deleteConfirm": "Eliminar o quadro branco \"{{name}}\"? Esta ação não pode ser anulada.",
+    "renameHint": "Faça duplo clique num nome para o renomear"
+  },
+  "emptyState": {
+    "canWrite": "Ainda não há quadros brancos. Crie um para esboçar e largar nele cartões de tarefas, trabalhos, lotes e documentos.",
+    "readOnly": "Este projeto ainda não tem quadros brancos."
+  },
+  "canvas": {
+    "loadFailed": "não foi possível carregar este quadro branco",
+    "placeCard": "Colocar um cartão",
+    "taskButton": "Tarefa",
+    "jobBatchButton": "Trabalho / lote",
+    "documentButton": "Documento",
+    "assemblyButton": "Montagem",
+    "saving": "A guardar…",
+    "saved": "Guardado",
+    "placeDocumentTitle": "Colocar um cartão de documento",
+    "place": "Colocar"
+  },
+  "assembly": {
+    "expandTitle": "Expandir uma montagem",
+    "expand": "Expandir",
+    "noComponentVersion": "Não foi possível resolver \"{{name}}\" — sem versão de componente para expandir.",
+    "noChildren": "\"{{name}}\" não tem subcomponentes para expandir.",
+    "placedSkipped_one": "{{count}} componente colocado; {{skipped}} ignorados por não terem documento separado.",
+    "placedSkipped_other": "{{count}} componentes colocados; {{skipped}} ignorados por não terem documento separado.",
+    "expandFailed": "Não foi possível expandir esta montagem."
+  },
+  "errorLabel": "quadro branco"
+}

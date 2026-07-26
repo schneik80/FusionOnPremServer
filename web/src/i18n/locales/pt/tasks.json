@@ -1,0 +1,117 @@
+{
+  "app": {
+    "viewList": "Lista",
+    "viewBoard": "Quadro",
+    "viewGantt": "Gantt",
+    "newTask": "Nova",
+    "createNeedsEditor": "A sua função no projeto é só de leitura — criar tarefas requer acesso de Editor"
+  },
+  "screen": {
+    "searchPlaceholder": "Pesquisar as minhas tarefas",
+    "statusFilterLabel": "Estado",
+    "priorityFilterLabel": "Prioridade",
+    "projectFilterLabel": "Projeto",
+    "filterOpen": "Abertas",
+    "filterAll": "Todas",
+    "allProjects": "Todos os projetos",
+    "emptyNoTasks": "Ainda não há tarefas atribuídas a si ou criadas por si",
+    "emptyFiltered": "Nenhuma tarefa corresponde aos filtros atuais"
+  },
+  "list": {
+    "title": "Tarefas",
+    "empty": "Ainda não há tarefas neste projeto",
+    "selectPrompt": "Selecione uma tarefa para ver os seus detalhes"
+  },
+  "row": {
+    "due": "prazo {{date}}"
+  },
+  "chips": {
+    "priorityTooltip": "Prioridade {{priority}}"
+  },
+  "details": {
+    "editTask": "Editar tarefa",
+    "deleteTask": "Eliminar tarefa",
+    "deleteConfirm": "Eliminar {{id}} \"{{title}}\"? Esta ação não pode ser anulada.",
+    "statusLabel": "Estado",
+    "priorityLabel": "Prioridade",
+    "projectLabel": "Projeto",
+    "assigneeLabel": "Responsável",
+    "dueLabel": "Prazo",
+    "scheduleLabel": "Cronograma",
+    "dependsOnLabel": "Depende de",
+    "createdByLabel": "Criada por",
+    "createdLabel": "Criada",
+    "updatedLabel": "Atualizada",
+    "overdueSuffix": "(atrasada)",
+    "milestoneSuffix": "(marco)",
+    "descriptionHeading": "Descrição",
+    "attachedHeading": "Documentos anexados",
+    "attach": "Anexar",
+    "linkJobBatch": "Ligar trabalho/lote",
+    "nothingAttached": "Nada anexado.",
+    "removeAttachment": "Remover anexo",
+    "attachDocTitle": "Anexar um documento"
+  },
+  "editDialog": {
+    "editTitle": "Editar {{id}}",
+    "createTitle": "Nova tarefa",
+    "titleLabel": "Título",
+    "descriptionLabel": "Descrição (markdown)",
+    "statusLabel": "Estado",
+    "priorityLabel": "Prioridade",
+    "dueDateLabel": "Prazo",
+    "assigneeLabel": "Responsável",
+    "unassigned": "Não atribuída",
+    "scheduleSection": "Cronograma",
+    "startDateLabel": "Data de início",
+    "endDateLabel": "Data de fim",
+    "endDateMilestoneLabel": "Data de fim (marco)",
+    "endsBeforeStarts": "Termina antes de começar",
+    "milestoneLabel": "Marco",
+    "oneSidedHint": "Defina ambas as datas para agendar a tarefa, ou limpe ambas para a manter no backlog.",
+    "progressLabel": "Progresso {{value}}%",
+    "stageLabel": "Fase",
+    "stagePlaceholder": "Agrupar sob uma barra de fase",
+    "dependsOnLabel": "Depende de",
+    "dependsOnPlaceholder": "Tarefas predecessoras"
+  },
+  "quickDialog": {
+    "title": "Nova tarefa em {{project}}",
+    "titleLabel": "Título",
+    "descriptionLabel": "Descrição (opcional)"
+  },
+  "attachDialog": {
+    "title": "Anexar uma tarefa",
+    "searchPlaceholder": "Pesquisar tarefas",
+    "emptySearch": "Nenhuma tarefa corresponde à pesquisa",
+    "empty": "Ainda não há tarefas neste projeto"
+  },
+  "viewDialog": {
+    "gone": "Esta tarefa já não existe.",
+    "unavailable": "Tarefa indisponível."
+  },
+  "gantt": {
+    "scheduleColumn": "Cronograma",
+    "hintWritable": "Arraste as barras para mover, as extremidades para redimensionar e o círculo para ligar tarefas; arraste linhas do backlog para o gráfico.",
+    "hintReadOnly": "Só de leitura — a sua função no projeto permite ver mas não editar o cronograma.",
+    "scrollToToday": "Ir para hoje",
+    "zoomToFit": "Ajustar o zoom ao cronograma",
+    "unitDay": "Dia",
+    "unitWeek": "Semana",
+    "unitMonth": "Mês",
+    "today": "Hoje",
+    "emptyWritable": "Ainda nada agendado — defina datas de início e fim numa tarefa, ou arraste uma do backlog.",
+    "emptyReadOnly": "Ainda nada agendado — defina datas de início e fim numa tarefa.",
+    "removeDependencyConfirm": "Remover a dependência <b>{{from}} → {{to}}</b>?",
+    "backlogTitle": "Backlog",
+    "backlogEmpty": "Todas as tarefas estão agendadas"
+  },
+  "hoverCard": {
+    "spanLine": "{{range}} · {{days}}d",
+    "milestone": "Marco",
+    "progress": "Progresso {{value}}%",
+    "deps_one": "{{count}} dependência",
+    "deps_other": "{{count}} dependências",
+    "due": "Prazo {{date}}"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "list": {
+    "title": "Pizarras",
+    "loading": "Cargando pizarras…",
+    "loadFailed": "No se pudieron cargar las pizarras.",
+    "empty": "Aún no hay pizarras.",
+    "namePlaceholder": "Nombre de la pizarra",
+    "readOnlyReason": "Su rol en el proyecto es de solo lectura — crear pizarras requiere acceso de Editor",
+    "deleteTooltip": "Eliminar pizarra",
+    "deleteConfirm": "¿Eliminar la pizarra \"{{name}}\"? Esto no se puede deshacer.",
+    "renameHint": "Haga doble clic en un nombre para renombrarlo"
+  },
+  "emptyState": {
+    "canWrite": "Aún no hay pizarras. Cree una para dibujar y soltar en ella tarjetas de tareas, trabajos, lotes y documentos.",
+    "readOnly": "Este proyecto aún no tiene pizarras."
+  },
+  "canvas": {
+    "loadFailed": "no se pudo cargar esta pizarra",
+    "placeCard": "Colocar una tarjeta",
+    "taskButton": "Tarea",
+    "jobBatchButton": "Trabajo / lote",
+    "documentButton": "Documento",
+    "assemblyButton": "Ensamblaje",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "placeDocumentTitle": "Colocar una tarjeta de documento",
+    "place": "Colocar"
+  },
+  "assembly": {
+    "expandTitle": "Expandir un ensamblaje",
+    "expand": "Expandir",
+    "noComponentVersion": "No se pudo resolver \"{{name}}\" — no hay versión de componente que expandir.",
+    "noChildren": "\"{{name}}\" no tiene subcomponentes que expandir.",
+    "placedSkipped_one": "Se colocó {{count}} componente; se omitieron {{skipped}} sin documento propio.",
+    "placedSkipped_other": "Se colocaron {{count}} componentes; se omitieron {{skipped}} sin documento propio.",
+    "expandFailed": "No se pudo expandir este ensamblaje."
+  },
+  "errorLabel": "pizarra"
+}

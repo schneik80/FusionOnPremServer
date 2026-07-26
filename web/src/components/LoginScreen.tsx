@@ -1,27 +1,29 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCubes } from '@fortawesome/free-solid-svg-icons'
 import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
-// authErrorMessage maps the ?auth_error=<reason> the server appends on a failed
-// callback to something a person can read.
-function authErrorMessage(reason: string): string {
+// authErrorKey maps the ?auth_error=<reason> the server appends on a failed
+// callback to the catalog key for something a person can read.
+function authErrorKey(reason: string): string {
   switch (reason) {
     case 'state_mismatch':
     case 'state_expired':
-      return 'The sign-in attempt expired or could not be verified. Please try again.'
+      return 'login.errors.expired'
     case 'no_code':
     case 'exchange_failed':
-      return 'Autodesk did not complete the sign-in. Please try again.'
+      return 'login.errors.incomplete'
     case 'session_failed':
-      return 'The server could not start a session. Please try again.'
+      return 'login.errors.session'
     case 'access_denied':
-      return 'Sign-in was cancelled or access was denied.'
+      return 'login.errors.denied'
     default:
-      return `Sign-in failed (${reason}).`
+      return 'login.errors.generic'
   }
 }
 
 export function LoginScreen() {
+  const { t } = useTranslation('browse')
   const authError = new URLSearchParams(window.location.search).get('auth_error')
 
   return (
@@ -41,12 +43,11 @@ export function LoginScreen() {
             fusionlocalserver
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Sign in with your Autodesk account to browse your Fusion hubs,
-            projects, and designs.
+            {t('login.tagline')}
           </Typography>
           {authError && (
             <Alert severity="error" sx={{ width: '100%' }}>
-              {authErrorMessage(authError)}
+              {t(authErrorKey(authError), { reason: authError })}
             </Alert>
           )}
           <Button
@@ -55,7 +56,7 @@ export function LoginScreen() {
             fullWidth
             onClick={() => window.location.assign('/api/auth/login')}
           >
-            Sign in with Autodesk
+            {t('login.signInButton')}
           </Button>
         </Stack>
       </Paper>

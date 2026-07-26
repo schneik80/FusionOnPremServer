@@ -1,0 +1,117 @@
+{
+  "app": {
+    "viewList": "Elenco",
+    "viewBoard": "Bacheca",
+    "viewGantt": "Gantt",
+    "newTask": "Nuova",
+    "createNeedsEditor": "Il tuo ruolo nel progetto è di sola lettura — per creare attività serve l'accesso Editor"
+  },
+  "screen": {
+    "searchPlaceholder": "Cerca le mie attività",
+    "statusFilterLabel": "Stato",
+    "priorityFilterLabel": "Priorità",
+    "projectFilterLabel": "Progetto",
+    "filterOpen": "Aperte",
+    "filterAll": "Tutte",
+    "allProjects": "Tutti i progetti",
+    "emptyNoTasks": "Ancora nessuna attività assegnata a te o creata da te",
+    "emptyFiltered": "Nessuna attività corrisponde ai filtri correnti"
+  },
+  "list": {
+    "title": "Attività",
+    "empty": "Ancora nessuna attività in questo progetto",
+    "selectPrompt": "Seleziona un'attività per visualizzarne i dettagli"
+  },
+  "row": {
+    "due": "scadenza {{date}}"
+  },
+  "chips": {
+    "priorityTooltip": "Priorità {{priority}}"
+  },
+  "details": {
+    "editTask": "Modifica attività",
+    "deleteTask": "Elimina attività",
+    "deleteConfirm": "Eliminare {{id}} \"{{title}}\"? L'operazione non può essere annullata.",
+    "statusLabel": "Stato",
+    "priorityLabel": "Priorità",
+    "projectLabel": "Progetto",
+    "assigneeLabel": "Assegnatario",
+    "dueLabel": "Scadenza",
+    "scheduleLabel": "Pianificazione",
+    "dependsOnLabel": "Dipende da",
+    "createdByLabel": "Creata da",
+    "createdLabel": "Creata",
+    "updatedLabel": "Aggiornata",
+    "overdueSuffix": "(in ritardo)",
+    "milestoneSuffix": "(milestone)",
+    "descriptionHeading": "Descrizione",
+    "attachedHeading": "Documenti allegati",
+    "attach": "Allega",
+    "linkJobBatch": "Collega commessa/lotto",
+    "nothingAttached": "Nessun allegato.",
+    "removeAttachment": "Rimuovi allegato",
+    "attachDocTitle": "Allega un documento"
+  },
+  "editDialog": {
+    "editTitle": "Modifica {{id}}",
+    "createTitle": "Nuova attività",
+    "titleLabel": "Titolo",
+    "descriptionLabel": "Descrizione (markdown)",
+    "statusLabel": "Stato",
+    "priorityLabel": "Priorità",
+    "dueDateLabel": "Scadenza",
+    "assigneeLabel": "Assegnatario",
+    "unassigned": "Non assegnata",
+    "scheduleSection": "Pianificazione",
+    "startDateLabel": "Data di inizio",
+    "endDateLabel": "Data di fine",
+    "endDateMilestoneLabel": "Data di fine (milestone)",
+    "endsBeforeStarts": "Finisce prima di iniziare",
+    "milestoneLabel": "Milestone",
+    "oneSidedHint": "Imposta entrambe le date per pianificare l'attività, oppure cancellale entrambe per lasciarla nel backlog.",
+    "progressLabel": "Avanzamento {{value}}%",
+    "stageLabel": "Fase",
+    "stagePlaceholder": "Raggruppa sotto una barra di fase",
+    "dependsOnLabel": "Dipende da",
+    "dependsOnPlaceholder": "Attività predecessore"
+  },
+  "quickDialog": {
+    "title": "Nuova attività in {{project}}",
+    "titleLabel": "Titolo",
+    "descriptionLabel": "Descrizione (facoltativa)"
+  },
+  "attachDialog": {
+    "title": "Allega un'attività",
+    "searchPlaceholder": "Cerca attività",
+    "emptySearch": "Nessuna attività corrisponde alla ricerca",
+    "empty": "Ancora nessuna attività in questo progetto"
+  },
+  "viewDialog": {
+    "gone": "Questa attività non esiste più.",
+    "unavailable": "Attività non disponibile."
+  },
+  "gantt": {
+    "scheduleColumn": "Pianificazione",
+    "hintWritable": "Trascina le barre per spostarle, i bordi per ridimensionarle, il cerchio per collegare le attività; trascina le righe del backlog sul grafico.",
+    "hintReadOnly": "Sola lettura — il tuo ruolo nel progetto consente di vedere la pianificazione ma non di modificarla.",
+    "scrollToToday": "Vai a oggi",
+    "zoomToFit": "Adatta lo zoom alla pianificazione",
+    "unitDay": "Giorno",
+    "unitWeek": "Settimana",
+    "unitMonth": "Mese",
+    "today": "Oggi",
+    "emptyWritable": "Ancora niente in pianificazione — imposta le date di inizio e fine su un'attività, oppure trascinane una dal backlog.",
+    "emptyReadOnly": "Ancora niente in pianificazione — imposta le date di inizio e fine su un'attività.",
+    "removeDependencyConfirm": "Rimuovere la dipendenza <b>{{from}} → {{to}}</b>?",
+    "backlogTitle": "Backlog",
+    "backlogEmpty": "Tutte le attività sono pianificate"
+  },
+  "hoverCard": {
+    "spanLine": "{{range}} · {{days}}g",
+    "milestone": "Milestone",
+    "progress": "Avanzamento {{value}}%",
+    "deps_one": "{{count}} dipendenza",
+    "deps_other": "{{count}} dipendenze",
+    "due": "Scadenza {{date}}"
+  }
+}

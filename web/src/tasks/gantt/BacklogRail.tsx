@@ -1,4 +1,5 @@
 import { Box, ListItem, ListItemButton, Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { APP_RAIL_WIDTH, Column } from '../../components/Column'
 import { PriorityDot, fmtDue, isOverdue } from '../chips'
 import { taskDisplayId, type Task } from '../types'
@@ -23,22 +24,23 @@ export function BacklogRail({
   onOpen: (taskId: string) => void
   onDragStart: (e: React.PointerEvent, task: Task) => void
 }) {
+  const { t: tr } = useTranslation('tasks')
   const sorted = [...tasks].sort((a, b) => b.num - a.num)
   return (
     <Column
-      title="Backlog"
+      title={tr('gantt.backlogTitle')}
       width={APP_RAIL_WIDTH}
       loading={loading}
       error={error}
       empty={!loading && tasks.length === 0}
-      emptyText="Every task is scheduled"
+      emptyText={tr('gantt.backlogEmpty')}
     >
       {sorted.map((t) => {
         const overdue = isOverdue(t.dueDate, t.status)
         const meta = [
           taskDisplayId(t),
           t.assignee?.name || t.assignee?.email,
-          t.dueDate ? `due ${fmtDue(t.dueDate)}` : undefined,
+          t.dueDate ? tr('row.due', { date: fmtDue(t.dueDate) }) : undefined,
         ]
           .filter(Boolean)
           .join(' · ')

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Stack, Tooltip, Typography } from '@mui/material'
 import { alpha, darken, useTheme } from '@mui/material/styles'
 import { thumbnailSrc } from '../api/thumbnails'
@@ -55,6 +56,7 @@ export default function HistoryGraph({
   versions: VersionSummary[]
   projectAltId?: string
 }) {
+  const { t } = useTranslation('details')
   const theme = useTheme()
   const accent = theme.palette.primary.main
   const laneColor: Record<Lane, string> = {
@@ -102,7 +104,7 @@ export default function HistoryGraph({
   return (
     <Stack spacing={1} sx={{ minHeight: 0 }}>
       <Typography variant="caption" color="text.secondary">
-        {ordered.length} version{ordered.length === 1 ? '' : 's'}
+        {t('history.versionCount', { count: ordered.length })}
       </Typography>
 
       {/* Graph — scrolls horizontally when wider than the panel. */}
@@ -295,10 +297,10 @@ export default function HistoryGraph({
 
       {/* Legend — only the lanes that are present. */}
       <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ rowGap: 0.5 }}>
-        <LegendItem color={laneColor.dev} label="Saves" />
-        {hasRelease && <LegendItem color={laneColor.release} label="Milestones" />}
-        {hasMain && <LegendItem color={laneColor.main} label="Releases" />}
-        {hasShare && <LegendItem color={laneColor.share} label="Public shares" />}
+        <LegendItem color={laneColor.dev} label={t('history.saves')} />
+        {hasRelease && <LegendItem color={laneColor.release} label={t('history.milestones')} />}
+        {hasMain && <LegendItem color={laneColor.main} label={t('history.releases')} />}
+        {hasShare && <LegendItem color={laneColor.share} label={t('history.publicShares')} />}
       </Stack>
     </Stack>
   )
@@ -319,6 +321,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 // 404s fall back to no image) plus its metadata: number, milestone/release
 // markers, timestamp, author, and any save comment.
 function VersionTooltip({ v }: { v: VersionSummary }) {
+  const { t } = useTranslation('details')
   const [imgFailed, setImgFailed] = useState(false)
   const thumb = v.rootComponentVersionId
     ? thumbnailSrc({ kind: 'design', cvId: v.rootComponentVersionId })
@@ -345,13 +348,13 @@ function VersionTooltip({ v }: { v: VersionSummary }) {
         />
       )}
       <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
-        v{v.number}
-        {v.isMilestone ? ' · Milestone' : ''}
-        {v.revision ? ` · Release ${v.revision}` : ''}
+        {t('history.versionShort', { number: v.number })}
+        {v.isMilestone ? ` · ${t('history.milestone')}` : ''}
+        {v.revision ? ` · ${t('history.release', { revision: v.revision })}` : ''}
       </Typography>
       {v.publicShare && (
         <Typography variant="caption" sx={{ display: 'block', color: SHARE_COLOR, fontWeight: 600 }}>
-          Public share
+          {t('history.publicShare')}
         </Typography>
       )}
       <Typography variant="caption" sx={{ display: 'block', opacity: 0.85 }}>

@@ -17,7 +17,9 @@ import {
 } from '@mui/material'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useBatchMutations } from '../api/queries'
+import { batchKindLabel, batchStatusLabel } from '../i18n/enums'
 import { RefCard } from '../components/RefCard'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
 import { docRefFromItem, encodeDocRef } from '../components/doccard/docref'
@@ -59,6 +61,7 @@ export function BatchDetail({
   myId: string
   onDeleted: () => void
 }) {
+  const { t } = useTranslation('production')
   const nav = useNav()
   const { updateBatch, removeBatch, addFulfillment, removeFulfillment, addRef, removeRef } =
     useBatchMutations(projectId, jobId)
@@ -73,8 +76,8 @@ export function BatchDetail({
   const isProd = batch.kind === 'production'
 
   const saveName = () => {
-    const t = (nameDraft ?? '').trim()
-    if (t && t !== batch.name) updateBatch.mutate({ batchId: batch.id, patch: { name: t } })
+    const trimmed = (nameDraft ?? '').trim()
+    if (trimmed && trimmed !== batch.name) updateBatch.mutate({ batchId: batch.id, patch: { name: trimmed } })
     setNameDraft(null) // blank or unchanged → revert to the server value
   }
 
@@ -109,7 +112,7 @@ export function BatchDetail({
             onChange={(e) => setNameDraft(e.target.value)}
             onBlur={saveName}
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            placeholder="Batch name"
+            placeholder={t('batchDetail.namePlaceholder')}
             sx={{
               minWidth: 0,
               maxWidth: 260,
@@ -124,7 +127,7 @@ export function BatchDetail({
         )}
         <Chip
           size="small"
-          label={batch.kind}
+          label={batchKindLabel(t, batch.kind)}
           sx={{
             height: 20,
             fontSize: 11,
@@ -138,7 +141,7 @@ export function BatchDetail({
           {new Date(batch.runAt).toLocaleString()}
         </Typography>
         {allPlaceholders.length > 0 && (
-          <Tooltip title={`${filled} of ${allPlaceholders.length} placeholders supplied`}>
+          <Tooltip title={t('batchDetail.placeholdersSupplied', { filled, count: allPlaceholders.length })}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: 1 }}>
               <LinearProgress
                 variant="determinate"
@@ -162,18 +165,18 @@ export function BatchDetail({
         >
           {BATCH_STATUSES.map((s) => (
             <MenuItem key={s} value={s} sx={{ fontSize: 12, textTransform: 'capitalize' }}>
-              {s}
+              {batchStatusLabel(t, s)}
             </MenuItem>
           ))}
         </Select>
         {canDelete && (
-          <Tooltip title="Delete batch">
+          <Tooltip title={t('batchDetail.deleteBatch')}>
             <IconButton
               size="small"
               color="error"
               disabled={removeBatch.isPending}
               onClick={() => {
-                if (window.confirm(`Delete batch "${batch.name}"?`)) {
+                if (window.confirm(t('batchDetail.deleteConfirm', { name: batch.name }))) {
                   removeBatch.mutate(batch.id, { onSuccess: onDeleted })
                 }
               }}
@@ -189,7 +192,7 @@ export function BatchDetail({
         {/* related tasks & documents (live references, not version-pinned) */}
         <Box sx={{ mb: 2 }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
-            <SectionLabel>Related tasks &amp; documents</SectionLabel>
+            <SectionLabel>{t('batchDetail.relatedRefs')}</SectionLabel>
             <Box sx={{ flex: 1 }} />
             {canWrite && (
               <Button
@@ -198,7 +201,7 @@ export function BatchDetail({
                 onClick={(e) => setRefMenu(e.currentTarget)}
                 sx={{ textTransform: 'none' }}
               >
-                Add
+                {t('batchDetail.add')}
               </Button>
             )}
           </Stack>
@@ -207,7 +210,7 @@ export function BatchDetail({
               <Stack key={token} direction="row" alignItems="center" spacing={0.5} sx={{ maxWidth: '100%' }}>
                 <RefCard token={token} />
                 {canWrite && (
-                  <Tooltip title="Remove reference">
+                  <Tooltip title={t('batchDetail.removeRef')}>
                     <IconButton size="small" onClick={() => removeRef.mutate({ batchId: batch.id, token })}>
                       <FontAwesomeIcon icon={faTrash} style={{ fontSize: 11 }} />
                     </IconButton>
@@ -217,7 +220,7 @@ export function BatchDetail({
             ))}
             {batch.refs.length === 0 && (
               <Typography variant="caption" color="text.disabled">
-                none
+                {t('empty.none')}
               </Typography>
             )}
           </Stack>
@@ -225,7 +228,7 @@ export function BatchDetail({
 
         {batch.steps.length === 0 && (
           <Typography variant="caption" color="text.secondary">
-            This batch froze an empty plan — the job had no steps when the run was created.
+            {t('batchDetail.emptyPlan')}
           </Typography>
         )}
         <Stack spacing={1.5}>
@@ -243,7 +246,7 @@ export function BatchDetail({
                 {/* frozen plan documents */}
                 {step.planDocs.length > 0 && (
                   <Box sx={{ mb: 1 }}>
-                    <SectionLabel>Plan documents (frozen at this run)</SectionLabel>
+                    <SectionLabel>{t('batchDetail.planDocsFrozen')}</SectionLabel>
                     <ChipWrap>
                       {step.planDocs.map((pd) => (
                         <PinnedDocChip key={pd.id} doc={pd.doc} />
@@ -255,7 +258,7 @@ export function BatchDetail({
                 {/* placeholders to supply */}
                 {step.placeholders.length > 0 && (
                   <Box sx={{ mb: 1 }}>
-                    <SectionLabel>Documents to supply</SectionLabel>
+                    <SectionLabel>{t('batchDetail.docsToSupply')}</SectionLabel>
                     <Stack spacing={0.75}>
                       {step.placeholders.map((ph) => {
                         const f = fulfillmentFor(step.stepId, ph.id)
@@ -277,7 +280,7 @@ export function BatchDetail({
                             ) : canWrite ? (
                               <DocSourceButton
                                 folderPath={['Jobs', jobName, batch.name]}
-                                label="Supply"
+                                label={t('batchDetail.supply')}
                                 icon={faPlus}
                                 onPin={(pin, source) =>
                                   addFulfillment.mutate({
@@ -287,7 +290,7 @@ export function BatchDetail({
                                 }
                               />
                             ) : (
-                              <Chip size="small" label="not supplied" variant="outlined" sx={{ fontSize: 11 }} />
+                              <Chip size="small" label={t('batchDetail.notSupplied')} variant="outlined" sx={{ fontSize: 11 }} />
                             )}
                           </Stack>
                         )
@@ -298,7 +301,7 @@ export function BatchDetail({
 
                 {/* as-run artifacts */}
                 <Box>
-                  <SectionLabel>As-run artifacts</SectionLabel>
+                  <SectionLabel>{t('batchDetail.asRunArtifacts')}</SectionLabel>
                   <ChipWrap>
                     {asRun.map((f) => (
                       <PinnedDocChip
@@ -314,7 +317,7 @@ export function BatchDetail({
                     ))}
                     {asRun.length === 0 && (
                       <Typography variant="caption" color="text.disabled">
-                        none
+                        {t('empty.none')}
                       </Typography>
                     )}
                   </ChipWrap>
@@ -322,7 +325,7 @@ export function BatchDetail({
                     <Box sx={{ mt: 0.75 }}>
                       <DocSourceButton
                         folderPath={['Jobs', jobName, batch.name]}
-                        label="Add as-run artifact"
+                        label={t('batchDetail.addAsRunArtifact')}
                         icon={faPlus}
                         variant="text"
                         onPin={(pin, source) =>
@@ -350,7 +353,7 @@ export function BatchDetail({
           }}
         >
           <FontAwesomeIcon icon={faListCheck} style={{ fontSize: 12, marginRight: 8, width: 16 }} />
-          Link a task…
+          {t('batchDetail.linkTask')}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -359,7 +362,7 @@ export function BatchDetail({
           }}
         >
           <FontAwesomeIcon icon={faPaperclip} style={{ fontSize: 12, marginRight: 8, width: 16 }} />
-          Link a document / wiki page…
+          {t('batchDetail.linkDoc')}
         </MenuItem>
       </Menu>
       {taskPickOpen && (
@@ -377,8 +380,8 @@ export function BatchDetail({
         <HubBrowserDialog
           open={docPickOpen}
           hubId={nav.hubId ?? null}
-          title="Link a document or wiki page"
-          pickLabel="Link"
+          title={t('batchDetail.linkDocTitle')}
+          pickLabel={t('batchDetail.linkAction')}
           initialProject={nav.project ?? null}
           onClose={() => setDocPickOpen(false)}
           onPick={(pick) => {

@@ -1,0 +1,117 @@
+{
+  "app": {
+    "viewList": "List",
+    "viewBoard": "Board",
+    "viewGantt": "Gantt",
+    "newTask": "New",
+    "createNeedsEditor": "Your project role is read-only — creating tasks needs Editor access"
+  },
+  "screen": {
+    "searchPlaceholder": "Search my tasks",
+    "statusFilterLabel": "Status",
+    "priorityFilterLabel": "Priority",
+    "projectFilterLabel": "Project",
+    "filterOpen": "Open",
+    "filterAll": "All",
+    "allProjects": "All projects",
+    "emptyNoTasks": "No tasks assigned to or created by you yet",
+    "emptyFiltered": "No tasks match the current filters"
+  },
+  "list": {
+    "title": "Tasks",
+    "empty": "No tasks in this project yet",
+    "selectPrompt": "Select a task to view its details"
+  },
+  "row": {
+    "due": "due {{date}}"
+  },
+  "chips": {
+    "priorityTooltip": "{{priority}} priority"
+  },
+  "details": {
+    "editTask": "Edit task",
+    "deleteTask": "Delete task",
+    "deleteConfirm": "Delete {{id}} \"{{title}}\"? This cannot be undone.",
+    "statusLabel": "Status",
+    "priorityLabel": "Priority",
+    "projectLabel": "Project",
+    "assigneeLabel": "Assignee",
+    "dueLabel": "Due",
+    "scheduleLabel": "Schedule",
+    "dependsOnLabel": "Depends on",
+    "createdByLabel": "Created by",
+    "createdLabel": "Created",
+    "updatedLabel": "Updated",
+    "overdueSuffix": "(overdue)",
+    "milestoneSuffix": "(milestone)",
+    "descriptionHeading": "Description",
+    "attachedHeading": "Attached documents",
+    "attach": "Attach",
+    "linkJobBatch": "Link job/batch",
+    "nothingAttached": "Nothing attached.",
+    "removeAttachment": "Remove attachment",
+    "attachDocTitle": "Attach a document"
+  },
+  "editDialog": {
+    "editTitle": "Edit {{id}}",
+    "createTitle": "New task",
+    "titleLabel": "Title",
+    "descriptionLabel": "Description (markdown)",
+    "statusLabel": "Status",
+    "priorityLabel": "Priority",
+    "dueDateLabel": "Due date",
+    "assigneeLabel": "Assignee",
+    "unassigned": "Unassigned",
+    "scheduleSection": "Schedule",
+    "startDateLabel": "Start date",
+    "endDateLabel": "End date",
+    "endDateMilestoneLabel": "End date (milestone)",
+    "endsBeforeStarts": "Ends before it starts",
+    "milestoneLabel": "Milestone",
+    "oneSidedHint": "Set both dates to schedule the task, or clear both to keep it in the backlog.",
+    "progressLabel": "Progress {{value}}%",
+    "stageLabel": "Stage",
+    "stagePlaceholder": "Group under a stage bar",
+    "dependsOnLabel": "Depends on",
+    "dependsOnPlaceholder": "Predecessor tasks"
+  },
+  "quickDialog": {
+    "title": "New task in {{project}}",
+    "titleLabel": "Title",
+    "descriptionLabel": "Description (optional)"
+  },
+  "attachDialog": {
+    "title": "Attach a task",
+    "searchPlaceholder": "Search tasks",
+    "emptySearch": "No tasks match the search",
+    "empty": "No tasks in this project yet"
+  },
+  "viewDialog": {
+    "gone": "This task no longer exists.",
+    "unavailable": "Task unavailable."
+  },
+  "gantt": {
+    "scheduleColumn": "Schedule",
+    "hintWritable": "Drag bars to move, edges to resize, the circle to link tasks; drag backlog rows onto the chart.",
+    "hintReadOnly": "Read-only — your project role can view but not edit the schedule.",
+    "scrollToToday": "Scroll to today",
+    "zoomToFit": "Zoom to fit the schedule",
+    "unitDay": "Day",
+    "unitWeek": "Week",
+    "unitMonth": "Month",
+    "today": "Today",
+    "emptyWritable": "Nothing scheduled yet — set start and end dates on a task, or drag one in from the backlog.",
+    "emptyReadOnly": "Nothing scheduled yet — set start and end dates on a task.",
+    "removeDependencyConfirm": "Remove dependency <b>{{from}} → {{to}}</b>?",
+    "backlogTitle": "Backlog",
+    "backlogEmpty": "Every task is scheduled"
+  },
+  "hoverCard": {
+    "spanLine": "{{range}} · {{days}}d",
+    "milestone": "Milestone",
+    "progress": "Progress {{value}}%",
+    "deps_one": "{{count}} dependency",
+    "deps_other": "{{count}} dependencies",
+    "due": "Due {{date}}"
+  }
+}

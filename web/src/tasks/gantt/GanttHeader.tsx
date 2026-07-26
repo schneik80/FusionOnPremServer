@@ -1,10 +1,12 @@
 import { useTheme } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { HEADER_H, dateToX, headerBands, type GanttScale } from './ganttMath'
 
 // GanttHeader is the two-band calendar strip: coarse unit (month/year) on
 // top, one label per column below. The parent keeps it position:sticky; this
 // is just the SVG. A small "today" cap marks where the today line starts.
 export function GanttHeader({ scale, today }: { scale: GanttScale; today: Date }) {
+  const { t } = useTranslation('tasks')
   const theme = useTheme()
   const { top, bottom } = headerBands(scale)
   const bandH = HEADER_H / 2
@@ -69,7 +71,7 @@ export function GanttHeader({ scale, today }: { scale: GanttScale; today: Date }
             fontWeight={600}
             fill={theme.palette.primary.contrastText}
           >
-            Today
+            {t('gantt.today')}
           </text>
         </g>
       )}

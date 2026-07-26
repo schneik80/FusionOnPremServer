@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, Button, CircularProgress, Menu, MenuItem, Snackbar } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { UploadJob } from '../api/types'
 import { extOf } from '../components/viewers/kind'
@@ -50,6 +51,7 @@ export function DocSourceButton({
   folderPath?: string[]
   onPin: (pin: DocPin, source: 'hub' | 'upload') => void
 }) {
+  const { t } = useTranslation('production')
   const nav = useNav()
   const qc = useQueryClient()
   const { jobs } = useUploads()
@@ -85,7 +87,7 @@ export function DocSourceButton({
       qc.setQueryData<UploadJob[]>(['uploads'], (old) => [...(old ?? []), job])
       setTracked({ jobId: job.id, hubId: nav.hubId, dmProjectId: nav.project.altId })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed')
+      setError(e instanceof Error ? e.message : t('docSource.uploadFailed'))
       setUploadingName(null)
     }
   }
@@ -114,11 +116,11 @@ export function DocSourceButton({
       setTracked(null)
       setUploadingName(null)
     } else if (j.status === 'error' || j.status === 'canceled') {
-      if (j.status === 'error') setError(j.error || 'Upload failed')
+      if (j.status === 'error') setError(j.error || t('docSource.uploadFailed'))
       setTracked(null)
       setUploadingName(null)
     }
-  }, [jobs, tracked])
+  }, [jobs, tracked, t])
 
   return (
     <>
@@ -139,7 +141,7 @@ export function DocSourceButton({
       >
         {uploadingName ? (
           <Box component="span" sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            Uploading {uploadingName}…
+            {t('docSource.uploading', { name: uploadingName })}
           </Box>
         ) : (
           label
@@ -154,7 +156,7 @@ export function DocSourceButton({
           }}
         >
           <FontAwesomeIcon icon={faFolderOpen} style={{ fontSize: 12, marginRight: 8, width: 16 }} />
-          Browse the hub…
+          {t('docSource.browseHub')}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -163,7 +165,7 @@ export function DocSourceButton({
           }}
         >
           <FontAwesomeIcon icon={faCloudArrowUp} style={{ fontSize: 12, marginRight: 8, width: 16 }} />
-          Upload a file…
+          {t('docSource.uploadFile')}
         </MenuItem>
       </Menu>
 

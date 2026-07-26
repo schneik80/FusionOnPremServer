@@ -1,0 +1,143 @@
+{
+  "app": {
+    "loadingJobs": "A carregar trabalhos…",
+    "emptyJobs": "Ainda não há trabalhos. Crie um trabalho para planear as suas etapas e executar lotes."
+  },
+  "jobList": {
+    "title": "Trabalhos",
+    "readOnlyReason": "A sua função no projeto é só de leitura — criar trabalhos requer acesso de Editor",
+    "namePlaceholder": "Nome do trabalho",
+    "loadFailed": "Falha ao carregar os trabalhos.",
+    "empty": "Ainda não há trabalhos."
+  },
+  "jobDetail": {
+    "notAvailable": "Este trabalho já não está disponível.",
+    "namePlaceholder": "Nome do trabalho",
+    "viewFlow": "Fluxo",
+    "viewList": "Lista",
+    "viewBatches": "Lotes",
+    "deleteJob": "Eliminar trabalho",
+    "deleteConfirm": "Eliminar o trabalho \"{{name}}\" e todos os seus lotes?",
+    "descPlaceholder": "Adicionar uma descrição do trabalho…",
+    "emptySteps": "Ainda não há etapas. Adicione a primeira etapa do fluxo deste trabalho.",
+    "newStepPlaceholder": "Título da nova etapa",
+    "addStep": "Adicionar etapa"
+  },
+  "stepCard": {
+    "namePlaceholder": "Nome da etapa",
+    "deleteStep": "Eliminar etapa",
+    "descPlaceholder": "Adicionar uma descrição…",
+    "placeholders": "Espaços reservados",
+    "leadsTo": "Conduz a",
+    "connectTo": "Ligar a…"
+  },
+  "placeholders": {
+    "addHint": "Adicionar um espaço reservado (p. ex., programa NC do Setup 1)"
+  },
+  "canvas": {
+    "emptyCanWrite": "Adicione a primeira etapa para começar a construir o fluxo deste trabalho.",
+    "emptyReadOnly": "Este trabalho ainda não tem etapas.",
+    "addStep": "Adicionar etapa",
+    "zoomIn": "Ampliar",
+    "zoomOut": "Reduzir",
+    "fitToView": "Ajustar à vista",
+    "dragToConnect": "Arraste para ligar",
+    "newStepTitle": "Etapa {{num}}"
+  },
+  "counts": {
+    "steps_one": "{{count}} etapa",
+    "steps_other": "{{count}} etapas",
+    "batches_one": "{{count}} lote",
+    "batches_other": "{{count}} lotes",
+    "docs_one": "{{count}} doc.",
+    "docs_other": "{{count}} docs.",
+    "slots_one": "{{count}} espaço",
+    "slots_other": "{{count}} espaços",
+    "inFlight_one": "{{count}} em curso",
+    "inFlight_other": "{{count}} em curso"
+  },
+  "empty": {
+    "none": "nenhum",
+    "noneYet": "ainda nenhum",
+    "nothingYet": "ainda nada"
+  },
+  "stepEditor": {
+    "title": "Etapa",
+    "titleLabel": "Título",
+    "descriptionLabel": "Descrição",
+    "placeholdersCaption": "Espaços reservados — documentos fornecidos por lote",
+    "planDocsCaption": "Documentos do plano — fixados na versão anexada",
+    "attachDocument": "Anexar um documento",
+    "deleteStep": "Eliminar etapa",
+    "deleteConfirm": "Eliminar a etapa \"{{title}}\"?"
+  },
+  "batchesView": {
+    "title": "Lotes",
+    "newBatch": "Novo lote",
+    "new": "Novo",
+    "emptyRail": "Ainda não há lotes. Crie uma execução para capturar o plano e fornecer documentos.",
+    "emptyCanWrite": "Crie um lote para executar este trabalho.",
+    "emptyReadOnly": "Este trabalho ainda não tem lotes."
+  },
+  "createBatch": {
+    "title": "Novo lote",
+    "nameLabel": "Nome do lote",
+    "namePlaceholder": "p. ex., Lote 1 (prova)",
+    "proveOut": "Prova",
+    "production": "Produção",
+    "freezeNote": "Criar o lote congela a versão atual de todos os documentos do plano. A data de execução é definida para agora (editável mais tarde).",
+    "create": "Criar lote"
+  },
+  "batchDetail": {
+    "namePlaceholder": "Nome do lote",
+    "placeholdersSupplied_one": "{{filled}} de {{count}} espaço reservado fornecido",
+    "placeholdersSupplied_other": "{{filled}} de {{count}} espaços reservados fornecidos",
+    "deleteBatch": "Eliminar lote",
+    "deleteConfirm": "Eliminar o lote \"{{name}}\"?",
+    "relatedRefs": "Tarefas e documentos relacionados",
+    "add": "Adicionar",
+    "removeRef": "Remover referência",
+    "emptyPlan": "Este lote congelou um plano vazio — o trabalho não tinha etapas quando a execução foi criada.",
+    "planDocsFrozen": "Documentos do plano (congelados nesta execução)",
+    "docsToSupply": "Documentos a fornecer",
+    "supply": "Fornecer",
+    "notSupplied": "não fornecido",
+    "asRunArtifacts": "Artefactos as-run",
+    "addAsRunArtifact": "Adicionar artefacto as-run",
+    "linkTask": "Ligar uma tarefa…",
+    "linkDoc": "Ligar um documento / página wiki…",
+    "linkDocTitle": "Ligar um documento ou página wiki",
+    "linkAction": "Ligar"
+  },
+  "attachDoc": {
+    "title": "Anexar um documento",
+    "attach": "Anexar"
+  },
+  "docSource": {
+    "uploading": "A carregar {{name}}…",
+    "uploadFailed": "Falha no carregamento",
+    "browseHub": "Procurar no hub…",
+    "uploadFile": "Carregar um ficheiro…"
+  },
+  "pinnedDoc": {
+    "versionBadge": "v{{num}}",
+    "asRun": "as-run"
+  },
+  "refDialog": {
+    "title": "Ligar um trabalho ou lote",
+    "emptyJobs": "Este projeto ainda não tem trabalhos.",
+    "jobRow_one": "{{count}} lote — clique para ligar o trabalho",
+    "jobRow_other": "{{count}} lotes — clique para ligar o trabalho",
+    "hideBatches": "ocultar lotes",
+    "orBatch": "ou um lote…",
+    "loadingBatches": "A carregar lotes…"
+  },
+  "screen": {
+    "title": "Produção",
+    "runsInFlight": "Execuções em curso",
+    "myJobs": "Os meus trabalhos",
+    "loadFailed": "Falha ao carregar o seu trabalho de produção.",
+    "emptyRuns": "Sem execuções em curso. Os lotes que criar aparecem aqui enquanto estão planeados ou em execução.",
+    "emptyJobs": "Ainda não há trabalhos. Os trabalhos que criar — ou que contenham uma execução criada por si — aparecem aqui."
+  }
+}

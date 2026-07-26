@@ -1,0 +1,173 @@
+{
+  "appLayout": {
+    "changeHub": "Hub wechseln",
+    "selectHub": "Hub auswählen",
+    "switchToLight": "Zum hellen Design wechseln",
+    "switchToDark": "Zum dunklen Design wechseln",
+    "toggleTheme": "Design umschalten",
+    "signOut": "Abmelden"
+  },
+  "breadcrumb": {
+    "noHub": "Kein Hub ausgewählt — wählen Sie einen in der Leiste"
+  },
+  "column": {
+    "emptyDefault": "Nichts vorhanden"
+  },
+  "projectsColumn": {
+    "title": "Projekte",
+    "emptyInHub": "Keine Projekte in diesem Hub",
+    "selectHubHint": "Wählen Sie zunächst einen Hub"
+  },
+  "contents": {
+    "title": "Inhalt",
+    "uploadHere": "Dateien hierher hochladen",
+    "uploadAria": "Dateien hochladen",
+    "sort": "Sortieren",
+    "sortAria": "Inhalt sortieren",
+    "sortName": "Name (A–Z)",
+    "sortModified": "Zuletzt geändert",
+    "sortType": "Typ",
+    "emptyFolder": "Leerer Ordner",
+    "selectProject": "Projekt auswählen"
+  },
+  "itemRow": {
+    "pin": "Anheften",
+    "unpin": "Lösen"
+  },
+  "hubSwitcher": {
+    "title": "Hub wechseln"
+  },
+  "pins": {
+    "title": "Pins",
+    "groupProjects": "Projekte",
+    "groupFolders": "Ordner",
+    "groupDocuments": "Dokumente",
+    "selectHub": "Wählen Sie einen Hub, um dessen Pins zu sehen.",
+    "empty": "Noch keine Pins. Klicken Sie auf den Stern eines Projekts, Ordners oder Dokuments, um ein Lesezeichen zu setzen.",
+    "navigate": "Navigieren",
+    "openInsertSoon": "Öffnen / Einfügen (demnächst)",
+    "removePin": "Pin entfernen",
+    "unknownProject": "(Projekt)"
+  },
+  "upload": {
+    "title": "Dateien hochladen",
+    "uploadingTo": "Hochladen nach <strong>{{target}}</strong>",
+    "chooseTarget": "Öffnen Sie ein Projekt oder einen Ordner, um das Ziel für die Dateien zu wählen.",
+    "dropHint": "Dateien hierher ziehen",
+    "addFiles": "Dateien hinzufügen",
+    "readyToUpload": "Bereit zum Hochladen ({{count}})",
+    "uploadsHeading": "Uploads",
+    "clearFinished": "Abgeschlossene entfernen",
+    "uploading": "Wird hochgeladen…",
+    "upload": "Hochladen",
+    "uploadCount_one": "{{count}} Datei hochladen",
+    "uploadCount_other": "{{count}} Dateien hochladen",
+    "removeFile": "{{name}} entfernen",
+    "cancelUpload": "Upload abbrechen",
+    "removeFromList": "Aus der Liste entfernen",
+    "cancelUploadOf": "Upload von {{name}} abbrechen",
+    "dismissFile": "{{name}} ausblenden",
+    "failedFallback": "Upload fehlgeschlagen",
+    "status": {
+      "queued": "wartend",
+      "done": "fertig",
+      "error": "fehlgeschlagen",
+      "canceled": "abgebrochen"
+    }
+  },
+  "uploadFooter": {
+    "starting": "Upload wird gestartet…",
+    "progress": "Lade {{current}} von {{total}} hoch — {{pct}} %",
+    "doneAndFailed": "{{done}} hochgeladen, {{failed}} fehlgeschlagen",
+    "filesUploaded_one": "{{count}} Datei hochgeladen",
+    "filesUploaded_other": "{{count}} Dateien hochgeladen",
+    "view": "Anzeigen",
+    "dismiss": "Ausblenden",
+    "dropTitle": "Dateien zum Hochladen ablegen",
+    "dropTarget": "nach {{target}}"
+  },
+  "login": {
+    "tagline": "Melden Sie sich mit Ihrem Autodesk-Konto an, um Ihre Fusion-Hubs, Projekte und Konstruktionen zu durchsuchen.",
+    "signInButton": "Mit Autodesk anmelden",
+    "errors": {
+      "expired": "Der Anmeldeversuch ist abgelaufen oder konnte nicht verifiziert werden. Bitte versuchen Sie es erneut.",
+      "incomplete": "Autodesk hat die Anmeldung nicht abgeschlossen. Bitte versuchen Sie es erneut.",
+      "session": "Der Server konnte keine Sitzung starten. Bitte versuchen Sie es erneut.",
+      "denied": "Die Anmeldung wurde abgebrochen oder der Zugriff verweigert.",
+      "generic": "Anmeldung fehlgeschlagen ({{reason}})."
+    }
+  },
+  "errorBoundary": {
+    "failed": "„{{label}}“ konnte nicht geladen werden.",
+    "unexpected": "Ein unerwarteter Fehler ist aufgetreten.",
+    "tryAgain": "Erneut versuchen"
+  },
+  "projectPanel": {
+    "tabs": {
+      "dashboard": "Dashboard",
+      "production": "Produktion",
+      "tasks": "Aufgaben",
+      "whiteboards": "Whiteboards",
+      "wiki": "Wiki",
+      "chat": "Chat"
+    }
+  },
+  "railHeader": {
+    "new": "Neu"
+  },
+  "hubBrowser": {
+    "filterPlaceholder": "Projekte filtern",
+    "loadProjectsFailed": "Projekte konnten nicht geladen werden.",
+    "loadFolderFailed": "Dieser Ordner konnte nicht geladen werden.",
+    "emptyFolder": "Dieser Ordner ist leer.",
+    "nonePickable": "Keines dieser Dokumente kann hier ausgewählt werden.",
+    "selectProjectToBrowse": "Wählen Sie ein Projekt zum Durchsuchen.",
+    "notBrowsable": "Dieses Projekt kann nicht durchsucht werden (keine Data-Management-ID).",
+    "selectProjectOrFolder": "Wählen Sie ein Projekt oder einen Ordner.",
+    "selectDocument": "Wählen Sie ein Dokument.",
+    "selectThisFolder": "Diesen Ordner auswählen",
+    "select": "Auswählen"
+  },
+  "docCard": {
+    "open": "Zu diesem Dokument wechseln",
+    "locating": "Wird gesucht…",
+    "locationUnavailable": "Speicherort nicht verfügbar"
+  },
+  "taskCard": {
+    "open": "Diese Aufgabe öffnen",
+    "notFound": "Aufgabe nicht gefunden (gelöscht)",
+    "unavailable": "Aufgabe nicht verfügbar",
+    "due": "fällig {{date}}"
+  },
+  "prodCard": {
+    "openJob": "Diesen Auftrag öffnen",
+    "openBatch": "Diese Charge öffnen",
+    "jobNotFound": "Auftrag nicht gefunden",
+    "batchNotFound": "Charge nicht gefunden",
+    "jobUnavailable": "Auftrag nicht verfügbar",
+    "batchUnavailable": "Charge nicht verfügbar",
+    "steps_one": "{{count}} Arbeitsschritt",
+    "steps_other": "{{count}} Arbeitsschritte",
+    "batches_one": "{{count}} Charge",
+    "batches_other": "{{count}} Chargen"
+  },
+  "prodView": {
+    "jobGone": "Dieser Auftrag ist nicht mehr verfügbar.",
+    "batchGone": "Diese Charge ist nicht mehr verfügbar.",
+    "batchDeletedFrom": "Diese Charge wurde aus {{job}} gelöscht.",
+    "stepsHeading": "Arbeitsschritte",
+    "noSteps": "noch keine Arbeitsschritte",
+    "noDocuments": "keine Dokumente"
+  },
+  "viewer": {
+    "previewUnavailable": "Für dieses Dokument ist keine Vorschau verfügbar.",
+    "noInlinePreview": "Für diesen Dateityp gibt es keine Inline-Vorschau.",
+    "download": "Herunterladen",
+    "openInFusion": "In Fusion öffnen",
+    "imageFailed": "Dieses Bild konnte nicht angezeigt werden.",
+    "videoFailed": "Dieses Videoformat kann hier nicht abgespielt werden.",
+    "pdfFailed": "Dieses PDF konnte nicht dargestellt werden.",
+    "tooLarge": "Diese Datei ist zu groß für eine Vorschau.",
+    "loadFailed": "Datei konnte nicht geladen werden"
+  }
+}

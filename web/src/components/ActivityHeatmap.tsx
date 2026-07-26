@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   Box,
   Checkbox,
@@ -24,8 +26,31 @@ type Gran = 'day' | 'week' | 'month' | 'year'
 
 const DAY_MS = 86_400_000
 const HOUR_MS = 3_600_000
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// Catalog keys for the axis labels (details namespace), indexed by month /
+// UTC weekday number and rendered through t() where the labels are built.
+const MONTH_KEYS = [
+  'activity.monthJan',
+  'activity.monthFeb',
+  'activity.monthMar',
+  'activity.monthApr',
+  'activity.monthMay',
+  'activity.monthJun',
+  'activity.monthJul',
+  'activity.monthAug',
+  'activity.monthSep',
+  'activity.monthOct',
+  'activity.monthNov',
+  'activity.monthDec',
+]
+const WEEKDAY_KEYS = [
+  'activity.weekdaySun',
+  'activity.weekdayMon',
+  'activity.weekdayTue',
+  'activity.weekdayWed',
+  'activity.weekdayThu',
+  'activity.weekdayFri',
+  'activity.weekdaySat',
+]
 
 // --- UTC date helpers (server timestamps are RFC3339 Z) ---
 const startOfDay = (ms: number) => {
@@ -95,7 +120,14 @@ function windowLabel(gran: Gran, start: number): string {
   }
 }
 
-const fmtHour = (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`)
+const fmtHour = (t: TFunction, h: number) =>
+  h === 0
+    ? t('activity.hour12am')
+    : h < 12
+      ? t('activity.hourAm', { hour: h })
+      : h === 12
+        ? t('activity.hour12pm')
+        : t('activity.hourPm', { hour: h - 12 })
 
 type Cell = { col: number; row: number; count: number }
 type Built = {
@@ -109,7 +141,7 @@ type Built = {
 // buildWindow sub-buckets the events that fall inside [winStart, next window)
 // and lays them out for the granularity: day → 24 hours in a row; week → 7 days
 // in a row; month → calendar (week column × weekday row); year → 12 months.
-function buildWindow(timestamps: number[], gran: Gran, winStart: number): Built {
+function buildWindow(t: TFunction, timestamps: number[], gran: Gran, winStart: number): Built {
   const winEnd = addWindows(gran, winStart, 1)
   const counts = new Map<number, number>()
   const keyOf = (t: number): number => {
@@ -132,10 +164,10 @@ function buildWindow(timestamps: number[], gran: Gran, winStart: number): Built 
 
   if (gran === 'day') {
     for (let h = 0; h < 24; h++) cells.push({ col: h, row: 0, count: counts.get(winStart + h * HOUR_MS) ?? 0 })
-    for (const h of [0, 6, 12, 18]) top.push({ col: h, text: fmtHour(h) })
+    for (const h of [0, 6, 12, 18]) top.push({ col: h, text: fmtHour(t, h) })
   } else if (gran === 'week') {
     for (let i = 0; i < 7; i++) cells.push({ col: i, row: 0, count: counts.get(winStart + i * DAY_MS) ?? 0 })
-    for (let i = 0; i < 7; i++) top.push({ col: i, text: WEEKDAYS[i] })
+    for (let i = 0; i < 7; i++) top.push({ col: i, text: t(WEEKDAY_KEYS[i]) })
   } else if (gran === 'month') {
     const base = startOfWeek(winStart)
     for (let dms = winStart; dms < winEnd; dms += DAY_MS) {
@@ -143,7 +175,7 @@ function buildWindow(timestamps: number[], gran: Gran, winStart: number): Built 
       const row = new Date(dms).getUTCDay()
       cells.push({ col, row, count: counts.get(startOfDay(dms)) ?? 0 })
     }
-    for (const row of [1, 3, 5]) left.push({ row, text: WEEKDAYS[row] })
+    for (const row of [1, 3, 5]) left.push({ row, text: t(WEEKDAY_KEYS[row]) })
   } else {
     // year: full day calendar (week column × weekday row), GitHub-style, with a
     // month label where each month begins along the top.
@@ -155,11 +187,11 @@ function buildWindow(timestamps: number[], gran: Gran, winStart: number): Built 
       cells.push({ col, row: d.getUTCDay(), count: counts.get(startOfDay(dms)) ?? 0 })
       const m = d.getUTCMonth()
       if (m !== lastMonth) {
-        top.push({ col, text: MONTHS[m] })
+        top.push({ col, text: t(MONTH_KEYS[m]) })
         lastMonth = m
       }
     }
-    for (const row of [1, 3, 5]) left.push({ row, text: WEEKDAYS[row] })
+    for (const row of [1, 3, 5]) left.push({ row, text: t(WEEKDAY_KEYS[row]) })
   }
 
   let maxCount = 0
@@ -173,6 +205,14 @@ function buildWindow(timestamps: number[], gran: Gran, winStart: number): Built 
 
 const fmtDate = (s?: string) =>
   s ? new Date(s).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+
+// In-sentence (lowercase) window nouns for the "changes in this …" caption.
+const GRAN_KEY: Record<Gran, string> = {
+  day: 'activity.granDay',
+  week: 'activity.granWeek',
+  month: 'activity.granMonth',
+  year: 'activity.granYear',
+}
 
 export default function ActivityHeatmap({
   report,
@@ -189,6 +229,7 @@ export default function ActivityHeatmap({
   // aspect ratio is preserved). The dashboard passes <1 for a shorter chart.
   scale?: number
 }) {
+  const { t } = useTranslation('details')
   const theme = useTheme()
   const [gran, setGran] = useState<Gran>('year')
 
@@ -247,8 +288,8 @@ export default function ActivityHeatmap({
   }, [timestamps])
 
   const { cells, maxCount, total, top, left } = useMemo(
-    () => buildWindow(timestamps, gran, winStart),
-    [timestamps, gran, winStart],
+    () => buildWindow(t, timestamps, gran, winStart),
+    [t, timestamps, gran, winStart],
   )
 
   const accent = theme.palette.primary.main
@@ -394,25 +435,32 @@ export default function ActivityHeatmap({
           <b>{windowLabel(gran, winStart)}</b>
           <Box component="span" sx={{ color: 'text.secondary' }}>
             {' · '}
-            {total} {total === 1 ? 'change' : 'changes'} in this {gran}
+            {t('activity.changesInWindow', { count: total, window: t(GRAN_KEY[gran]) })}
           </Box>
         </Typography>
         <ToggleButtonGroup size="small" exclusive value={gran} onChange={(_, v: Gran | null) => v && setGran(v)}>
-          <ToggleButton value="day">Day</ToggleButton>
-          <ToggleButton value="week">Week</ToggleButton>
-          <ToggleButton value="month">Month</ToggleButton>
-          <ToggleButton value="year">Year</ToggleButton>
+          <ToggleButton value="day">{t('activity.day')}</ToggleButton>
+          <ToggleButton value="week">{t('activity.week')}</ToggleButton>
+          <ToggleButton value="month">{t('activity.month')}</ToggleButton>
+          <ToggleButton value="year">{t('activity.year')}</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
       {/* All-time totals plus recent-change tallies, as a compact caption. */}
       <Typography variant="caption" color="text.secondary">
-        <b>{report.versionCount}</b> versions · <b>{report.contributorCount}</b>{' '}
-        {report.contributorCount === 1 ? 'contributor' : 'contributors'} · {report.totalEvents} total changes ·{' '}
-        <b>{recent.sinceYesterday}</b> since yesterday · <b>{recent.thisWeek}</b> this week
+        <Trans t={t} i18nKey="activity.statVersions" count={report.versionCount} components={{ b: <b /> }} />
+        {' · '}
+        <Trans t={t} i18nKey="activity.statContributors" count={report.contributorCount} components={{ b: <b /> }} />
+        {' · '}
+        {t('activity.statTotalChanges', { count: report.totalEvents })}
+        {' · '}
+        <Trans t={t} i18nKey="activity.statSinceYesterday" count={recent.sinceYesterday} components={{ b: <b /> }} />
+        {' · '}
+        <Trans t={t} i18nKey="activity.statThisWeek" count={recent.thisWeek} components={{ b: <b /> }} />
         {childCount ? (
           <>
-            {' '}· <b>{childCount}</b> child {childCount === 1 ? 'document' : 'documents'}
+            {' · '}
+            <Trans t={t} i18nKey="activity.statChildDocuments" count={childCount} components={{ b: <b /> }} />
           </>
         ) : null}
       </Typography>
@@ -428,7 +476,7 @@ export default function ActivityHeatmap({
               onChange={(e) => rollup.onChange(e.target.checked)}
             />
           }
-          label={<Typography variant="body2">Roll up child changes</Typography>}
+          label={<Typography variant="body2">{t('activity.rollupChildChanges')}</Typography>}
         />
       )}
 
@@ -436,7 +484,7 @@ export default function ActivityHeatmap({
         <Stack alignItems="center" justifyContent="center" spacing={1} sx={{ py: 6 }}>
           <CircularProgress />
           <Typography variant="caption" color="text.secondary">
-            Rolling up child activity…
+            {t('activity.rollingUpChildActivity')}
           </Typography>
         </Stack>
       ) : (
@@ -458,7 +506,7 @@ export default function ActivityHeatmap({
             return (
               <Tooltip
                 key={wd.start}
-                title={`${windowLabel(gran, wd.start)} — ${wd.total} ${wd.total === 1 ? 'change' : 'changes'}`}
+                title={t('activity.windowTooltip', { window: windowLabel(gran, wd.start), count: wd.total })}
               >
                 <Box
                   component="button"
@@ -528,13 +576,13 @@ export default function ActivityHeatmap({
       <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
         <Stack direction="row" spacing={0.75} alignItems="center">
           <Typography variant="caption" color="text.secondary">
-            Less
+            {t('activity.less')}
           </Typography>
           {ramp.map((c, i) => (
             <Box key={i} sx={{ width: 12, height: 12, bgcolor: c, borderRadius: 0.5 }} />
           ))}
           <Typography variant="caption" color="text.secondary">
-            More
+            {t('activity.more')}
           </Typography>
         </Stack>
         <Typography variant="caption" color="text.secondary">

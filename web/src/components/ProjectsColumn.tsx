@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useProjects } from '../api/queries'
 import { useNav } from '../state/nav'
 import { usePinToggle } from '../state/pins'
@@ -5,6 +6,7 @@ import { Column } from './Column'
 import { ItemRow } from './ItemRow'
 
 export function ProjectsColumn() {
+  const { t } = useTranslation('browse')
   const nav = useNav()
   const projectsQ = useProjects(nav.hubId)
   const { pinnedIds, toggle } = usePinToggle()
@@ -13,12 +15,12 @@ export function ProjectsColumn() {
 
   return (
     <Column
-      title="Projects"
+      title={t('projectsColumn.title')}
       flex={1}
       loading={projectsQ.isLoading}
       error={projectsQ.error as Error | null}
       empty={!projectsQ.isLoading && projects.length === 0}
-      emptyText={nav.hubId ? 'No projects in this hub' : 'Select a hub to begin'}
+      emptyText={nav.hubId ? t('projectsColumn.emptyInHub') : t('projectsColumn.selectHubHint')}
     >
       {projects.map((p) => (
         <ItemRow

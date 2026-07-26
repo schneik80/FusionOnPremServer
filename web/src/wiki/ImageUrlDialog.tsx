@@ -9,6 +9,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // ImageUrlDialog collects a public image URL (+ optional alt text) for the
 // editor's "insert image from URL" toolbar action, with a live preview so the
@@ -22,6 +23,7 @@ export function ImageUrlDialog({
   onClose: () => void
   onInsert: (url: string, alt: string) => void
 }) {
+  const { t } = useTranslation('wiki')
   const [url, setUrl] = useState('')
   const [alt, setAlt] = useState('')
   const [previewFailed, setPreviewFailed] = useState(false)
@@ -43,12 +45,12 @@ export function ImageUrlDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Insert image from URL</DialogTitle>
+      <DialogTitle>{t('imageUrlDialog.title')}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField
           autoFocus
           fullWidth
-          label="Image URL"
+          label={t('imageUrlDialog.urlLabel')}
           placeholder="https://example.com/image.png"
           value={url}
           onChange={(e) => {
@@ -60,11 +62,11 @@ export function ImageUrlDialog({
           }}
           variant="standard"
           sx={{ mt: 1 }}
-          helperText="The URL must be publicly reachable by anyone reading the page."
+          helperText={t('imageUrlDialog.urlHelper')}
         />
         <TextField
           fullWidth
-          label="Alt text (optional)"
+          label={t('imageUrlDialog.altLabel')}
           value={alt}
           onChange={(e) => setAlt(e.target.value)}
           onKeyDown={(e) => {
@@ -76,7 +78,7 @@ export function ImageUrlDialog({
           <Box sx={{ textAlign: 'center' }}>
             {previewFailed ? (
               <Typography variant="caption" color="text.secondary">
-                Couldn't load a preview — check the URL points at an image.
+                {t('imageUrlDialog.previewFailed')}
               </Typography>
             ) : (
               <Box
@@ -92,10 +94,10 @@ export function ImageUrlDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="inherit">
-          Cancel
+          {t('common:cancel')}
         </Button>
         <Button variant="contained" disabled={!valid} onClick={insert}>
-          Insert
+          {t('imageUrlDialog.insert')}
         </Button>
       </DialogActions>
     </Dialog>

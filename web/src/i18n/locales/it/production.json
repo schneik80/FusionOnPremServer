@@ -1,0 +1,143 @@
+{
+  "app": {
+    "loadingJobs": "Caricamento commesse…",
+    "emptyJobs": "Ancora nessuna commessa. Crea una commessa per pianificarne le fasi di lavoro ed eseguire lotti."
+  },
+  "jobList": {
+    "title": "Commesse",
+    "readOnlyReason": "Il tuo ruolo nel progetto è di sola lettura — per creare commesse serve l'accesso Editor",
+    "namePlaceholder": "Nome commessa",
+    "loadFailed": "Impossibile caricare le commesse.",
+    "empty": "Ancora nessuna commessa."
+  },
+  "jobDetail": {
+    "notAvailable": "Questa commessa non è più disponibile.",
+    "namePlaceholder": "Nome commessa",
+    "viewFlow": "Flusso",
+    "viewList": "Elenco",
+    "viewBatches": "Lotti",
+    "deleteJob": "Elimina commessa",
+    "deleteConfirm": "Eliminare la commessa \"{{name}}\" e tutti i suoi lotti?",
+    "descPlaceholder": "Aggiungi una descrizione della commessa…",
+    "emptySteps": "Ancora nessuna fase di lavoro. Aggiungi la prima fase di lavoro del flusso di questa commessa.",
+    "newStepPlaceholder": "Titolo della nuova fase di lavoro",
+    "addStep": "Aggiungi fase di lavoro"
+  },
+  "stepCard": {
+    "namePlaceholder": "Nome fase di lavoro",
+    "deleteStep": "Elimina fase di lavoro",
+    "descPlaceholder": "Aggiungi una descrizione…",
+    "placeholders": "Segnaposto",
+    "leadsTo": "Porta a",
+    "connectTo": "Collega a…"
+  },
+  "placeholders": {
+    "addHint": "Aggiungi un segnaposto (es. Programma NC Setup 1)"
+  },
+  "canvas": {
+    "emptyCanWrite": "Aggiungi la prima fase di lavoro per iniziare a costruire il flusso di questa commessa.",
+    "emptyReadOnly": "Questa commessa non ha ancora fasi di lavoro.",
+    "addStep": "Aggiungi fase di lavoro",
+    "zoomIn": "Zoom avanti",
+    "zoomOut": "Zoom indietro",
+    "fitToView": "Adatta alla vista",
+    "dragToConnect": "Trascina per collegare",
+    "newStepTitle": "Fase di lavoro {{num}}"
+  },
+  "counts": {
+    "steps_one": "{{count}} fase di lavoro",
+    "steps_other": "{{count}} fasi di lavoro",
+    "batches_one": "{{count}} lotto",
+    "batches_other": "{{count}} lotti",
+    "docs_one": "{{count}} documento",
+    "docs_other": "{{count}} documenti",
+    "slots_one": "{{count}} slot",
+    "slots_other": "{{count}} slot",
+    "inFlight_one": "{{count}} in corso",
+    "inFlight_other": "{{count}} in corso"
+  },
+  "empty": {
+    "none": "nessuno",
+    "noneYet": "ancora nessuno",
+    "nothingYet": "ancora niente"
+  },
+  "stepEditor": {
+    "title": "Fase di lavoro",
+    "titleLabel": "Titolo",
+    "descriptionLabel": "Descrizione",
+    "placeholdersCaption": "Segnaposto — documenti forniti per ogni lotto",
+    "planDocsCaption": "Documenti di piano — bloccati alla versione allegata",
+    "attachDocument": "Allega un documento",
+    "deleteStep": "Elimina fase di lavoro",
+    "deleteConfirm": "Eliminare la fase di lavoro \"{{title}}\"?"
+  },
+  "batchesView": {
+    "title": "Lotti",
+    "newBatch": "Nuovo lotto",
+    "new": "Nuovo",
+    "emptyRail": "Ancora nessun lotto. Crea un'esecuzione per congelare il piano e fornire i documenti.",
+    "emptyCanWrite": "Crea un lotto per eseguire questa commessa.",
+    "emptyReadOnly": "Questa commessa non ha ancora lotti."
+  },
+  "createBatch": {
+    "title": "Nuovo lotto",
+    "nameLabel": "Nome lotto",
+    "namePlaceholder": "es. Lotto 1 (collaudo)",
+    "proveOut": "Collaudo",
+    "production": "Produzione",
+    "freezeNote": "La creazione del lotto congela la versione corrente di ogni documento di piano. La data di esecuzione è impostata a ora (modificabile in seguito).",
+    "create": "Crea lotto"
+  },
+  "batchDetail": {
+    "namePlaceholder": "Nome lotto",
+    "placeholdersSupplied_one": "{{filled}} di {{count}} segnaposto fornito",
+    "placeholdersSupplied_other": "{{filled}} di {{count}} segnaposto forniti",
+    "deleteBatch": "Elimina lotto",
+    "deleteConfirm": "Eliminare il lotto \"{{name}}\"?",
+    "relatedRefs": "Attività e documenti correlati",
+    "add": "Aggiungi",
+    "removeRef": "Rimuovi riferimento",
+    "emptyPlan": "Questo lotto ha congelato un piano vuoto — la commessa non aveva fasi di lavoro quando è stata creata l'esecuzione.",
+    "planDocsFrozen": "Documenti di piano (congelati a questa esecuzione)",
+    "docsToSupply": "Documenti da fornire",
+    "supply": "Fornisci",
+    "notSupplied": "non fornito",
+    "asRunArtifacts": "Artefatti as-run",
+    "addAsRunArtifact": "Aggiungi artefatto as-run",
+    "linkTask": "Collega un'attività…",
+    "linkDoc": "Collega un documento / una pagina wiki…",
+    "linkDocTitle": "Collega un documento o una pagina wiki",
+    "linkAction": "Collega"
+  },
+  "attachDoc": {
+    "title": "Allega un documento",
+    "attach": "Allega"
+  },
+  "docSource": {
+    "uploading": "Caricamento di {{name}}…",
+    "uploadFailed": "Caricamento non riuscito",
+    "browseHub": "Esplora l'hub…",
+    "uploadFile": "Carica un file…"
+  },
+  "pinnedDoc": {
+    "versionBadge": "v{{num}}",
+    "asRun": "as-run"
+  },
+  "refDialog": {
+    "title": "Collega una commessa o un lotto",
+    "emptyJobs": "Questo progetto non ha ancora commesse.",
+    "jobRow_one": "{{count}} lotto — fai clic per collegare la commessa",
+    "jobRow_other": "{{count}} lotti — fai clic per collegare la commessa",
+    "hideBatches": "nascondi lotti",
+    "orBatch": "oppure un lotto…",
+    "loadingBatches": "Caricamento lotti…"
+  },
+  "screen": {
+    "title": "Produzione",
+    "runsInFlight": "Esecuzioni in corso",
+    "myJobs": "Le mie commesse",
+    "loadFailed": "Impossibile caricare il tuo lavoro di produzione.",
+    "emptyRuns": "Nessuna esecuzione in corso. I lotti che crei compaiono qui mentre sono pianificati o in esecuzione.",
+    "emptyJobs": "Ancora nessuna commessa. Le commesse che crei — o che contengono un'esecuzione creata da te — compaiono qui."
+  }
+}

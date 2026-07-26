@@ -1,0 +1,85 @@
+{
+  "unavailable": "La chat non è disponibile: {{message}}",
+  "unknownError": "errore",
+  "header": {
+    "archived": "archiviato",
+    "reconnecting": "riconnessione…"
+  },
+  "emptyState": {
+    "noMessages": "Ancora nessun messaggio — avvia la conversazione."
+  },
+  "sidebar": {
+    "title": "Canali",
+    "archived": "archiviato",
+    "newDisabledReason": "Il tuo ruolo nel progetto non consente di creare canali — serve l'accesso Editor"
+  },
+  "createDialog": {
+    "title": "Nuovo canale",
+    "name": "Nome",
+    "topicOptional": "Argomento (facoltativo)",
+    "private": "Privato (visibile solo ai membri invitati)",
+    "members": "Membri",
+    "membersPlaceholder": "Aggiungi membri del progetto",
+    "createFailed": "impossibile creare il canale"
+  },
+  "channelMenu": {
+    "options": "Opzioni canale",
+    "edit": "Modifica canale…",
+    "members": "Membri…",
+    "archive": "Archivia canale…",
+    "leave": "Abbandona canale"
+  },
+  "editDialog": {
+    "title": "Modifica #{{name}}",
+    "name": "Nome",
+    "topic": "Argomento",
+    "rootNoRename": "Il canale principale non può essere rinominato",
+    "updateFailed": "impossibile aggiornare il canale"
+  },
+  "archiveDialog": {
+    "title": "Archiviare #{{name}}?",
+    "body": "Il canale resta leggibile, ma nessuno potrà più pubblicarvi messaggi. L'archiviazione non è reversibile.",
+    "confirm": "Archivia"
+  },
+  "membersDialog": {
+    "title": "Membri di #{{name}}",
+    "addMember": "Aggiungi un membro del progetto",
+    "everyoneHere": "Tutti i membri del progetto sono già qui",
+    "owner": "proprietario",
+    "removeFromChannel": "Rimuovi dal canale",
+    "changeFailed": "modifica dell'appartenenza non riuscita",
+    "done": "Fine"
+  },
+  "composer": {
+    "placeholder": "Messaggio",
+    "placeholderChannel": "Messaggio a #{{name}}",
+    "disabledArchived": "Questo canale è archiviato",
+    "disabledReadOnly": "Il tuo ruolo nel progetto è di sola lettura",
+    "attachDoc": "Allega una scheda documento",
+    "attachTask": "Allega una scheda attività",
+    "createTask": "Crea un'attività e allegane la scheda",
+    "linkProduction": "Collega una commessa o un lotto",
+    "attach": "Allega",
+    "send": "invia messaggio",
+    "sendFailed": "invio non riuscito"
+  },
+  "message": {
+    "unknownAuthor": "Sconosciuto",
+    "edited": "(modificato)",
+    "deleted": "messaggio eliminato",
+    "addReaction": "Aggiungi reazione",
+    "replyInThread": "Rispondi nel thread",
+    "delete": "Elimina messaggio",
+    "replies_one": "{{count}} risposta",
+    "replies_other": "{{count}} risposte"
+  },
+  "thread": {
+    "title": "Thread",
+    "close": "chiudi thread",
+    "notFound": "Thread non trovato.",
+    "replyPlaceholder": "Rispondi…"
+  },
+  "typing_one": "{{name}} sta scrivendo…",
+  "typing_other": "{{count}} persone stanno scrivendo…",
+  "typingTwo": "{{a}} e {{b}} stanno scrivendo…"
+}

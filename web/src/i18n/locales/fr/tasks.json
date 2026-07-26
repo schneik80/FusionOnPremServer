@@ -1,0 +1,117 @@
+{
+  "app": {
+    "viewList": "Liste",
+    "viewBoard": "Tableau",
+    "viewGantt": "Gantt",
+    "newTask": "Nouvelle",
+    "createNeedsEditor": "Votre rôle sur le projet est en lecture seule — la création de tâches requiert l'accès Éditeur"
+  },
+  "screen": {
+    "searchPlaceholder": "Rechercher mes tâches",
+    "statusFilterLabel": "Statut",
+    "priorityFilterLabel": "Priorité",
+    "projectFilterLabel": "Projet",
+    "filterOpen": "Ouvertes",
+    "filterAll": "Toutes",
+    "allProjects": "Tous les projets",
+    "emptyNoTasks": "Aucune tâche qui vous soit assignée ou créée par vous pour l'instant",
+    "emptyFiltered": "Aucune tâche ne correspond aux filtres actuels"
+  },
+  "list": {
+    "title": "Tâches",
+    "empty": "Aucune tâche dans ce projet pour l'instant",
+    "selectPrompt": "Sélectionnez une tâche pour afficher ses détails"
+  },
+  "row": {
+    "due": "échéance {{date}}"
+  },
+  "chips": {
+    "priorityTooltip": "Priorité {{priority}}"
+  },
+  "details": {
+    "editTask": "Modifier la tâche",
+    "deleteTask": "Supprimer la tâche",
+    "deleteConfirm": "Supprimer {{id}} « {{title}} » ? Cette action est irréversible.",
+    "statusLabel": "Statut",
+    "priorityLabel": "Priorité",
+    "projectLabel": "Projet",
+    "assigneeLabel": "Assigné à",
+    "dueLabel": "Échéance",
+    "scheduleLabel": "Planning",
+    "dependsOnLabel": "Dépend de",
+    "createdByLabel": "Créée par",
+    "createdLabel": "Créée le",
+    "updatedLabel": "Mise à jour le",
+    "overdueSuffix": "(en retard)",
+    "milestoneSuffix": "(jalon)",
+    "descriptionHeading": "Description",
+    "attachedHeading": "Documents joints",
+    "attach": "Joindre",
+    "linkJobBatch": "Lier un ordre/lot",
+    "nothingAttached": "Aucune pièce jointe.",
+    "removeAttachment": "Retirer la pièce jointe",
+    "attachDocTitle": "Joindre un document"
+  },
+  "editDialog": {
+    "editTitle": "Modifier {{id}}",
+    "createTitle": "Nouvelle tâche",
+    "titleLabel": "Titre",
+    "descriptionLabel": "Description (markdown)",
+    "statusLabel": "Statut",
+    "priorityLabel": "Priorité",
+    "dueDateLabel": "Échéance",
+    "assigneeLabel": "Assigné à",
+    "unassigned": "Non assignée",
+    "scheduleSection": "Planning",
+    "startDateLabel": "Date de début",
+    "endDateLabel": "Date de fin",
+    "endDateMilestoneLabel": "Date de fin (jalon)",
+    "endsBeforeStarts": "Se termine avant de commencer",
+    "milestoneLabel": "Jalon",
+    "oneSidedHint": "Renseignez les deux dates pour planifier la tâche, ou effacez les deux pour la laisser dans le backlog.",
+    "progressLabel": "Avancement {{value}} %",
+    "stageLabel": "Phase",
+    "stagePlaceholder": "Regrouper sous une barre de phase",
+    "dependsOnLabel": "Dépend de",
+    "dependsOnPlaceholder": "Tâches prédécesseures"
+  },
+  "quickDialog": {
+    "title": "Nouvelle tâche dans {{project}}",
+    "titleLabel": "Titre",
+    "descriptionLabel": "Description (facultative)"
+  },
+  "attachDialog": {
+    "title": "Joindre une tâche",
+    "searchPlaceholder": "Rechercher des tâches",
+    "emptySearch": "Aucune tâche ne correspond à la recherche",
+    "empty": "Aucune tâche dans ce projet pour l'instant"
+  },
+  "viewDialog": {
+    "gone": "Cette tâche n'existe plus.",
+    "unavailable": "Tâche indisponible."
+  },
+  "gantt": {
+    "scheduleColumn": "Planning",
+    "hintWritable": "Faites glisser les barres pour déplacer, les bords pour redimensionner, le cercle pour lier des tâches ; glissez des lignes du backlog sur le diagramme.",
+    "hintReadOnly": "Lecture seule — votre rôle sur le projet permet de consulter le planning mais pas de le modifier.",
+    "scrollToToday": "Aller à aujourd'hui",
+    "zoomToFit": "Ajuster le zoom au planning",
+    "unitDay": "Jour",
+    "unitWeek": "Semaine",
+    "unitMonth": "Mois",
+    "today": "Aujourd'hui",
+    "emptyWritable": "Rien de planifié pour l'instant — définissez les dates de début et de fin d'une tâche, ou glissez-en une depuis le backlog.",
+    "emptyReadOnly": "Rien de planifié pour l'instant — définissez les dates de début et de fin d'une tâche.",
+    "removeDependencyConfirm": "Supprimer la dépendance <b>{{from}} → {{to}}</b> ?",
+    "backlogTitle": "Backlog",
+    "backlogEmpty": "Toutes les tâches sont planifiées"
+  },
+  "hoverCard": {
+    "spanLine": "{{range}} · {{days}} j",
+    "milestone": "Jalon",
+    "progress": "Avancement {{value}} %",
+    "deps_one": "{{count}} dépendance",
+    "deps_other": "{{count}} dépendances",
+    "due": "Échéance {{date}}"
+  }
+}

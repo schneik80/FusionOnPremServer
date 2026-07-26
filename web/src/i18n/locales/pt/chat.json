@@ -1,0 +1,85 @@
+{
+  "unavailable": "O chat está indisponível: {{message}}",
+  "unknownError": "erro",
+  "header": {
+    "archived": "arquivado",
+    "reconnecting": "a restabelecer ligação…"
+  },
+  "emptyState": {
+    "noMessages": "Ainda não há mensagens — inicie a conversa."
+  },
+  "sidebar": {
+    "title": "Canais",
+    "archived": "arquivado",
+    "newDisabledReason": "A sua função no projeto não permite criar canais — é necessário acesso de Editor"
+  },
+  "createDialog": {
+    "title": "Novo canal",
+    "name": "Nome",
+    "topicOptional": "Tópico (opcional)",
+    "private": "Privado (só os membros convidados o podem ver)",
+    "members": "Membros",
+    "membersPlaceholder": "Adicionar membros do projeto",
+    "createFailed": "não foi possível criar o canal"
+  },
+  "channelMenu": {
+    "options": "Opções do canal",
+    "edit": "Editar canal…",
+    "members": "Membros…",
+    "archive": "Arquivar canal…",
+    "leave": "Sair do canal"
+  },
+  "editDialog": {
+    "title": "Editar #{{name}}",
+    "name": "Nome",
+    "topic": "Tópico",
+    "rootNoRename": "O canal raiz não pode ser renomeado",
+    "updateFailed": "não foi possível atualizar o canal"
+  },
+  "archiveDialog": {
+    "title": "Arquivar #{{name}}?",
+    "body": "O canal continua legível, mas ninguém pode voltar a publicar nele. Não é possível anular o arquivamento.",
+    "confirm": "Arquivar"
+  },
+  "membersDialog": {
+    "title": "Membros de #{{name}}",
+    "addMember": "Adicionar um membro do projeto",
+    "everyoneHere": "Todos os membros do projeto já estão aqui",
+    "owner": "proprietário",
+    "removeFromChannel": "Remover do canal",
+    "changeFailed": "falha na alteração de membros",
+    "done": "Concluído"
+  },
+  "composer": {
+    "placeholder": "Mensagem",
+    "placeholderChannel": "Mensagem para #{{name}}",
+    "disabledArchived": "Este canal está arquivado",
+    "disabledReadOnly": "A sua função no projeto é só de leitura",
+    "attachDoc": "Anexar um cartão de documento",
+    "attachTask": "Anexar um cartão de tarefa",
+    "createTask": "Criar uma tarefa e anexar o seu cartão",
+    "linkProduction": "Ligar um trabalho ou lote",
+    "attach": "Anexar",
+    "send": "enviar mensagem",
+    "sendFailed": "falha no envio"
+  },
+  "message": {
+    "unknownAuthor": "Desconhecido",
+    "edited": "(editada)",
+    "deleted": "mensagem eliminada",
+    "addReaction": "Adicionar reação",
+    "replyInThread": "Responder no fio",
+    "delete": "Eliminar mensagem",
+    "replies_one": "{{count}} resposta",
+    "replies_other": "{{count}} respostas"
+  },
+  "thread": {
+    "title": "Fio de conversa",
+    "close": "fechar o fio",
+    "notFound": "Fio de conversa não encontrado.",
+    "replyPlaceholder": "Responder…"
+  },
+  "typing_one": "{{name}} está a escrever…",
+  "typing_other": "{{count}} pessoas estão a escrever…",
+  "typingTwo": "{{a}} e {{b}} estão a escrever…"
+}

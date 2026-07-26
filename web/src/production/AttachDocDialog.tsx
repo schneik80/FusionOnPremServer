@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
 import type { HubPick } from '../components/hubbrowser/HubBrowserDialog'
 import type { Item } from '../api/types'
@@ -12,8 +13,8 @@ export function AttachDocDialog({
   open,
   hubId,
   initialProject,
-  title = 'Attach a document',
-  pickLabel = 'Attach',
+  title,
+  pickLabel,
   onClose,
   onPicked,
 }: {
@@ -25,6 +26,7 @@ export function AttachDocDialog({
   onClose: () => void
   onPicked: (pin: DocPin) => void
 }) {
+  const { t } = useTranslation('production')
   const handle = (pick: HubPick) => {
     if (!pick.item || !pick.project.altId) {
       onClose()
@@ -44,11 +46,11 @@ export function AttachDocDialog({
     <HubBrowserDialog
       open={open}
       hubId={hubId}
-      title={title}
+      title={title ?? t('attachDoc.title')}
       mode="document"
       selectable={(item) => !item.isContainer}
       initialProject={initialProject}
-      pickLabel={pickLabel}
+      pickLabel={pickLabel ?? t('attachDoc.attach')}
       onClose={onClose}
       onPick={handle}
     />

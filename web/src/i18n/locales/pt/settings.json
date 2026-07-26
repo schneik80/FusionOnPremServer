@@ -1,0 +1,28 @@
+{
+  "title": "Definições",
+  "theme": {
+    "label": "Tema",
+    "light": "Claro",
+    "dark": "Escuro",
+    "system": "Sistema"
+  },
+  "language": {
+    "label": "Idioma"
+  },
+  "port": {
+    "label": "Porta do servidor",
+    "applyRestart": "Aplicar e reiniciar",
+    "applying": "A aplicar…",
+    "fixedAtStartup": "Fixa no arranque (iniciado com <cmd>-addr</cmd> ou em modo de desenvolvimento).",
+    "restarting": "O servidor está a reiniciar. A restabelecer ligação a <lnk>{{url}}</lnk>…",
+    "rangeHelp": "{{min}}–{{max}}. Alterar a porta reinicia o servidor; a ligação será restabelecida na nova porta."
+  },
+  "region": {
+    "label": "Região",
+    "help": "Definida no arranque do servidor (só de leitura)."
+  },
+  "about": {
+    "label": "Acerca de",
+    "buildNote": "Abrir/inserir no Fusion e a transferência de STEP ainda não estão disponíveis nesta compilação."
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "untitledPage": "Sin título",
+  "pages": {
+    "title": "Páginas",
+    "searchPlaceholder": "Buscar páginas",
+    "noMatches": "No hay páginas coincidentes",
+    "empty": "Aún no hay páginas"
+  },
+  "statusShort": {
+    "draft": "Borrador",
+    "edited": "Editada",
+    "synced": "Sincronizada",
+    "update": "Actualizar",
+    "conflict": "Conflicto",
+    "published": "Publicada"
+  },
+  "status": {
+    "localDraft": "Borrador local",
+    "unpublishedChanges": "Cambios sin publicar",
+    "updateAvailable": "Actualización disponible",
+    "conflict": "Conflicto",
+    "synced": "Sincronizada",
+    "published": "Publicada"
+  },
+  "empty": {
+    "title": "Wiki del proyecto",
+    "body": "Redacte páginas en markdown para este proyecto. Los borradores se guardan en este dispositivo hasta que los publique en la carpeta Wiki del proyecto.",
+    "newPage": "Nueva página"
+  },
+  "alerts": {
+    "pagesLoadFailed": "No se pudieron cargar las páginas publicadas. Los borradores locales siguen disponibles.",
+    "publishFailed": "La publicación falló.",
+    "renameFailed": "El cambio de nombre falló.",
+    "refreshFailed": "La actualización falló."
+  },
+  "publish": {
+    "conflictConfirm": "Esta página cambió desde que la abrió. ¿Sobrescribir la versión publicada?"
+  },
+  "reader": {
+    "rename": "Renombrar",
+    "update": "Actualizar",
+    "takeLatest": "Tomar la más reciente",
+    "behindBody": "Se publicó una versión más reciente desde otro dispositivo.",
+    "conflictBody": "Se publicó una versión más reciente desde otro dispositivo y usted tiene ediciones locales sin publicar. Tomar la más reciente descarta sus ediciones; Editar → Publicar conserva las suyas.",
+    "editAsDraft": "Editar como borrador",
+    "downloadFailed": "No se pudo descargar esta página."
+  },
+  "renameDialog": {
+    "title": "Renombrar página",
+    "rename": "Renombrar",
+    "renaming": "Renombrando…"
+  },
+  "editor": {
+    "titlePlaceholder": "Título de la página",
+    "savedLocally": "Guardado localmente",
+    "saving": "Guardando…",
+    "publish": "Publicar",
+    "publishing": "Publicando…",
+    "publishTooltip": "Publicar en la carpeta Wiki del proyecto",
+    "publishUnavailable": "Publicación no disponible",
+    "heading1Tooltip": "Encabezado 1",
+    "heading2Tooltip": "Encabezado 2",
+    "heading3Tooltip": "Encabezado 3",
+    "boldTooltip": "Negrita",
+    "italicTooltip": "Cursiva",
+    "inlineCodeTooltip": "Código en línea",
+    "bulletedListTooltip": "Lista con viñetas",
+    "quoteTooltip": "Cita",
+    "linkTooltip": "Enlace",
+    "insertImageUploadTooltip": "Insertar imagen (se carga a la página)",
+    "insertImageUrlTooltip": "Insertar URL de imagen",
+    "insertImageFromPublicUrlTooltip": "Insertar imagen desde una URL pública",
+    "embedHubImageTooltip": "Incrustar una imagen almacenada en este hub",
+    "insertDocCardTooltip": "Insertar una tarjeta de documento (explorar este hub)",
+    "insertTaskCardTooltip": "Insertar una tarjeta de tarea (tareas de este proyecto)",
+    "createTaskCardTooltip": "Crear una tarea e insertar su tarjeta",
+    "insertProdCardTooltip": "Insertar una tarjeta de trabajo o lote (producción de este proyecto)",
+    "imageUploadFailed": "La carga de la imagen falló.",
+    "hubImageDialogTitle": "Incrustar una imagen del hub",
+    "embedImage": "Incrustar imagen",
+    "docCardDialogTitle": "Insertar una tarjeta de documento",
+    "insertCard": "Insertar tarjeta",
+    "preview": "Vista previa",
+    "emptyPreview": "Aún no hay nada que previsualizar."
+  },
+  "imageUrlDialog": {
+    "title": "Insertar imagen desde URL",
+    "urlLabel": "URL de la imagen",
+    "urlHelper": "La URL debe ser accesible públicamente para cualquiera que lea la página.",
+    "altLabel": "Texto alternativo (opcional)",
+    "previewFailed": "No se pudo cargar una vista previa — compruebe que la URL apunta a una imagen.",
+    "insert": "Insertar"
+  },
+  "toc": {
+    "title": "En esta página",
+    "ariaLabel": "Índice de contenidos"
+  }
+}

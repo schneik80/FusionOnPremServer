@@ -1,0 +1,173 @@
+{
+  "appLayout": {
+    "changeHub": "Change hub",
+    "selectHub": "Select a hub",
+    "switchToLight": "Switch to light",
+    "switchToDark": "Switch to dark",
+    "toggleTheme": "Toggle theme",
+    "signOut": "Sign out"
+  },
+  "breadcrumb": {
+    "noHub": "No hub selected — choose one from the rail"
+  },
+  "column": {
+    "emptyDefault": "Nothing here"
+  },
+  "projectsColumn": {
+    "title": "Projects",
+    "emptyInHub": "No projects in this hub",
+    "selectHubHint": "Select a hub to begin"
+  },
+  "contents": {
+    "title": "Contents",
+    "uploadHere": "Upload files here",
+    "uploadAria": "Upload files",
+    "sort": "Sort",
+    "sortAria": "Sort contents",
+    "sortName": "Name (A–Z)",
+    "sortModified": "Last modified",
+    "sortType": "Type",
+    "emptyFolder": "Empty folder",
+    "selectProject": "Select a project"
+  },
+  "itemRow": {
+    "pin": "Pin",
+    "unpin": "Unpin"
+  },
+  "hubSwitcher": {
+    "title": "Switch hub"
+  },
+  "pins": {
+    "title": "Pins",
+    "groupProjects": "Projects",
+    "groupFolders": "Folders",
+    "groupDocuments": "Documents",
+    "selectHub": "Select a hub to see its pins.",
+    "empty": "No pins yet. Click the star on any project, folder, or document to bookmark it.",
+    "navigate": "Navigate",
+    "openInsertSoon": "Open / Insert (coming soon)",
+    "removePin": "Remove pin",
+    "unknownProject": "(project)"
+  },
+  "upload": {
+    "title": "Upload files",
+    "uploadingTo": "Uploading to <strong>{{target}}</strong>",
+    "chooseTarget": "Open a project or folder to choose where files go.",
+    "dropHint": "Drag & drop files here",
+    "addFiles": "Add files",
+    "readyToUpload": "Ready to upload ({{count}})",
+    "uploadsHeading": "Uploads",
+    "clearFinished": "Clear finished",
+    "uploading": "Uploading…",
+    "upload": "Upload",
+    "uploadCount_one": "Upload {{count}} file",
+    "uploadCount_other": "Upload {{count}} files",
+    "removeFile": "Remove {{name}}",
+    "cancelUpload": "Cancel upload",
+    "removeFromList": "Remove from list",
+    "cancelUploadOf": "Cancel upload of {{name}}",
+    "dismissFile": "Dismiss {{name}}",
+    "failedFallback": "upload failed",
+    "status": {
+      "queued": "queued",
+      "done": "done",
+      "error": "error",
+      "canceled": "canceled"
+    }
+  },
+  "uploadFooter": {
+    "starting": "Starting upload…",
+    "progress": "Uploading {{current}} of {{total}} — {{pct}}%",
+    "doneAndFailed": "{{done}} uploaded, {{failed}} failed",
+    "filesUploaded_one": "{{count}} file uploaded",
+    "filesUploaded_other": "{{count}} files uploaded",
+    "view": "View",
+    "dismiss": "Dismiss",
+    "dropTitle": "Drop files to upload",
+    "dropTarget": "to {{target}}"
+  },
+  "login": {
+    "tagline": "Sign in with your Autodesk account to browse your Fusion hubs, projects, and designs.",
+    "signInButton": "Sign in with Autodesk",
+    "errors": {
+      "expired": "The sign-in attempt expired or could not be verified. Please try again.",
+      "incomplete": "Autodesk did not complete the sign-in. Please try again.",
+      "session": "The server could not start a session. Please try again.",
+      "denied": "Sign-in was cancelled or access was denied.",
+      "generic": "Sign-in failed ({{reason}})."
+    }
+  },
+  "errorBoundary": {
+    "failed": "This {{label}} failed to load.",
+    "unexpected": "An unexpected error occurred.",
+    "tryAgain": "Try again"
+  },
+  "projectPanel": {
+    "tabs": {
+      "dashboard": "Dashboard",
+      "production": "Production",
+      "tasks": "Tasks",
+      "whiteboards": "Whiteboards",
+      "wiki": "Wiki",
+      "chat": "Chat"
+    }
+  },
+  "railHeader": {
+    "new": "New"
+  },
+  "hubBrowser": {
+    "filterPlaceholder": "Filter projects",
+    "loadProjectsFailed": "Couldn't load projects.",
+    "loadFolderFailed": "Couldn't load this folder.",
+    "emptyFolder": "This folder is empty.",
+    "nonePickable": "None of these documents can be picked here.",
+    "selectProjectToBrowse": "Select a project to browse.",
+    "notBrowsable": "This project can't be browsed (no Data Management id).",
+    "selectProjectOrFolder": "Select a project or folder.",
+    "selectDocument": "Select a document.",
+    "selectThisFolder": "Select this folder",
+    "select": "Select"
+  },
+  "docCard": {
+    "open": "Go to this document",
+    "locating": "Locating…",
+    "locationUnavailable": "Location unavailable"
+  },
+  "taskCard": {
+    "open": "Open this task",
+    "notFound": "Task not found (deleted)",
+    "unavailable": "Task unavailable",
+    "due": "due {{date}}"
+  },
+  "prodCard": {
+    "openJob": "Open this job",
+    "openBatch": "Open this batch",
+    "jobNotFound": "Job not found",
+    "batchNotFound": "Batch not found",
+    "jobUnavailable": "Job unavailable",
+    "batchUnavailable": "Batch unavailable",
+    "steps_one": "{{count}} step",
+    "steps_other": "{{count}} steps",
+    "batches_one": "{{count}} batch",
+    "batches_other": "{{count}} batches"
+  },
+  "prodView": {
+    "jobGone": "This job is no longer available.",
+    "batchGone": "This batch is no longer available.",
+    "batchDeletedFrom": "This batch was deleted from {{job}}.",
+    "stepsHeading": "Steps",
+    "noSteps": "no steps yet",
+    "noDocuments": "no documents"
+  },
+  "viewer": {
+    "previewUnavailable": "Preview unavailable for this document.",
+    "noInlinePreview": "No inline preview for this file type.",
+    "download": "Download",
+    "openInFusion": "Open in Fusion",
+    "imageFailed": "This image could not be displayed.",
+    "videoFailed": "This video format can't be played here.",
+    "pdfFailed": "This PDF could not be rendered.",
+    "tooLarge": "This file is too large to preview.",
+    "loadFailed": "Failed to load file"
+  }
+}

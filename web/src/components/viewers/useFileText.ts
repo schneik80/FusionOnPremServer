@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
+import i18n from '../../i18n'
 
 export interface FileText {
   loading: boolean
@@ -28,7 +29,7 @@ export function useFileText(dmProjectId: string, itemId: string): FileText {
             loading: false,
             text: '',
             tooLarge: false,
-            error: e instanceof Error ? e.message : 'Failed to load file',
+            error: e instanceof Error ? e.message : i18n.t('browse:viewer.loadFailed'),
           })
         }
       })

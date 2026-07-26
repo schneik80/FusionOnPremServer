@@ -1,6 +1,7 @@
 import { Box, Chip, Tooltip } from '@mui/material'
+import { useTranslation } from 'react-i18next'
+import { taskPriorityLabel, taskStatusLabel } from '../i18n/enums'
 import type { TaskPriority, TaskStatus } from './types'
-import { PRIORITY_LABEL, STATUS_LABEL } from './types'
 
 // Shared status/priority affordances for the task list, board, details and
 // cards, so the color language stays consistent everywhere.
@@ -26,15 +27,18 @@ export const PRIORITY_COLOR: Record<
 }
 
 export function StatusChip({ status, size = 'small' }: { status: TaskStatus; size?: 'small' | 'medium' }) {
-  return <Chip label={STATUS_LABEL[status]} color={STATUS_COLOR[status]} size={size} variant="outlined" />
+  const { t } = useTranslation('tasks')
+  return <Chip label={taskStatusLabel(t, status)} color={STATUS_COLOR[status]} size={size} variant="outlined" />
 }
 
 export function PriorityChip({ priority, size = 'small' }: { priority: TaskPriority; size?: 'small' | 'medium' }) {
-  return <Chip label={PRIORITY_LABEL[priority]} color={PRIORITY_COLOR[priority]} size={size} variant="outlined" />
+  const { t } = useTranslation('tasks')
+  return <Chip label={taskPriorityLabel(t, priority)} color={PRIORITY_COLOR[priority]} size={size} variant="outlined" />
 }
 
 // PriorityDot is the compact form for dense rows and board cards.
 export function PriorityDot({ priority }: { priority: TaskPriority }) {
+  const { t } = useTranslation('tasks')
   const palette: Record<TaskPriority, string> = {
     low: 'text.disabled',
     medium: 'info.main',
@@ -42,7 +46,7 @@ export function PriorityDot({ priority }: { priority: TaskPriority }) {
     urgent: 'error.main',
   }
   return (
-    <Tooltip title={`${PRIORITY_LABEL[priority]} priority`}>
+    <Tooltip title={t('chips.priorityTooltip', { priority: taskPriorityLabel(t, priority) })}>
       <Box
         component="span"
         sx={{

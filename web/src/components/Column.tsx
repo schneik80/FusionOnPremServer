@@ -6,6 +6,7 @@ import {
   Typography,
 } from '@mui/material'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // The width of a project app's left-hand list rail — every tab in ProjectPanel
 // that has one: Tasks, Wiki, Production, Whiteboards and Chat. They had drifted
@@ -40,10 +41,11 @@ export function Column({
   loading,
   error,
   empty,
-  emptyText = 'Nothing here',
+  emptyText,
   action,
   children,
 }: ColumnProps) {
+  const { t } = useTranslation('browse')
   return (
     <Paper
       square
@@ -101,7 +103,7 @@ export function Column({
         ) : empty ? (
           <Centered>
             <Typography variant="body2" color="text.secondary">
-              {emptyText}
+              {emptyText ?? t('column.emptyDefault')}
             </Typography>
           </Centered>
         ) : (

@@ -1,5 +1,6 @@
 import { Box } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ViewerFile } from './kind'
 import { FallbackViewer } from './ui'
 
@@ -8,9 +9,10 @@ import { FallbackViewer } from './ui'
 // browser fetches only the window it needs rather than the whole file. Codecs
 // the browser can't decode fall through to the download fallback.
 export function VideoViewer({ file }: { file: ViewerFile }) {
+  const { t } = useTranslation('browse')
   const [failed, setFailed] = useState(false)
 
-  if (failed) return <FallbackViewer file={file} reason="This video format can't be played here." />
+  if (failed) return <FallbackViewer file={file} reason={t('viewer.videoFailed')} />
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center' }}>

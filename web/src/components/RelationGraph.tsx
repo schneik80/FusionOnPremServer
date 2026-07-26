@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Tooltip, Typography } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { useQuery } from '@tanstack/react-query'
@@ -55,6 +56,7 @@ export default function RelationGraph({
   direction: 'down' | 'up' // uses = children below; whereUsed = parents above
   onNavigate: (n: GraphNode) => void
 }) {
+  const { t } = useTranslation('details')
   const theme = useTheme()
   const accent = theme.palette.primary.main
   const edgeColor = theme.palette.text.secondary
@@ -213,12 +215,12 @@ export default function RelationGraph({
 
       {/* toolbar */}
       <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5, alignItems: 'center' }}>
-        <ToolBtn label="Zoom out" icon={faMagnifyingGlassMinus} onClick={() => zoomAt(0.83, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
+        <ToolBtn label={t('relation.zoomOut')} icon={faMagnifyingGlassMinus} onClick={() => zoomAt(0.83, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
         <Typography variant="caption" sx={{ minWidth: 34, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
           {Math.round(view.scale * 100)}%
         </Typography>
-        <ToolBtn label="Zoom in" icon={faMagnifyingGlassPlus} onClick={() => zoomAt(1.2, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
-        <ToolBtn label="Fit to view" icon={faArrowsToDot} onClick={fit} />
+        <ToolBtn label={t('relation.zoomIn')} icon={faMagnifyingGlassPlus} onClick={() => zoomAt(1.2, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
+        <ToolBtn label={t('relation.fitToView')} icon={faArrowsToDot} onClick={fit} />
       </Box>
     </Box>
   )
@@ -242,6 +244,7 @@ function NodeBox({
   projectAltId?: string
   onNavigate: (n: GraphNode) => void
 }) {
+  const { t } = useTranslation('details')
   const [imgFailed, setImgFailed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const canNav = !node.isFocus && !!node.navId
@@ -298,7 +301,7 @@ function NodeBox({
         {node.name}
       </Typography>
       <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', textTransform: 'capitalize', lineHeight: 1 }}>
-        {node.isFocus ? 'this document' : node.kind}
+        {node.isFocus ? t('relation.thisDocument') : node.kind}
       </Typography>
     </Box>
   )
@@ -314,6 +317,7 @@ function NodeBox({
 // NodeTooltip shows the node's location (project + folder path), resolved on
 // hover, plus a hint that clicking navigates there.
 function NodeTooltip({ navId, name }: { navId: string; name: string }) {
+  const { t } = useTranslation('details')
   const nav = useNav()
   const locQ = useQuery({
     queryKey: ['location', nav.hubId, navId],
@@ -329,10 +333,10 @@ function NodeTooltip({ navId, name }: { navId: string; name: string }) {
         {name}
       </Typography>
       <Typography variant="caption" sx={{ display: 'block', color: 'inherit', opacity: 0.85 }}>
-        {locQ.isLoading ? 'Locating…' : (path ?? 'Location unavailable')}
+        {locQ.isLoading ? t('relation.locating') : (path ?? t('relation.locationUnavailable'))}
       </Typography>
       <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, opacity: 0.85 }}>
-        <FontAwesomeIcon icon={faUpRightFromSquare} style={{ fontSize: 9 }} /> Click to open
+        <FontAwesomeIcon icon={faUpRightFromSquare} style={{ fontSize: 9 }} /> {t('relation.clickToOpen')}
       </Typography>
     </Box>
   )

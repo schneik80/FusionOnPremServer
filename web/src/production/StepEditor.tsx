@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { useJobGraphMutations } from '../api/queries'
 import { DocSourceButton } from './DocSourceButton'
 import { PinnedDocChip } from './PinnedDocChip'
@@ -39,6 +40,7 @@ export function StepEditor({
   graph: Graph
   onClose: () => void
 }) {
+  const { t } = useTranslation('production')
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
   const [placeholder, setPlaceholder] = useState('')
@@ -59,8 +61,8 @@ export function StepEditor({
 
   const saveTitle = () => {
     if (!step) return
-    const t = title.trim()
-    if (t && t !== step.title) graph.updateStep.mutate({ stepId: step.id, patch: { title: t } })
+    const trimmed = title.trim()
+    if (trimmed && trimmed !== step.title) graph.updateStep.mutate({ stepId: step.id, patch: { title: trimmed } })
     else setTitle(step.title)
   }
   const saveDesc = () => {
@@ -94,7 +96,7 @@ export function StepEditor({
           >
             <StepNumBadge num={step.num} />
             <Typography variant="subtitle2" sx={{ flex: 1 }}>
-              Step
+              {t('stepEditor.title')}
             </Typography>
             <IconButton size="small" onClick={onClose}>
               <FontAwesomeIcon icon={faXmark} style={{ fontSize: 14 }} />
@@ -103,7 +105,7 @@ export function StepEditor({
 
           <Box sx={{ p: 1.5, flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <TextField
-              label="Title"
+              label={t('stepEditor.titleLabel')}
               size="small"
               fullWidth
               value={title}
@@ -113,7 +115,7 @@ export function StepEditor({
               onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
             />
             <TextField
-              label="Description"
+              label={t('stepEditor.descriptionLabel')}
               size="small"
               fullWidth
               multiline
@@ -128,7 +130,7 @@ export function StepEditor({
             <Divider sx={{ my: 2 }} />
 
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-              Placeholders — documents supplied per batch
+              {t('stepEditor.placeholdersCaption')}
             </Typography>
             <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
               {step.placeholders.map((ph) => (
@@ -144,7 +146,7 @@ export function StepEditor({
               ))}
               {step.placeholders.length === 0 && (
                 <Typography variant="caption" color="text.disabled">
-                  none yet
+                  {t('empty.noneYet')}
                 </Typography>
               )}
             </Stack>
@@ -152,7 +154,7 @@ export function StepEditor({
               <TextField
                 size="small"
                 fullWidth
-                placeholder="Add a placeholder (e.g. Setup 1 NC program)"
+                placeholder={t('placeholders.addHint')}
                 value={placeholder}
                 onChange={(e) => setPlaceholder(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addPlaceholder()}
@@ -163,7 +165,7 @@ export function StepEditor({
             <Divider sx={{ my: 2 }} />
 
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-              Plan documents — pinned to the version attached
+              {t('stepEditor.planDocsCaption')}
             </Typography>
             <Stack spacing={0.75} sx={{ mb: 1 }}>
               {step.planDocs.map((pd) => (
@@ -179,14 +181,14 @@ export function StepEditor({
               ))}
               {step.planDocs.length === 0 && (
                 <Typography variant="caption" color="text.disabled">
-                  none yet
+                  {t('empty.noneYet')}
                 </Typography>
               )}
             </Stack>
             {canWrite && (
               <DocSourceButton
                 folderPath={['Jobs', jobName]}
-                label="Attach a document"
+                label={t('stepEditor.attachDocument')}
                 icon={faPaperclip}
                 onPin={(pin) => graph.addPlanDoc.mutate({ stepId: step.id, body: pin })}
               />
@@ -195,7 +197,7 @@ export function StepEditor({
 
           {canWrite && (
             <Box sx={{ p: 1.5, borderTop: 1, borderColor: 'divider' }}>
-              <Tooltip title="Delete step">
+              <Tooltip title={t('stepEditor.deleteStep')}>
                 <Button
                   size="small"
                   color="error"
@@ -203,13 +205,13 @@ export function StepEditor({
                   startIcon={<FontAwesomeIcon icon={faTrash} style={{ fontSize: 12 }} />}
                   disabled={graph.removeStep.isPending}
                   onClick={() => {
-                    if (window.confirm(`Delete step "${step.title}"?`)) {
+                    if (window.confirm(t('stepEditor.deleteConfirm', { title: step.title }))) {
                       graph.removeStep.mutate(step.id, { onSuccess: onClose })
                     }
                   }}
                   sx={{ textTransform: 'none' }}
                 >
-                  Delete step
+                  {t('stepEditor.deleteStep')}
                 </Button>
               </Tooltip>
             </Box>

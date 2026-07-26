@@ -8,6 +8,7 @@ import {
   ListItemButton,
   Typography,
 } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { APP_RAIL_WIDTH } from '../components/Column'
 import { RailHeader } from '../components/RailHeader'
 import type { DraftStatus } from './draftStore'
@@ -29,16 +30,17 @@ export interface WikiEntry {
   modifiedOn?: string
 }
 
+// labelKey is resolved through the 'wiki' catalog at render time.
 const STATUS_META: Record<
   WikiEntryStatus,
-  { label: string; color: 'default' | 'warning' | 'success' | 'info' | 'error' }
+  { labelKey: string; color: 'default' | 'warning' | 'success' | 'info' | 'error' }
 > = {
-  draft: { label: 'Draft', color: 'default' },
-  modified: { label: 'Edited', color: 'warning' },
-  published: { label: 'Synced', color: 'success' },
-  behind: { label: 'Update', color: 'info' },
-  conflict: { label: 'Conflict', color: 'error' },
-  remote: { label: 'Published', color: 'info' },
+  draft: { labelKey: 'statusShort.draft', color: 'default' },
+  modified: { labelKey: 'statusShort.edited', color: 'warning' },
+  published: { labelKey: 'statusShort.synced', color: 'success' },
+  behind: { labelKey: 'statusShort.update', color: 'info' },
+  conflict: { labelKey: 'statusShort.conflict', color: 'error' },
+  remote: { labelKey: 'statusShort.published', color: 'info' },
 }
 
 interface WikiSidebarProps {
@@ -60,6 +62,7 @@ export function WikiSidebar({
   query,
   onQuery,
 }: WikiSidebarProps) {
+  const { t } = useTranslation('wiki')
   return (
     <Box
       sx={{
@@ -73,9 +76,9 @@ export function WikiSidebar({
       }}
     >
       <RailHeader
-        title="Pages"
+        title={t('pages.title')}
         onNew={onNew}
-        search={{ value: query, onChange: onQuery, placeholder: 'Search pages' }}
+        search={{ value: query, onChange: onQuery, placeholder: t('pages.searchPlaceholder') }}
       />
 
       <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -85,7 +88,7 @@ export function WikiSidebar({
           </Box>
         ) : entries.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-            {query ? 'No matching pages' : 'No pages yet'}
+            {query ? t('pages.noMatches') : t('pages.empty')}
           </Typography>
         ) : (
           <List dense disablePadding>
@@ -107,7 +110,7 @@ export function WikiSidebar({
                   </Typography>
                   <Chip
                     size="small"
-                    label={meta.label}
+                    label={t(meta.labelKey)}
                     color={meta.color}
                     variant="outlined"
                     sx={{ height: 17, fontSize: 9.5, flexShrink: 0 }}

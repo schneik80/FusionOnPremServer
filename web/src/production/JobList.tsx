@@ -9,6 +9,7 @@ import {
 } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useProductionMutations } from '../api/queries'
 import { APP_RAIL_WIDTH } from '../components/Column'
 import { RailHeader } from '../components/RailHeader'
@@ -39,6 +40,7 @@ export function JobList({
   selectedId: string | null
   onSelect: (id: string) => void
 }) {
+  const { t } = useTranslation('production')
   const { createJob } = useProductionMutations(projectId)
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -72,12 +74,10 @@ export function JobList({
       }}
     >
       <RailHeader
-        title="Jobs"
+        title={t('jobList.title')}
         onNew={() => setAdding((v) => !v)}
         newDisabled={!canWrite}
-        newDisabledReason={
-          loading ? '' : 'Your project role is read-only — creating jobs needs Editor access'
-        }
+        newDisabledReason={loading ? '' : t('jobList.readOnlyReason')}
       />
 
       {adding && (
@@ -86,7 +86,7 @@ export function JobList({
             autoFocus
             fullWidth
             size="small"
-            placeholder="Job name"
+            placeholder={t('jobList.namePlaceholder')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -106,7 +106,7 @@ export function JobList({
               }}
               sx={{ textTransform: 'none' }}
             >
-              Cancel
+              {t('common:cancel')}
             </Button>
             <Button
               size="small"
@@ -115,7 +115,7 @@ export function JobList({
               disabled={!name.trim() || createJob.isPending}
               sx={{ textTransform: 'none' }}
             >
-              Create
+              {t('common:create')}
             </Button>
           </Stack>
         </Box>
@@ -124,11 +124,11 @@ export function JobList({
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {error ? (
           <Typography variant="caption" color="error" sx={{ p: 2, display: 'block' }}>
-            Failed to load jobs.
+            {t('jobList.loadFailed')}
           </Typography>
         ) : jobs.length === 0 && !loading ? (
           <Typography variant="caption" color="text.secondary" sx={{ p: 2, display: 'block' }}>
-            No jobs yet.
+            {t('jobList.empty')}
           </Typography>
         ) : (
           <List dense disablePadding>
@@ -152,9 +152,11 @@ export function JobList({
                   {j.name}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {jobDisplayId(j)} · {j.stepCount} step{j.stepCount === 1 ? '' : 's'} ·{' '}
-                  {j.batchCount} batch{j.batchCount === 1 ? '' : 'es'}
-                  {j.activeBatchCount > 0 ? ` · ${j.activeBatchCount} in flight` : ''}
+                  {jobDisplayId(j)} · {t('counts.steps', { count: j.stepCount })} ·{' '}
+                  {t('counts.batches', { count: j.batchCount })}
+                  {j.activeBatchCount > 0
+                    ? ` · ${t('counts.inFlight', { count: j.activeBatchCount })}`
+                    : ''}
                 </Typography>
               </ListItemButton>
             ))}

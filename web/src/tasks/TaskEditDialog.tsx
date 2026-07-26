@@ -17,12 +17,12 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useChatMembers, useTaskMutations, useTasks } from '../api/queries'
+import { taskPriorityLabel, taskStatusLabel } from '../i18n/enums'
 import {
   PRIORITIES,
-  PRIORITY_LABEL,
   STATUSES,
-  STATUS_LABEL,
   taskDisplayId,
   type Task,
   type TaskPriority,
@@ -51,6 +51,7 @@ export function TaskEditDialog({
   task?: Task // edit mode when present
   onSaved?: (t: Task) => void
 }) {
+  const { t } = useTranslation('tasks')
   const muts = useTaskMutations(projectId)
   const membersQ = useChatMembers(projectId, open)
   // The project's tasks feed the dependency picker and the stage
@@ -175,12 +176,14 @@ export function TaskEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{task ? `Edit ${taskDisplayId(task)}` : 'New task'}</DialogTitle>
+      <DialogTitle>
+        {task ? t('editDialog.editTitle', { id: taskDisplayId(task) }) : t('editDialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 0.5 }}>
           {err && <Alert severity="error">{err.message}</Alert>}
           <TextField
-            label="Title"
+            label={t('editDialog.titleLabel')}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
@@ -189,7 +192,7 @@ export function TaskEditDialog({
             inputProps={{ maxLength: 200 }}
           />
           <TextField
-            label="Description (markdown)"
+            label={t('editDialog.descriptionLabel')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
@@ -201,7 +204,7 @@ export function TaskEditDialog({
           <Stack direction="row" spacing={2}>
             <TextField
               select
-              label="Status"
+              label={t('editDialog.statusLabel')}
               value={status}
               onChange={(e) => setStatus(e.target.value as TaskStatus)}
               size="small"
@@ -209,13 +212,13 @@ export function TaskEditDialog({
             >
               {STATUSES.map((s) => (
                 <MenuItem key={s} value={s}>
-                  {STATUS_LABEL[s]}
+                  {taskStatusLabel(t, s)}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
               select
-              label="Priority"
+              label={t('editDialog.priorityLabel')}
               value={priority}
               onChange={(e) => setPriority(e.target.value as TaskPriority)}
               size="small"
@@ -223,14 +226,14 @@ export function TaskEditDialog({
             >
               {PRIORITIES.map((p) => (
                 <MenuItem key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
+                  {taskPriorityLabel(t, p)}
                 </MenuItem>
               ))}
             </TextField>
           </Stack>
           <Stack direction="row" spacing={2}>
             <TextField
-              label="Due date"
+              label={t('editDialog.dueDateLabel')}
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
@@ -240,14 +243,14 @@ export function TaskEditDialog({
             />
             <TextField
               select
-              label="Assignee"
+              label={t('editDialog.assigneeLabel')}
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
               size="small"
               sx={{ flex: 1 }}
               disabled={membersQ.isLoading}
             >
-              <MenuItem value="">Unassigned</MenuItem>
+              <MenuItem value="">{t('editDialog.unassigned')}</MenuItem>
               {extraAssignee && (
                 <MenuItem value={extraAssignee.id}>
                   {extraAssignee.name || extraAssignee.email || extraAssignee.id}
@@ -263,12 +266,12 @@ export function TaskEditDialog({
 
           <Divider textAlign="left">
             <Typography variant="caption" color="text.secondary">
-              Schedule
+              {t('editDialog.scheduleSection')}
             </Typography>
           </Divider>
           <Stack direction="row" spacing={2} alignItems="center">
             <TextField
-              label="Start date"
+              label={t('editDialog.startDateLabel')}
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -278,7 +281,7 @@ export function TaskEditDialog({
               error={oneSided && !startDate}
             />
             <TextField
-              label={milestone ? 'End date (milestone)' : 'End date'}
+              label={milestone ? t('editDialog.endDateMilestoneLabel') : t('editDialog.endDateLabel')}
               type="date"
               value={milestone ? startDate : endDate}
               onChange={(e) => setEndDate(e.target.value)}
@@ -287,7 +290,7 @@ export function TaskEditDialog({
               InputLabelProps={{ shrink: true }}
               disabled={milestone}
               error={(oneSided && !effEnd) || badOrder}
-              helperText={badOrder ? 'Ends before it starts' : undefined}
+              helperText={badOrder ? t('editDialog.endsBeforeStarts') : undefined}
             />
             <FormControlLabel
               control={
@@ -298,19 +301,19 @@ export function TaskEditDialog({
                   disabled={!startDate}
                 />
               }
-              label={<Typography variant="body2">Milestone</Typography>}
+              label={<Typography variant="body2">{t('editDialog.milestoneLabel')}</Typography>}
               sx={{ flexShrink: 0, mr: 0 }}
             />
           </Stack>
           {oneSided && (
             <Typography variant="caption" color="text.secondary">
-              Set both dates to schedule the task, or clear both to keep it in the backlog.
+              {t('editDialog.oneSidedHint')}
             </Typography>
           )}
           {!milestone && (
             <Stack direction="row" spacing={2} alignItems="center">
               <Typography variant="body2" color="text.secondary" sx={{ width: 90, flexShrink: 0 }}>
-                Progress {progress}%
+                {t('editDialog.progressLabel', { value: progress })}
               </Typography>
               <Slider
                 size="small"
@@ -332,7 +335,7 @@ export function TaskEditDialog({
               size="small"
               sx={{ flex: 1 }}
               renderInput={(params) => (
-                <TextField {...params} label="Stage" placeholder="Group under a stage bar" />
+                <TextField {...params} label={t('editDialog.stageLabel')} placeholder={t('editDialog.stagePlaceholder')} />
               )}
             />
             <Autocomplete
@@ -354,7 +357,7 @@ export function TaskEditDialog({
                 ))
               }
               renderInput={(params) => (
-                <TextField {...params} label="Depends on" placeholder="Predecessor tasks" />
+                <TextField {...params} label={t('editDialog.dependsOnLabel')} placeholder={t('editDialog.dependsOnPlaceholder')} />
               )}
             />
           </Stack>
@@ -362,14 +365,14 @@ export function TaskEditDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={pending}>
-          Cancel
+          {t('common:cancel')}
         </Button>
         <Button
           variant="contained"
           onClick={save}
           disabled={pending || !title.trim() || oneSided || badOrder}
         >
-          {task ? 'Save' : 'Create'}
+          {task ? t('common:save') : t('common:create')}
         </Button>
       </DialogActions>
     </Dialog>

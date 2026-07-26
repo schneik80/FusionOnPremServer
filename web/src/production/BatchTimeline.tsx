@@ -1,6 +1,8 @@
 import { Box, Tooltip, Typography } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { batchKindLabel, batchStatusLabel } from '../i18n/enums'
 import { PRODUCTION_ACCENT } from './BatchDetail'
 import type { ProdBatch } from './types'
 
@@ -32,6 +34,7 @@ export function BatchTimeline({
   selectedId: string | null
   onSelect: (id: string) => void
 }) {
+  const { t } = useTranslation('production')
   const theme = useTheme()
   const accent = theme.palette.primary.main
   const axis = theme.palette.text.secondary
@@ -84,7 +87,7 @@ export function BatchTimeline({
                 fill={lane === 'production' ? PRODUCTION_ACCENT : axis}
                 style={{ textTransform: 'capitalize', fontWeight: 600 }}
               >
-                {lane}
+                {batchKindLabel(t, lane)}
               </text>
             </g>
           )
@@ -116,7 +119,8 @@ export function BatchTimeline({
                       {b.name}
                     </Typography>
                     <Typography variant="caption" sx={{ display: 'block', opacity: 0.85 }}>
-                      {b.kind} · {b.status} · {new Date(b.runAt).toLocaleString()}
+                      {batchKindLabel(t, b.kind)} · {batchStatusLabel(t, b.status)} ·{' '}
+                      {new Date(b.runAt).toLocaleString()}
                     </Typography>
                   </Box>
                 }

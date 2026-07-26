@@ -1,0 +1,117 @@
+{
+  "app": {
+    "viewList": "Liste",
+    "viewBoard": "Board",
+    "viewGantt": "Gantt",
+    "newTask": "Neu",
+    "createNeedsEditor": "Ihre Projektrolle ist schreibgeschützt — zum Erstellen von Aufgaben ist Editor-Zugriff erforderlich"
+  },
+  "screen": {
+    "searchPlaceholder": "Meine Aufgaben durchsuchen",
+    "statusFilterLabel": "Status",
+    "priorityFilterLabel": "Priorität",
+    "projectFilterLabel": "Projekt",
+    "filterOpen": "Offen",
+    "filterAll": "Alle",
+    "allProjects": "Alle Projekte",
+    "emptyNoTasks": "Ihnen sind noch keine Aufgaben zugewiesen und Sie haben noch keine erstellt",
+    "emptyFiltered": "Keine Aufgaben entsprechen den aktuellen Filtern"
+  },
+  "list": {
+    "title": "Aufgaben",
+    "empty": "Noch keine Aufgaben in diesem Projekt",
+    "selectPrompt": "Wählen Sie eine Aufgabe, um deren Details anzuzeigen"
+  },
+  "row": {
+    "due": "fällig {{date}}"
+  },
+  "chips": {
+    "priorityTooltip": "Priorität: {{priority}}"
+  },
+  "details": {
+    "editTask": "Aufgabe bearbeiten",
+    "deleteTask": "Aufgabe löschen",
+    "deleteConfirm": "{{id}} „{{title}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+    "statusLabel": "Status",
+    "priorityLabel": "Priorität",
+    "projectLabel": "Projekt",
+    "assigneeLabel": "Zugewiesen an",
+    "dueLabel": "Fällig",
+    "scheduleLabel": "Zeitplan",
+    "dependsOnLabel": "Abhängig von",
+    "createdByLabel": "Erstellt von",
+    "createdLabel": "Erstellt",
+    "updatedLabel": "Aktualisiert",
+    "overdueSuffix": "(überfällig)",
+    "milestoneSuffix": "(Meilenstein)",
+    "descriptionHeading": "Beschreibung",
+    "attachedHeading": "Angehängte Dokumente",
+    "attach": "Anhängen",
+    "linkJobBatch": "Auftrag/Charge verknüpfen",
+    "nothingAttached": "Nichts angehängt.",
+    "removeAttachment": "Anhang entfernen",
+    "attachDocTitle": "Dokument anhängen"
+  },
+  "editDialog": {
+    "editTitle": "{{id}} bearbeiten",
+    "createTitle": "Neue Aufgabe",
+    "titleLabel": "Titel",
+    "descriptionLabel": "Beschreibung (Markdown)",
+    "statusLabel": "Status",
+    "priorityLabel": "Priorität",
+    "dueDateLabel": "Fälligkeitsdatum",
+    "assigneeLabel": "Zugewiesen an",
+    "unassigned": "Nicht zugewiesen",
+    "scheduleSection": "Zeitplan",
+    "startDateLabel": "Startdatum",
+    "endDateLabel": "Enddatum",
+    "endDateMilestoneLabel": "Enddatum (Meilenstein)",
+    "endsBeforeStarts": "Endet vor dem Beginn",
+    "milestoneLabel": "Meilenstein",
+    "oneSidedHint": "Setzen Sie beide Daten, um die Aufgabe einzuplanen, oder leeren Sie beide, um sie im Backlog zu belassen.",
+    "progressLabel": "Fortschritt {{value}} %",
+    "stageLabel": "Phase",
+    "stagePlaceholder": "Unter einem Phasenbalken gruppieren",
+    "dependsOnLabel": "Abhängig von",
+    "dependsOnPlaceholder": "Vorgängeraufgaben"
+  },
+  "quickDialog": {
+    "title": "Neue Aufgabe in {{project}}",
+    "titleLabel": "Titel",
+    "descriptionLabel": "Beschreibung (optional)"
+  },
+  "attachDialog": {
+    "title": "Aufgabe anhängen",
+    "searchPlaceholder": "Aufgaben durchsuchen",
+    "emptySearch": "Keine Aufgaben entsprechen der Suche",
+    "empty": "Noch keine Aufgaben in diesem Projekt"
+  },
+  "viewDialog": {
+    "gone": "Diese Aufgabe existiert nicht mehr.",
+    "unavailable": "Aufgabe nicht verfügbar."
+  },
+  "gantt": {
+    "scheduleColumn": "Zeitplan",
+    "hintWritable": "Ziehen Sie Balken zum Verschieben, Kanten zum Ändern der Dauer und den Kreis zum Verknüpfen von Aufgaben; ziehen Sie Backlog-Zeilen auf das Diagramm.",
+    "hintReadOnly": "Schreibgeschützt — Ihre Projektrolle kann den Zeitplan ansehen, aber nicht bearbeiten.",
+    "scrollToToday": "Zu heute scrollen",
+    "zoomToFit": "Zoom an den Zeitplan anpassen",
+    "unitDay": "Tag",
+    "unitWeek": "Woche",
+    "unitMonth": "Monat",
+    "today": "Heute",
+    "emptyWritable": "Noch nichts eingeplant — setzen Sie Start- und Enddatum einer Aufgabe oder ziehen Sie eine aus dem Backlog herein.",
+    "emptyReadOnly": "Noch nichts eingeplant — setzen Sie Start- und Enddatum einer Aufgabe.",
+    "removeDependencyConfirm": "Abhängigkeit <b>{{from}} → {{to}}</b> entfernen?",
+    "backlogTitle": "Backlog",
+    "backlogEmpty": "Alle Aufgaben sind eingeplant"
+  },
+  "hoverCard": {
+    "spanLine": "{{range}} · {{days}} T.",
+    "milestone": "Meilenstein",
+    "progress": "Fortschritt {{value}} %",
+    "deps_one": "{{count}} Abhängigkeit",
+    "deps_other": "{{count}} Abhängigkeiten",
+    "due": "Fällig {{date}}"
+  }
+}

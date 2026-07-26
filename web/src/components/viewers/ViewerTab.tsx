@@ -5,6 +5,7 @@
 
 import { Typography } from '@mui/material'
 import { lazy, Suspense } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import type { Details, Item } from '../../api/types'
 import { ImageViewer } from './ImageViewer'
@@ -27,10 +28,11 @@ export function ViewerTab({
   details?: Details
   dmProjectId?: string
 }) {
+  const { t } = useTranslation('browse')
   if (!dmProjectId) {
     return (
       <Typography variant="body2" color="text.secondary">
-        Preview unavailable for this document.
+        {t('viewer.previewUnavailable')}
       </Typography>
     )
   }
@@ -60,6 +62,6 @@ export function ViewerTab({
     case 'text':
       return <TextViewer file={file} dmProjectId={dmProjectId} itemId={item.id} />
     default:
-      return <FallbackViewer file={file} reason="No inline preview for this file type." />
+      return <FallbackViewer file={file} reason={t('viewer.noInlinePreview')} />
   }
 }

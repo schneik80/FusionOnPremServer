@@ -2,6 +2,7 @@ import { faArrowUpRightFromSquare, faFileImage } from '@fortawesome/free-solid-s
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, Tooltip, Typography } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { useItemDetails, useItemLocation } from '../../api/queries'
 import { thumbnailSrc } from '../../api/thumbnails'
@@ -21,6 +22,7 @@ import type { DocRef } from './docref'
 // Built entirely from span elements so it is valid inside a <p> — markdown
 // paragraphs and chat text bodies are its two homes.
 export function DocumentCard({ docRef }: { docRef: DocRef }) {
+  const { t } = useTranslation('browse')
   const detailsQ = useItemDetails(docRef.hubId, docRef.itemId)
   const locationQ = useItemLocation(docRef.hubId, docRef.itemId, true)
   const goTo = useGoToDocument()
@@ -49,8 +51,8 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
   const location = loc
     ? [loc.projectName, ...loc.folderPath.map((f) => f.name)].join(' › ')
     : locationQ.isLoading
-      ? 'Locating…'
-      : 'Location unavailable'
+      ? t('docCard.locating')
+      : t('docCard.locationUnavailable')
 
   function open() {
     void goTo({
@@ -62,7 +64,7 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
   }
 
   return (
-    <Tooltip title="Go to this document">
+    <Tooltip title={t('docCard.open')}>
       <Box
         component="span"
         role="button"

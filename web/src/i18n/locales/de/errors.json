@@ -1,0 +1,7 @@
+{
+  "unauthorized": "Sie sind nicht angemeldet.",
+  "forbidden": "Sie haben keinen Zugriff auf diese Ressource.",
+  "rate_limited": "Anfragelimit erreicht — bitte versuchen Sie es gleich erneut.",
+  "upstream_timeout": "Zeitüberschreitung bei der Anfrage an den vorgelagerten Dienst.",
+  "upstream_failed": "Der vorgelagerte Dienst hat einen Fehler gemeldet."
+}

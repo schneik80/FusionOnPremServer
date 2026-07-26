@@ -6,6 +6,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { tags as tg } from '@lezer/highlight'
 import { useEffect, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { extOf, type ViewerFile } from './kind'
 import { gcodeLanguage } from './gcode/gcode'
 import { gcodeDialectForExt } from './gcode/registry'
@@ -24,12 +25,13 @@ export function TextViewer({
   dmProjectId: string
   itemId: string
 }) {
+  const { t } = useTranslation('browse')
   const theme = useTheme()
   const { loading, text, tooLarge, error } = useFileText(dmProjectId, itemId)
 
   if (loading) return <ViewerSpinner />
   if (error) return <FallbackViewer file={file} reason={error} />
-  if (tooLarge) return <FallbackViewer file={file} reason="This file is too large to preview." />
+  if (tooLarge) return <FallbackViewer file={file} reason={t('viewer.tooLarge')} />
   return <CodeMirrorReadOnly text={text} ext={extOf(file.name)} theme={theme} />
 }
 

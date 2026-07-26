@@ -1,0 +1,85 @@
+{
+  "unavailable": "Chat is unavailable: {{message}}",
+  "unknownError": "error",
+  "header": {
+    "archived": "archived",
+    "reconnecting": "reconnecting…"
+  },
+  "emptyState": {
+    "noMessages": "No messages yet — start the conversation."
+  },
+  "sidebar": {
+    "title": "Channels",
+    "archived": "archived",
+    "newDisabledReason": "Your project role can't create channels — this needs Editor access"
+  },
+  "createDialog": {
+    "title": "New channel",
+    "name": "Name",
+    "topicOptional": "Topic (optional)",
+    "private": "Private (only invited members can see it)",
+    "members": "Members",
+    "membersPlaceholder": "Add project members",
+    "createFailed": "could not create channel"
+  },
+  "channelMenu": {
+    "options": "Channel options",
+    "edit": "Edit channel…",
+    "members": "Members…",
+    "archive": "Archive channel…",
+    "leave": "Leave channel"
+  },
+  "editDialog": {
+    "title": "Edit #{{name}}",
+    "name": "Name",
+    "topic": "Topic",
+    "rootNoRename": "The root channel cannot be renamed",
+    "updateFailed": "could not update channel"
+  },
+  "archiveDialog": {
+    "title": "Archive #{{name}}?",
+    "body": "The channel stays readable, but nobody can post in it anymore. There is no unarchive.",
+    "confirm": "Archive"
+  },
+  "membersDialog": {
+    "title": "#{{name}} members",
+    "addMember": "Add a project member",
+    "everyoneHere": "Everyone on the project is already here",
+    "owner": "owner",
+    "removeFromChannel": "Remove from channel",
+    "changeFailed": "membership change failed",
+    "done": "Done"
+  },
+  "composer": {
+    "placeholder": "Message",
+    "placeholderChannel": "Message #{{name}}",
+    "disabledArchived": "This channel is archived",
+    "disabledReadOnly": "Your project role is read-only",
+    "attachDoc": "Attach a document card",
+    "attachTask": "Attach a task card",
+    "createTask": "Create a task and attach its card",
+    "linkProduction": "Link a job or batch",
+    "attach": "Attach",
+    "send": "send message",
+    "sendFailed": "send failed"
+  },
+  "message": {
+    "unknownAuthor": "Unknown",
+    "edited": "(edited)",
+    "deleted": "message deleted",
+    "addReaction": "Add reaction",
+    "replyInThread": "Reply in thread",
+    "delete": "Delete message",
+    "replies_one": "{{count}} reply",
+    "replies_other": "{{count}} replies"
+  },
+  "thread": {
+    "title": "Thread",
+    "close": "close thread",
+    "notFound": "Thread not found.",
+    "replyPlaceholder": "Reply…"
+  },
+  "typing_one": "{{name}} is typing…",
+  "typing_other": "{{count}} people are typing…",
+  "typingTwo": "{{a}} and {{b}} are typing…"
+}

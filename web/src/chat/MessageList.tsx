@@ -2,6 +2,7 @@ import { faComments, faFaceSmile, faTrash } from '@fortawesome/free-solid-svg-ic
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Avatar, Box, Chip, IconButton, Popover, Stack, Tooltip, Typography } from '@mui/material'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { DocumentCard } from '../components/doccard/DocumentCard'
 import { ProductionCard } from '../components/productioncard/ProductionCard'
 import { splitRefTokens } from '../components/reftokens'
@@ -114,6 +115,7 @@ function MessageRow({
   onDelete: (seq: number) => void
   onToggleReaction: (seq: number, emoji: string, on: boolean) => void
 }) {
+  const { t } = useTranslation('chat')
   const own = meId !== '' && msg.authorId === meId
   const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null)
 
@@ -146,14 +148,14 @@ function MessageRow({
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" spacing={1} alignItems="baseline">
           <Typography variant="subtitle2" noWrap>
-            {msg.authorName || 'Unknown'}
+            {msg.authorName || t('message.unknownAuthor')}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             {fmtChatTime(msg.createdAt)}
           </Typography>
           {msg.editedAt && !msg.deleted && (
             <Typography variant="caption" color="text.secondary">
-              (edited)
+              {t('message.edited')}
             </Typography>
           )}
           <Box sx={{ flex: 1 }} />
@@ -163,21 +165,21 @@ function MessageRow({
             sx={{ opacity: 0, transition: 'opacity 120ms' }}
           >
             {canReact && !msg.deleted && !msg.pending && (
-              <Tooltip title="Add reaction">
+              <Tooltip title={t('message.addReaction')}>
                 <IconButton size="small" onClick={(e) => setPickerAnchor(e.currentTarget)}>
                   <FontAwesomeIcon icon={faFaceSmile} size="xs" />
                 </IconButton>
               </Tooltip>
             )}
             {onOpenThread && !msg.deleted && !msg.pending && (
-              <Tooltip title="Reply in thread">
+              <Tooltip title={t('message.replyInThread')}>
                 <IconButton size="small" onClick={() => onOpenThread(msg.seq)}>
                   <FontAwesomeIcon icon={faComments} size="xs" />
                 </IconButton>
               </Tooltip>
             )}
             {(own || canModerate) && !msg.deleted && !msg.pending && (
-              <Tooltip title="Delete message">
+              <Tooltip title={t('message.delete')}>
                 <IconButton size="small" onClick={() => onDelete(msg.seq)}>
                   <FontAwesomeIcon icon={faTrash} size="xs" />
                 </IconButton>
@@ -187,7 +189,7 @@ function MessageRow({
         </Stack>
         {msg.deleted ? (
           <Typography variant="body2" color="text.disabled" fontStyle="italic">
-            message deleted
+            {t('message.deleted')}
           </Typography>
         ) : (
           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -235,7 +237,7 @@ function MessageRow({
             variant="outlined"
             color="primary"
             icon={<FontAwesomeIcon icon={faComments} size="xs" />}
-            label={`${msg.replyCount} ${msg.replyCount === 1 ? 'reply' : 'replies'}`}
+            label={t('message.replies', { count: msg.replyCount })}
             onClick={() => onOpenThread(msg.seq)}
             sx={{ mt: 0.5 }}
           />

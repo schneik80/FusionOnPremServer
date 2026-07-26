@@ -1,0 +1,28 @@
+{
+  "title": "Einstellungen",
+  "theme": {
+    "label": "Design",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
+  },
+  "language": {
+    "label": "Sprache"
+  },
+  "port": {
+    "label": "Server-Port",
+    "applyRestart": "Übernehmen & neu starten",
+    "applying": "Wird übernommen…",
+    "fixedAtStartup": "Beim Start festgelegt (mit <cmd>-addr</cmd> oder im Dev-Modus gestartet).",
+    "restarting": "Server wird neu gestartet. Verbindung zu <lnk>{{url}}</lnk> wird wiederhergestellt…",
+    "rangeHelp": "{{min}}–{{max}}. Eine Änderung des Ports startet den Server neu; die Verbindung wird über den neuen Port wiederhergestellt."
+  },
+  "region": {
+    "label": "Region",
+    "help": "Beim Serverstart festgelegt (schreibgeschützt)."
+  },
+  "about": {
+    "label": "Info",
+    "buildNote": "Öffnen/Einfügen in Fusion und STEP-Download sind in diesem Build noch nicht verfügbar."
+  }
+}

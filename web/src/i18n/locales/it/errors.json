@@ -1,0 +1,7 @@
+{
+  "unauthorized": "Non hai eseguito l'accesso.",
+  "forbidden": "Non hai accesso a questa risorsa.",
+  "rate_limited": "Limite di richieste raggiunto — riprova tra poco.",
+  "upstream_timeout": "La richiesta al servizio remoto è scaduta.",
+  "upstream_failed": "Il servizio remoto ha segnalato un errore."
+}

@@ -19,6 +19,7 @@ import {
 } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { useTaskMutations } from '../../api/queries'
 import { PriorityDot } from '../chips'
 import { TaskViewDialog } from '../TaskViewDialog'
@@ -71,6 +72,7 @@ export function TaskGantt({
   unit: TimeUnit
   onUnitChange: (u: TimeUnit) => void
 }) {
+  const { t } = useTranslation('tasks')
   const theme = useTheme()
   const qc = useQueryClient()
   const muts = useTaskMutations(projectId)
@@ -210,16 +212,14 @@ export function TaskGantt({
           sx={{ px: 1, py: 0.5, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}
         >
           <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }} noWrap>
-            {writable
-              ? 'Drag bars to move, edges to resize, the circle to link tasks; drag backlog rows onto the chart.'
-              : 'Read-only — your project role can view but not edit the schedule.'}
+            {writable ? t('gantt.hintWritable') : t('gantt.hintReadOnly')}
           </Typography>
-          <Tooltip title="Scroll to today">
+          <Tooltip title={t('gantt.scrollToToday')}>
             <IconButton size="small" onClick={scrollToToday}>
               <FontAwesomeIcon icon={faLocationCrosshairs} style={{ fontSize: 13 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Zoom to fit the schedule">
+          <Tooltip title={t('gantt.zoomToFit')}>
             <IconButton size="small" onClick={zoomToFit}>
               <FontAwesomeIcon icon={faCompress} style={{ fontSize: 13 }} />
             </IconButton>
@@ -231,9 +231,9 @@ export function TaskGantt({
             onChange={(_, v) => v && onUnitChange(v)}
             sx={{ '& .MuiToggleButton-root': { py: 0.1, px: 1, textTransform: 'none' } }}
           >
-            <ToggleButton value="day">Day</ToggleButton>
-            <ToggleButton value="week">Week</ToggleButton>
-            <ToggleButton value="month">Month</ToggleButton>
+            <ToggleButton value="day">{t('gantt.unitDay')}</ToggleButton>
+            <ToggleButton value="week">{t('gantt.unitWeek')}</ToggleButton>
+            <ToggleButton value="month">{t('gantt.unitMonth')}</ToggleButton>
           </ToggleButtonGroup>
         </Stack>
 
@@ -264,7 +264,7 @@ export function TaskGantt({
                   variant="subtitle2"
                   sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 11 }}
                 >
-                  Schedule
+                  {t('gantt.scheduleColumn')}
                 </Typography>
               </Box>
               <GanttHeader scale={scale} today={today} />
@@ -410,8 +410,7 @@ export function TaskGantt({
                     }}
                   >
                     <Typography variant="body2" color="text.secondary" sx={{ px: 2, textAlign: 'center' }}>
-                      Nothing scheduled yet — set start and end dates on a task,
-                      {writable ? ' or drag one in from the backlog.' : '.'}
+                      {writable ? t('gantt.emptyWritable') : t('gantt.emptyReadOnly')}
                     </Typography>
                   </Box>
                 )}
@@ -431,15 +430,19 @@ export function TaskGantt({
         {arrowMenu && (
           <Box sx={{ p: 1.5 }}>
             <Typography variant="body2" sx={{ mb: 1 }}>
-              Remove dependency{' '}
-              <b>
-                {label(tasks, arrowMenu.fromId)} → {label(tasks, arrowMenu.toId)}
-              </b>
-              ?
+              <Trans
+                t={t}
+                i18nKey="gantt.removeDependencyConfirm"
+                values={{
+                  from: label(tasks, arrowMenu.fromId),
+                  to: label(tasks, arrowMenu.toId),
+                }}
+                components={{ b: <b /> }}
+              />
             </Typography>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button size="small" onClick={() => setArrowMenu(null)} sx={{ textTransform: 'none' }}>
-                Cancel
+                {t('common:cancel')}
               </Button>
               <Button
                 size="small"
@@ -448,7 +451,7 @@ export function TaskGantt({
                 onClick={removeDependency}
                 sx={{ textTransform: 'none' }}
               >
-                Remove
+                {t('common:remove')}
               </Button>
             </Stack>
           </Box>
@@ -559,16 +562,17 @@ function RowLabel({
 // assignee, dependency count. Positioned in chart coordinates so it scrolls
 // with the content.
 function HoverCard({ task, rect, chartWidth }: { task: Task; rect: BarRect; chartWidth: number }) {
+  const { t } = useTranslation('tasks')
   const w = 240
   const left = Math.min(Math.max(4, rect.x2 + 10), Math.max(4, chartWidth - w - 4))
   const lines = [
-    `${fmtRange(task)} · ${durationDays(task)}d`,
-    task.milestone ? 'Milestone' : `Progress ${task.status === 'done' ? 100 : task.progress ?? 0}%`,
+    t('hoverCard.spanLine', { range: fmtRange(task), days: durationDays(task) }),
+    task.milestone
+      ? t('hoverCard.milestone')
+      : t('hoverCard.progress', { value: task.status === 'done' ? 100 : task.progress ?? 0 }),
     task.assignee?.name || task.assignee?.email,
-    task.dependsOn.length
-      ? `${task.dependsOn.length} ${task.dependsOn.length === 1 ? 'dependency' : 'dependencies'}`
-      : undefined,
-    task.dueDate ? `Due ${task.dueDate}` : undefined,
+    task.dependsOn.length ? t('hoverCard.deps', { count: task.dependsOn.length }) : undefined,
+    task.dueDate ? t('hoverCard.due', { date: task.dueDate }) : undefined,
   ].filter(Boolean) as string[]
   return (
     <Paper

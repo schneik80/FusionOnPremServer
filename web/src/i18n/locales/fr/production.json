@@ -1,0 +1,143 @@
+{
+  "app": {
+    "loadingJobs": "Chargement des ordres de fabrication…",
+    "emptyJobs": "Aucun ordre de fabrication pour l'instant. Créez un ordre pour planifier ses étapes et lancer des lots."
+  },
+  "jobList": {
+    "title": "Ordres de fabrication",
+    "readOnlyReason": "Votre rôle sur le projet est en lecture seule — la création d'ordres requiert l'accès Éditeur",
+    "namePlaceholder": "Nom de l'ordre",
+    "loadFailed": "Échec du chargement des ordres de fabrication.",
+    "empty": "Aucun ordre de fabrication pour l'instant."
+  },
+  "jobDetail": {
+    "notAvailable": "Cet ordre de fabrication n'est plus disponible.",
+    "namePlaceholder": "Nom de l'ordre",
+    "viewFlow": "Flux",
+    "viewList": "Liste",
+    "viewBatches": "Lots",
+    "deleteJob": "Supprimer l'ordre",
+    "deleteConfirm": "Supprimer l'ordre « {{name}} » et tous ses lots ?",
+    "descPlaceholder": "Ajouter une description de l'ordre…",
+    "emptySteps": "Aucune étape pour l'instant. Ajoutez la première étape du flux de cet ordre.",
+    "newStepPlaceholder": "Titre de la nouvelle étape",
+    "addStep": "Ajouter une étape"
+  },
+  "stepCard": {
+    "namePlaceholder": "Nom de l'étape",
+    "deleteStep": "Supprimer l'étape",
+    "descPlaceholder": "Ajouter une description…",
+    "placeholders": "Emplacements",
+    "leadsTo": "Mène à",
+    "connectTo": "Connecter à…"
+  },
+  "placeholders": {
+    "addHint": "Ajouter un emplacement (ex. Programme CN montage 1)"
+  },
+  "canvas": {
+    "emptyCanWrite": "Ajoutez la première étape pour commencer à construire le flux de cet ordre.",
+    "emptyReadOnly": "Cet ordre de fabrication n'a pas encore d'étapes.",
+    "addStep": "Ajouter une étape",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "fitToView": "Ajuster à la vue",
+    "dragToConnect": "Glisser pour connecter",
+    "newStepTitle": "Étape {{num}}"
+  },
+  "counts": {
+    "steps_one": "{{count}} étape",
+    "steps_other": "{{count}} étapes",
+    "batches_one": "{{count}} lot",
+    "batches_other": "{{count}} lots",
+    "docs_one": "{{count}} doc",
+    "docs_other": "{{count}} docs",
+    "slots_one": "{{count}} emplacement",
+    "slots_other": "{{count}} emplacements",
+    "inFlight_one": "{{count}} en cours",
+    "inFlight_other": "{{count}} en cours"
+  },
+  "empty": {
+    "none": "aucun",
+    "noneYet": "aucun pour l'instant",
+    "nothingYet": "rien pour l'instant"
+  },
+  "stepEditor": {
+    "title": "Étape",
+    "titleLabel": "Titre",
+    "descriptionLabel": "Description",
+    "placeholdersCaption": "Emplacements — documents fournis à chaque lot",
+    "planDocsCaption": "Documents du plan — épinglés à la version jointe",
+    "attachDocument": "Joindre un document",
+    "deleteStep": "Supprimer l'étape",
+    "deleteConfirm": "Supprimer l'étape « {{title}} » ?"
+  },
+  "batchesView": {
+    "title": "Lots",
+    "newBatch": "Nouveau lot",
+    "new": "Nouveau",
+    "emptyRail": "Aucun lot pour l'instant. Créez une série pour figer le plan et fournir les documents.",
+    "emptyCanWrite": "Créez un lot pour lancer cet ordre.",
+    "emptyReadOnly": "Cet ordre de fabrication n'a pas encore de lots."
+  },
+  "createBatch": {
+    "title": "Nouveau lot",
+    "nameLabel": "Nom du lot",
+    "namePlaceholder": "ex. Lot 1 (validation)",
+    "proveOut": "Validation",
+    "production": "Production",
+    "freezeNote": "La création du lot fige la version actuelle de chaque document du plan. La date de lancement est fixée à maintenant (modifiable ensuite).",
+    "create": "Créer le lot"
+  },
+  "batchDetail": {
+    "namePlaceholder": "Nom du lot",
+    "placeholdersSupplied_one": "{{filled}} emplacement fourni sur {{count}}",
+    "placeholdersSupplied_other": "{{filled}} emplacements fournis sur {{count}}",
+    "deleteBatch": "Supprimer le lot",
+    "deleteConfirm": "Supprimer le lot « {{name}} » ?",
+    "relatedRefs": "Tâches et documents associés",
+    "add": "Ajouter",
+    "removeRef": "Retirer la référence",
+    "emptyPlan": "Ce lot a figé un plan vide — l'ordre n'avait aucune étape à la création de la série.",
+    "planDocsFrozen": "Documents du plan (figés à cette série)",
+    "docsToSupply": "Documents à fournir",
+    "supply": "Fournir",
+    "notSupplied": "non fourni",
+    "asRunArtifacts": "Artefacts d'exécution",
+    "addAsRunArtifact": "Ajouter un artefact d'exécution",
+    "linkTask": "Lier une tâche…",
+    "linkDoc": "Lier un document / une page wiki…",
+    "linkDocTitle": "Lier un document ou une page wiki",
+    "linkAction": "Lier"
+  },
+  "attachDoc": {
+    "title": "Joindre un document",
+    "attach": "Joindre"
+  },
+  "docSource": {
+    "uploading": "Téléversement de {{name}}…",
+    "uploadFailed": "Échec du téléversement",
+    "browseHub": "Parcourir le hub…",
+    "uploadFile": "Téléverser un fichier…"
+  },
+  "pinnedDoc": {
+    "versionBadge": "v{{num}}",
+    "asRun": "exécuté"
+  },
+  "refDialog": {
+    "title": "Lier un ordre de fabrication ou un lot",
+    "emptyJobs": "Ce projet n'a pas encore d'ordres de fabrication.",
+    "jobRow_one": "{{count}} lot — cliquez pour lier l'ordre",
+    "jobRow_other": "{{count}} lots — cliquez pour lier l'ordre",
+    "hideBatches": "masquer les lots",
+    "orBatch": "ou un lot…",
+    "loadingBatches": "Chargement des lots…"
+  },
+  "screen": {
+    "title": "Production",
+    "runsInFlight": "Séries en cours",
+    "myJobs": "Mes ordres",
+    "loadFailed": "Échec du chargement de votre travail de production.",
+    "emptyRuns": "Aucune série en cours. Les lots que vous créez apparaissent ici tant qu'ils sont planifiés ou en cours.",
+    "emptyJobs": "Aucun ordre de fabrication pour l'instant. Les ordres que vous créez — ou qui portent une série que vous avez créée — apparaissent ici."
+  }
+}

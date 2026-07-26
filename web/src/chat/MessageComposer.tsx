@@ -8,6 +8,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { encodeDocRef, docRefFromItem } from '../components/doccard/docref'
 import { encodeTaskRef, taskRefFromTask } from '../components/taskcard/taskref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
@@ -39,6 +40,7 @@ export function MessageComposer({
   // typing pings (see useTypingPing).
   onTyping?: () => void
 }) {
+  const { t } = useTranslation('chat')
   const nav = useNav()
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -61,20 +63,20 @@ export function MessageComposer({
       await onSend(body)
       setText('')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'send failed')
+      setError(e instanceof Error ? e.message : t('composer.sendFailed'))
     }
   }
 
   const box = (
     <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.5, p: 1, pt: 0.5 }}>
       {nav.hubId && (
-        <Tooltip title="Attach a document card">
+        <Tooltip title={t('composer.attachDoc')}>
           <span>
             <IconButton
               size="small"
               disabled={disabled}
               onClick={() => setPickerOpen(true)}
-              aria-label="attach a document card"
+              aria-label={t('composer.attachDoc')}
               sx={{ color: 'text.secondary' }}
             >
               <FontAwesomeIcon icon={faFileCirclePlus} />
@@ -83,13 +85,13 @@ export function MessageComposer({
         </Tooltip>
       )}
       {nav.project && (
-        <Tooltip title="Attach a task card">
+        <Tooltip title={t('composer.attachTask')}>
           <span>
             <IconButton
               size="small"
               disabled={disabled}
               onClick={() => setTaskPickerOpen(true)}
-              aria-label="attach a task card"
+              aria-label={t('composer.attachTask')}
               sx={{ color: 'text.secondary' }}
             >
               <FontAwesomeIcon icon={faListCheck} />
@@ -98,13 +100,13 @@ export function MessageComposer({
         </Tooltip>
       )}
       {nav.project && (
-        <Tooltip title="Create a task and attach its card">
+        <Tooltip title={t('composer.createTask')}>
           <span>
             <IconButton
               size="small"
               disabled={disabled}
               onClick={() => setTaskCreateOpen(true)}
-              aria-label="create a task and attach its card"
+              aria-label={t('composer.createTask')}
               sx={{ color: 'text.secondary' }}
             >
               <FontAwesomeIcon icon={faSquarePlus} />
@@ -113,13 +115,13 @@ export function MessageComposer({
         </Tooltip>
       )}
       {nav.project && (
-        <Tooltip title="Link a job or batch">
+        <Tooltip title={t('composer.linkProduction')}>
           <span>
             <IconButton
               size="small"
               disabled={disabled}
               onClick={() => setProdPickerOpen(true)}
-              aria-label="link a job or batch"
+              aria-label={t('composer.linkProduction')}
               sx={{ color: 'text.secondary' }}
             >
               <FontAwesomeIcon icon={faDiagramProject} />
@@ -151,7 +153,7 @@ export function MessageComposer({
         color="primary"
         disabled={disabled || sending || !text.trim()}
         onClick={() => void send()}
-        aria-label="send message"
+        aria-label={t('composer.send')}
       >
         <FontAwesomeIcon icon={faPaperPlane} />
       </IconButton>
@@ -176,9 +178,9 @@ export function MessageComposer({
         <HubBrowserDialog
           open={pickerOpen}
           hubId={nav.hubId}
-          title="Attach a document card"
+          title={t('composer.attachDoc')}
           initialProject={nav.project}
-          pickLabel="Attach"
+          pickLabel={t('composer.attach')}
           onClose={() => setPickerOpen(false)}
           onPick={(pick) => {
             setPickerOpen(false)

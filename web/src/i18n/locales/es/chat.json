@@ -1,0 +1,85 @@
+{
+  "unavailable": "El chat no está disponible: {{message}}",
+  "unknownError": "error",
+  "header": {
+    "archived": "archivado",
+    "reconnecting": "reconectando…"
+  },
+  "emptyState": {
+    "noMessages": "Aún no hay mensajes — inicie la conversación."
+  },
+  "sidebar": {
+    "title": "Canales",
+    "archived": "archivado",
+    "newDisabledReason": "Su rol en el proyecto no permite crear canales — se necesita acceso de Editor"
+  },
+  "createDialog": {
+    "title": "Nuevo canal",
+    "name": "Nombre",
+    "topicOptional": "Tema (opcional)",
+    "private": "Privado (solo los miembros invitados pueden verlo)",
+    "members": "Miembros",
+    "membersPlaceholder": "Añadir miembros del proyecto",
+    "createFailed": "no se pudo crear el canal"
+  },
+  "channelMenu": {
+    "options": "Opciones del canal",
+    "edit": "Editar canal…",
+    "members": "Miembros…",
+    "archive": "Archivar canal…",
+    "leave": "Abandonar el canal"
+  },
+  "editDialog": {
+    "title": "Editar #{{name}}",
+    "name": "Nombre",
+    "topic": "Tema",
+    "rootNoRename": "El canal raíz no se puede renombrar",
+    "updateFailed": "no se pudo actualizar el canal"
+  },
+  "archiveDialog": {
+    "title": "¿Archivar #{{name}}?",
+    "body": "El canal seguirá siendo legible, pero ya nadie podrá publicar en él. No se puede desarchivar.",
+    "confirm": "Archivar"
+  },
+  "membersDialog": {
+    "title": "Miembros de #{{name}}",
+    "addMember": "Añadir un miembro del proyecto",
+    "everyoneHere": "Todos los miembros del proyecto ya están aquí",
+    "owner": "propietario",
+    "removeFromChannel": "Quitar del canal",
+    "changeFailed": "el cambio de membresía falló",
+    "done": "Hecho"
+  },
+  "composer": {
+    "placeholder": "Mensaje",
+    "placeholderChannel": "Mensaje a #{{name}}",
+    "disabledArchived": "Este canal está archivado",
+    "disabledReadOnly": "Su rol en el proyecto es de solo lectura",
+    "attachDoc": "Adjuntar una tarjeta de documento",
+    "attachTask": "Adjuntar una tarjeta de tarea",
+    "createTask": "Crear una tarea y adjuntar su tarjeta",
+    "linkProduction": "Vincular un trabajo o lote",
+    "attach": "Adjuntar",
+    "send": "enviar mensaje",
+    "sendFailed": "el envío falló"
+  },
+  "message": {
+    "unknownAuthor": "Desconocido",
+    "edited": "(editado)",
+    "deleted": "mensaje eliminado",
+    "addReaction": "Añadir reacción",
+    "replyInThread": "Responder en hilo",
+    "delete": "Eliminar mensaje",
+    "replies_one": "{{count}} respuesta",
+    "replies_other": "{{count}} respuestas"
+  },
+  "thread": {
+    "title": "Hilo",
+    "close": "cerrar hilo",
+    "notFound": "Hilo no encontrado.",
+    "replyPlaceholder": "Responder…"
+  },
+  "typing_one": "{{name}} está escribiendo…",
+  "typing_other": "{{count}} personas están escribiendo…",
+  "typingTwo": "{{a}} y {{b}} están escribiendo…"
+}

@@ -1,0 +1,98 @@
+{
+  "untitledPage": "Ohne Titel",
+  "pages": {
+    "title": "Seiten",
+    "searchPlaceholder": "Seiten durchsuchen",
+    "noMatches": "Keine passenden Seiten",
+    "empty": "Noch keine Seiten"
+  },
+  "statusShort": {
+    "draft": "Entwurf",
+    "edited": "Bearbeitet",
+    "synced": "Synchron",
+    "update": "Update",
+    "conflict": "Konflikt",
+    "published": "Veröffentlicht"
+  },
+  "status": {
+    "localDraft": "Lokaler Entwurf",
+    "unpublishedChanges": "Unveröffentlichte Änderungen",
+    "updateAvailable": "Update verfügbar",
+    "conflict": "Konflikt",
+    "synced": "Synchronisiert",
+    "published": "Veröffentlicht"
+  },
+  "empty": {
+    "title": "Projekt-Wiki",
+    "body": "Verfassen Sie Markdown-Seiten für dieses Projekt. Entwürfe werden auf diesem Gerät gespeichert, bis Sie sie in den Wiki-Ordner des Projekts veröffentlichen.",
+    "newPage": "Neue Seite"
+  },
+  "alerts": {
+    "pagesLoadFailed": "Veröffentlichte Seiten konnten nicht geladen werden. Lokale Entwürfe sind weiterhin verfügbar.",
+    "publishFailed": "Veröffentlichen fehlgeschlagen.",
+    "renameFailed": "Umbenennen fehlgeschlagen.",
+    "refreshFailed": "Aktualisieren fehlgeschlagen."
+  },
+  "publish": {
+    "conflictConfirm": "Diese Seite wurde geändert, seit Sie sie geöffnet haben. Veröffentlichte Version überschreiben?"
+  },
+  "reader": {
+    "rename": "Umbenennen",
+    "update": "Aktualisieren",
+    "takeLatest": "Neueste übernehmen",
+    "behindBody": "Auf einem anderen Gerät wurde eine neuere Version veröffentlicht.",
+    "conflictBody": "Auf einem anderen Gerät wurde eine neuere Version veröffentlicht, und Sie haben unveröffentlichte lokale Änderungen. „Neueste übernehmen“ verwirft Ihre Änderungen; Bearbeiten → Veröffentlichen behält Ihre Fassung.",
+    "editAsDraft": "Als Entwurf bearbeiten",
+    "downloadFailed": "Diese Seite konnte nicht heruntergeladen werden."
+  },
+  "renameDialog": {
+    "title": "Seite umbenennen",
+    "rename": "Umbenennen",
+    "renaming": "Wird umbenannt…"
+  },
+  "editor": {
+    "titlePlaceholder": "Seitentitel",
+    "savedLocally": "Lokal gespeichert",
+    "saving": "Wird gespeichert…",
+    "publish": "Veröffentlichen",
+    "publishing": "Wird veröffentlicht…",
+    "publishTooltip": "In den Wiki-Ordner des Projekts veröffentlichen",
+    "publishUnavailable": "Veröffentlichen nicht verfügbar",
+    "heading1Tooltip": "Überschrift 1",
+    "heading2Tooltip": "Überschrift 2",
+    "heading3Tooltip": "Überschrift 3",
+    "boldTooltip": "Fett",
+    "italicTooltip": "Kursiv",
+    "inlineCodeTooltip": "Inline-Code",
+    "bulletedListTooltip": "Aufzählungsliste",
+    "quoteTooltip": "Zitat",
+    "linkTooltip": "Link",
+    "insertImageUploadTooltip": "Bild einfügen (wird zur Seite hochgeladen)",
+    "insertImageUrlTooltip": "Bild-URL einfügen",
+    "insertImageFromPublicUrlTooltip": "Bild von einer öffentlichen URL einfügen",
+    "embedHubImageTooltip": "In diesem Hub gespeichertes Bild einbetten",
+    "insertDocCardTooltip": "Dokumentkarte einfügen (diesen Hub durchsuchen)",
+    "insertTaskCardTooltip": "Aufgabenkarte einfügen (Aufgaben dieses Projekts)",
+    "createTaskCardTooltip": "Aufgabe erstellen und ihre Karte einfügen",
+    "insertProdCardTooltip": "Auftrags- oder Chargenkarte einfügen (Produktion dieses Projekts)",
+    "imageUploadFailed": "Bild-Upload fehlgeschlagen.",
+    "hubImageDialogTitle": "Bild aus dem Hub einbetten",
+    "embedImage": "Bild einbetten",
+    "docCardDialogTitle": "Dokumentkarte einfügen",
+    "insertCard": "Karte einfügen",
+    "preview": "Vorschau",
+    "emptyPreview": "Noch nichts für eine Vorschau vorhanden."
+  },
+  "imageUrlDialog": {
+    "title": "Bild von URL einfügen",
+    "urlLabel": "Bild-URL",
+    "urlHelper": "Die URL muss für alle Leser der Seite öffentlich erreichbar sein.",
+    "altLabel": "Alternativtext (optional)",
+    "previewFailed": "Vorschau konnte nicht geladen werden — prüfen Sie, ob die URL auf ein Bild zeigt.",
+    "insert": "Einfügen"
+  },
+  "toc": {
+    "title": "Auf dieser Seite",
+    "ariaLabel": "Inhaltsverzeichnis"
+  }
+}

@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthMe, useChatMembers, useCreateChatChannel } from '../api/queries'
 import { APP_RAIL_WIDTH } from '../components/Column'
 import { RailHeader } from '../components/RailHeader'
@@ -43,6 +44,7 @@ export function ChannelSidebar({
   unread: Map<string, number>
   onSelect: (id: string) => void
 }) {
+  const { t } = useTranslation('chat')
   const [createOpen, setCreateOpen] = useState(false)
 
   return (
@@ -58,10 +60,10 @@ export function ChannelSidebar({
       }}
     >
       <RailHeader
-        title="Channels"
+        title={t('sidebar.title')}
         onNew={() => setCreateOpen(true)}
         newDisabled={!caps.createChannel}
-        newDisabledReason="Your project role can't create channels — this needs Editor access"
+        newDisabledReason={t('sidebar.newDisabledReason')}
       />
       <List dense disablePadding sx={{ flex: 1, overflowY: 'auto' }}>
         {channels.map((ch) => {
@@ -78,7 +80,7 @@ export function ChannelSidebar({
               </ListItemIcon>
               <ListItemText
                 primary={ch.name}
-                secondary={ch.archivedAt ? 'archived' : undefined}
+                secondary={ch.archivedAt ? t('sidebar.archived') : undefined}
                 primaryTypographyProps={{
                   noWrap: true,
                   fontSize: 14,
@@ -124,6 +126,7 @@ function CreateChannelDialog({
   open: boolean
   onClose: () => void
 }) {
+  const { t } = useTranslation('chat')
   const create = useCreateChatChannel(projectId)
   const [name, setName] = useState('')
   const [topic, setTopic] = useState('')
@@ -157,24 +160,24 @@ function CreateChannelDialog({
       })
       close()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'could not create channel')
+      setError(e instanceof Error ? e.message : t('createDialog.createFailed'))
     }
   }
 
   return (
     <Dialog open={open} onClose={close} maxWidth="xs" fullWidth>
-      <DialogTitle>New channel</DialogTitle>
+      <DialogTitle>{t('createDialog.title')}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
         <TextField
           autoFocus
-          label="Name"
+          label={t('createDialog.name')}
           size="small"
           value={name}
           onChange={(e) => setName(e.target.value)}
           inputProps={{ maxLength: 80 }}
         />
         <TextField
-          label="Topic (optional)"
+          label={t('createDialog.topicOptional')}
           size="small"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
@@ -184,7 +187,7 @@ function CreateChannelDialog({
           control={
             <Checkbox checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
           }
-          label="Private (only invited members can see it)"
+          label={t('createDialog.private')}
         />
         {isPrivate && (
           <Autocomplete
@@ -197,7 +200,11 @@ function CreateChannelDialog({
             value={members}
             onChange={(_, v) => setMembers(v)}
             renderInput={(params) => (
-              <TextField {...params} label="Members" placeholder="Add project members" />
+              <TextField
+                {...params}
+                label={t('createDialog.members')}
+                placeholder={t('createDialog.membersPlaceholder')}
+              />
             )}
           />
         )}
@@ -208,13 +215,13 @@ function CreateChannelDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={close}>Cancel</Button>
+        <Button onClick={close}>{t('common:cancel')}</Button>
         <Button
           variant="contained"
           disabled={!name.trim() || create.isPending}
           onClick={() => void submit()}
         >
-          Create
+          {t('common:create')}
         </Button>
       </DialogActions>
     </Dialog>

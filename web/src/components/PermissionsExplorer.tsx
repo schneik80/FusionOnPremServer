@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   Box,
   Chip,
@@ -23,6 +25,7 @@ import {
   faUsers,
 } from '@fortawesome/free-solid-svg-icons'
 import { usePermissionsPath } from '../api/queries'
+import { roleLabel } from '../i18n/enums'
 import { useNav } from '../state/nav'
 import type { Item, PermLayer } from '../api/types'
 
@@ -46,12 +49,25 @@ const ROLE_RANK: Record<string, number> = {
   owner: 5,
 }
 type RoleInfo = { rank: number; intensity: number; label: string }
-function roleInfo(role: string): RoleInfo {
+function roleInfo(t: TFunction, role: string): RoleInfo {
   const rank = ROLE_RANK[(role || '').toLowerCase()] ?? 1
+  // roleLabel resolves known role tokens through the enums catalog; it falls
+  // back to the raw uppercased token for roles the catalog doesn't carry
+  // (reader/contributor/owner/…), where the old prettifier still applies.
+  let label: string
+  if (!role) {
+    label = t('details:permissions.member')
+  } else {
+    const translated = roleLabel(t, role)
+    label =
+      translated === role.toUpperCase()
+        ? role.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/_/g, ' ')
+        : translated
+  }
   return {
     rank,
     intensity: [0, 0.34, 0.5, 0.68, 0.84, 1][rank] ?? 0.34,
-    label: role ? role.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/_/g, ' ') : 'Member',
+    label,
   }
 }
 
@@ -101,6 +117,7 @@ const initials = (name: string) =>
 const truncate = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
 export default function PermissionsExplorer({ hubId, item }: { hubId: string | null; item: Item }) {
+  const { t } = useTranslation('details')
   const theme = useTheme()
   const nav = useNav()
   const projectId = nav.project?.id ?? null
@@ -119,16 +136,16 @@ export default function PermissionsExplorer({ hubId, item }: { hubId: string | n
     const all: Principal[] = []
     for (const [id, name] of groupIds) {
       const r = resolve(layers, 'group', id)
-      all.push({ kind: 'group', id, name, ...r, eff: roleInfo(r.leafRole ?? '') })
+      all.push({ kind: 'group', id, name, ...r, eff: roleInfo(t, r.leafRole ?? '') })
     }
     for (const [id, meta] of userMeta) {
       const r = resolve(layers, 'user', id)
-      all.push({ kind: 'user', id, name: meta.name, status: meta.status, ...r, eff: roleInfo(r.leafRole ?? '') })
+      all.push({ kind: 'user', id, name: meta.name, status: meta.status, ...r, eff: roleInfo(t, r.leafRole ?? '') })
     }
     const access = all.filter((p) => p.leafRole != null).sort((a, b) => b.eff.rank - a.eff.rank || (a.kind === b.kind ? 0 : a.kind === 'group' ? -1 : 1))
     const denied = all.filter((p) => p.leafRole == null && p.denyIdx >= 0)
     return { access, denied }
-  }, [layers])
+  }, [layers, t])
 
   const [tab, setTab] = useState<'all' | 'group' | 'user'>('all')
   const [query, setQuery] = useState('')
@@ -140,10 +157,10 @@ export default function PermissionsExplorer({ hubId, item }: { hubId: string | n
   const matches = (p: Principal) =>
     (tab === 'all' || p.kind === tab) && (!query.trim() || p.name.toLowerCase().includes(query.trim().toLowerCase()))
 
-  if (!projectId) return <Empty text="Select a document within a project to see access" />
+  if (!projectId) return <Empty text={t('permissions.selectDocument')} />
   if (q.isLoading) return <Spinner />
   if (q.error) return <Empty text={(q.error as Error).message} />
-  if (layers.length === 0) return <Empty text="No access information for this document" />
+  if (layers.length === 0) return <Empty text={t('permissions.noAccessInfo')} />
 
   // Name a path layer by its object type *and* name, e.g. "Project (Stream
   // Cheap)" / "Folder (Manufacturing)", so a row reads "Directly applied to
@@ -151,8 +168,8 @@ export default function PermissionsExplorer({ hubId, item }: { hubId: string | n
   // folder. Falls back to just the type word when the name is unavailable.
   const layerName = (i: number) => {
     const l = layers[i]
-    const kind = l?.type === 'project' ? 'Project' : 'Folder'
-    return l?.name ? `${kind} (${l.name})` : kind
+    const kind = l?.type === 'project' ? t('permissions.layerProject') : t('permissions.layerFolder')
+    return l?.name ? t('permissions.layerWithName', { kind, name: l.name }) : kind
   }
   const fAccess = access.filter(matches)
   const fDenied = denied.filter(matches)
@@ -164,13 +181,13 @@ export default function PermissionsExplorer({ hubId, item }: { hubId: string | n
       {/* ── Path layers ─────────────────────────────────────────── */}
       <Box>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-          <Head icon={faSitemap} title="Path layers" sub={`${layers.length} layers`} />
+          <Head icon={faSitemap} title={t('permissions.pathLayers')} sub={t('permissions.layerCount', { count: layers.length })} />
           <ToggleButtonGroup size="small" exclusive value={viz} onChange={(_, v: typeof viz | null) => v && setViz(v)}>
             <ToggleButton value="layers" sx={{ py: 0, px: 1, fontSize: 11 }}>
-              Layers
+              {t('permissions.vizLayers')}
             </ToggleButton>
             <ToggleButton value="circles" sx={{ py: 0, px: 1, fontSize: 11 }}>
-              Circles
+              {t('permissions.vizCircles')}
             </ToggleButton>
           </ToggleButtonGroup>
         </Stack>
@@ -180,36 +197,36 @@ export default function PermissionsExplorer({ hubId, item }: { hubId: string | n
           <LayersViz layers={layers} item={item} active={activeP} theme={theme} />
         )}
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5 }}>
-          {activeP ? calloutText(activeP, layerName, item.kind) : `Hover a principal to trace its access to this ${item.kind}.`}
+          {activeP ? calloutText(t, activeP, layerName, item.kind) : t('permissions.hoverHint', { kind: item.kind })}
         </Typography>
       </Box>
 
       {/* ── With access ─────────────────────────────────────────── */}
       <Box>
-        <Head icon={faUsers} title="With access" sub={`${access.length} with access · ${denied.length} denied`} />
+        <Head icon={faUsers} title={t('permissions.withAccess')} sub={t('permissions.accessSummary', { access: access.length, denied: denied.length })} />
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, height: 34, mb: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
           <FontAwesomeIcon icon={faMagnifyingGlass} style={{ fontSize: 12, opacity: 0.6 }} />
-          <InputBase placeholder="Search people & groups" value={query} onChange={(e) => setQuery(e.target.value)} sx={{ flex: 1, fontSize: 13 }} />
+          <InputBase placeholder={t('permissions.searchPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} sx={{ flex: 1, fontSize: 13 }} />
         </Box>
         <ToggleButtonGroup size="small" exclusive value={tab} onChange={(_, v: typeof tab | null) => v && setTab(v)} fullWidth sx={{ mb: 1 }}>
-          <ToggleButton value="all">All</ToggleButton>
-          <ToggleButton value="group">Groups</ToggleButton>
-          <ToggleButton value="user">People</ToggleButton>
+          <ToggleButton value="all">{t('permissions.filterAll')}</ToggleButton>
+          <ToggleButton value="group">{t('permissions.filterGroups')}</ToggleButton>
+          <ToggleButton value="user">{t('permissions.filterPeople')}</ToggleButton>
         </ToggleButtonGroup>
 
         <Stack spacing={0.5}>
-          {(tab === 'all' || tab === 'group') && groups.length > 0 && <Label text="Groups" n={groups.length} />}
+          {(tab === 'all' || tab === 'group') && groups.length > 0 && <Label text={t('permissions.groups')} n={groups.length} />}
           {groups.map((p) => (
             <Row key={p.id} p={p} layerName={layerName} activeId={hover ?? active} onHover={setHover} onClick={() => setActive((a) => (a === p.id ? null : p.id))} theme={theme} />
           ))}
-          {(tab === 'all' || tab === 'user') && users.length > 0 && <Label text="People" n={users.length} />}
+          {(tab === 'all' || tab === 'user') && users.length > 0 && <Label text={t('permissions.people')} n={users.length} />}
           {users.map((p) => (
             <Row key={p.id} p={p} layerName={layerName} activeId={hover ?? active} onHover={setHover} onClick={() => setActive((a) => (a === p.id ? null : p.id))} theme={theme} />
           ))}
           {fDenied.length > 0 && (
             <>
-              <Label text="Denied here" n={fDenied.length} />
+              <Label text={t('permissions.deniedHere')} n={fDenied.length} />
               {fDenied.map((p) => (
                 <Row key={p.id} p={p} layerName={layerName} activeId={hover ?? active} onHover={setHover} onClick={() => setActive((a) => (a === p.id ? null : p.id))} theme={theme} denied />
               ))}
@@ -217,7 +234,7 @@ export default function PermissionsExplorer({ hubId, item }: { hubId: string | n
           )}
           {fAccess.length === 0 && fDenied.length === 0 && (
             <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-              No matching people or groups.
+              {t('permissions.noMatches')}
             </Typography>
           )}
         </Stack>
@@ -226,16 +243,29 @@ export default function PermissionsExplorer({ hubId, item }: { hubId: string | n
   )
 }
 
-function calloutText(p: Principal, layerName: (i: number) => string, itemKind: string): string {
-  if (p.leafRole == null) return `${p.name}: No role — denied on ${layerName(p.denyIdx)}.`
+function calloutText(t: TFunction, p: Principal, layerName: (i: number) => string, itemKind: string): string {
+  if (p.leafRole == null)
+    return t('details:permissions.calloutDenied', { name: p.name, layer: layerName(p.denyIdx) })
   const k = p.kinds[p.originIdx]
-  const where = layerName(p.originIdx)
-  const verb = k === 'raised' ? 'raised on' : k === 'lowered' ? 'lowered on' : p.originIdx === p.seq.length - 1 ? 'directly applied to' : 'inherited from'
-  return `${p.name}: ${p.eff.label}, ${verb} ${where}${p.originIdx === p.seq.length - 1 ? '' : ` → this ${itemKind}`}.`
+  const atLeaf = p.originIdx === p.seq.length - 1
+  const key =
+    k === 'raised'
+      ? atLeaf
+        ? 'details:permissions.calloutRaised'
+        : 'details:permissions.calloutRaisedInherited'
+      : k === 'lowered'
+        ? atLeaf
+          ? 'details:permissions.calloutLowered'
+          : 'details:permissions.calloutLoweredInherited'
+        : atLeaf
+          ? 'details:permissions.calloutDirect'
+          : 'details:permissions.calloutInherited'
+  return t(key, { name: p.name, role: p.eff.label, layer: layerName(p.originIdx), kind: itemKind })
 }
 
 // ── rings ─────────────────────────────────────────────────────────
 function Rings({ layers, item, active, theme }: { layers: PermLayer[]; item: Item; active: Principal | null; theme: Theme }) {
+  const { t } = useTranslation('details')
   const accent = theme.palette.primary.main
   const muted = theme.palette.text.secondary
   const track = alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.16 : 0.12)
@@ -251,8 +281,8 @@ function Rings({ layers, item, active, theme }: { layers: PermLayer[]; item: Ite
   const PAD = 26 // room for the outer ring stroke + 12-o'clock markers/labels
 
   const leaf = active?.leafRole ?? null
-  const discInt = leaf ? roleInfo(leaf).intensity : 0
-  const discLabel = active ? (leaf ? roleInfo(leaf).label : 'No access') : '—'
+  const discInt = leaf ? roleInfo(t, leaf).intensity : 0
+  const discLabel = active ? (leaf ? roleInfo(t, leaf).label : t('permissions.noAccess')) : '—'
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
@@ -261,7 +291,7 @@ function Rings({ layers, item, active, theme }: { layers: PermLayer[]; item: Ite
         height={SIZE}
         viewBox={`${-PAD} ${-PAD} ${SIZE + PAD * 2} ${SIZE + PAD * 2}`}
         role="img"
-        aria-label="Permission path layers"
+        aria-label={t('permissions.pathLayersAria')}
       >
         <circle cx={C} cy={C} r={DISC} fill={discInt ? alpha(accent, discInt * 0.7) : 'transparent'} stroke={active && !leaf ? muted : track} strokeWidth={1.5} strokeDasharray={active && !leaf ? '3 3' : undefined} />
         <text x={C} y={C - 8} textAnchor="middle" fontSize={8} fill={muted} style={{ letterSpacing: 1 }}>
@@ -283,7 +313,7 @@ function Rings({ layers, item, active, theme }: { layers: PermLayer[]; item: Ite
           return (
             <g key={s}>
               <circle cx={C} cy={C} r={r} fill="none" stroke={track} strokeWidth={RT} />
-              {role != null && <circle cx={C} cy={C} r={r} fill="none" stroke={accent} strokeWidth={RT} strokeOpacity={roleInfo(role).intensity} />}
+              {role != null && <circle cx={C} cy={C} r={r} fill="none" stroke={accent} strokeWidth={RT} strokeOpacity={roleInfo(t, role).intensity} />}
               {kind === 'denied' && <circle cx={C} cy={C} r={r} fill="none" stroke={muted} strokeWidth={RT} strokeOpacity={0.5} strokeDasharray="2 6" />}
               {/* marker on the ring at 12 o'clock */}
               {set && <circle cx={C} cy={C - r} r={5} fill={kind === 'lowered' ? theme.palette.background.paper : accent} stroke={accent} strokeWidth={1.5} />}
@@ -294,7 +324,17 @@ function Rings({ layers, item, active, theme }: { layers: PermLayer[]; item: Ite
                 </g>
               )}
               <text x={C} y={C - r} dy={set || kind === 'denied' ? -10 : 3} textAnchor="middle" fontSize={8} fontWeight={set ? 700 : 500} fill={set ? accent : muted}>
-                {set ? (kind === 'granted' ? 'SET' : kind === 'raised' ? '▲' : '▼') : kind === 'denied' ? 'DENY' : nodes[ni].type === 'project' ? 'PRJ' : 'INH'}
+                {set
+                  ? kind === 'granted'
+                    ? t('permissions.markSet')
+                    : kind === 'raised'
+                      ? '▲'
+                      : '▼'
+                  : kind === 'denied'
+                    ? t('permissions.markDeny')
+                    : nodes[ni].type === 'project'
+                      ? t('permissions.markProject')
+                      : t('permissions.markInherited')}
               </text>
             </g>
           )
@@ -314,18 +354,20 @@ const layerIcon = (type: string) =>
         : type === 'design' || type === 'configured'
           ? faCube
           : faFile
+// Catalog keys per layer kind (details namespace); rendered through t() below.
 const KIND_LABEL: Record<Kind | 'selected', string> = {
-  granted: 'Set',
-  inherit: 'Inherited',
-  raised: 'Raised',
-  lowered: 'Lowered',
-  denied: 'Denied',
-  absent: '—',
-  selected: 'Selected',
+  granted: 'permissions.kindSet',
+  inherit: 'permissions.kindInherited',
+  raised: 'permissions.kindRaised',
+  lowered: 'permissions.kindLowered',
+  denied: 'permissions.kindDenied',
+  absent: 'permissions.kindAbsent',
+  selected: 'permissions.kindSelected',
 }
 
 // ── layers viz (the prototype's horizontal path spine) ────────────
 function LayersViz({ layers, item, active, theme }: { layers: PermLayer[]; item: Item; active: Principal | null; theme: Theme }) {
+  const { t } = useTranslation('details')
   const accent = theme.palette.primary.main
   const muted = theme.palette.text.secondary
   const nodes = [
@@ -343,7 +385,7 @@ function LayersViz({ layers, item, active, theme }: { layers: PermLayer[]; item:
       <Stack direction="row" alignItems="stretch" sx={{ minWidth: 'min-content' }}>
         {nodes.map((n, i) => {
           const deny = n.kind === 'denied'
-          const ri = n.role ? roleInfo(n.role) : null
+          const ri = n.role ? roleInfo(t, n.role) : null
           const hot = n.kind === 'granted' || n.kind === 'raised' || n.kind === 'lowered' || deny
           return (
             <Box key={i} sx={{ display: 'flex', alignItems: 'center' }}>
@@ -378,7 +420,7 @@ function LayersViz({ layers, item, active, theme }: { layers: PermLayer[]; item:
                   />
                 </Box>
                 <Typography variant="caption" color={deny ? 'text.secondary' : 'text.secondary'} sx={{ fontSize: 10 }}>
-                  {KIND_LABEL[n.kind]}
+                  {t(KIND_LABEL[n.kind])}
                 </Typography>
               </Box>
               {i < nodes.length - 1 && (
@@ -410,22 +452,23 @@ function Row({
   theme: Theme
   denied?: boolean
 }) {
+  const { t } = useTranslation('details')
   const accent = theme.palette.primary.main
   const isActive = activeId === p.id
   let sub: string
   if (denied) {
-    sub = `No role on ${layerName(p.denyIdx)}`
+    sub = t('permissions.noRoleOn', { layer: layerName(p.denyIdx) })
   } else {
     const k = p.kinds[p.originIdx]
     const where = layerName(p.originIdx)
     sub =
       p.originIdx === p.seq.length - 1
         ? k === 'raised'
-          ? `Raised on ${where}`
+          ? t('permissions.raisedOn', { layer: where })
           : k === 'lowered'
-            ? `Lowered on ${where}`
-            : `Directly applied to ${where}`
-        : `Inherited from ${where}`
+            ? t('permissions.loweredOn', { layer: where })
+            : t('permissions.directlyAppliedTo', { layer: where })
+        : t('permissions.inheritedFrom', { layer: where })
   }
 
   return (
@@ -471,7 +514,7 @@ function Row({
           <Typography variant="body2" fontWeight={600} noWrap>
             {p.name}
           </Typography>
-          {p.status === 'PENDING' && <Chip label="Invited" size="small" variant="outlined" sx={{ height: 16, fontSize: 9 }} />}
+          {p.status === 'PENDING' && <Chip label={t('permissions.invited')} size="small" variant="outlined" sx={{ height: 16, fontSize: 9 }} />}
         </Stack>
         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
           {sub}
@@ -480,7 +523,7 @@ function Row({
       {denied ? (
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: 22, px: 1, borderRadius: 999, border: 1, borderColor: 'divider', fontSize: 11, fontWeight: 600, color: 'text.secondary' }}>
           <Box sx={{ width: 9, height: 9, borderRadius: '50%', border: 1, borderColor: 'text.secondary' }} />
-          No access
+          {t('permissions.noAccess')}
         </Box>
       ) : (
         <RoleBadge info={p.eff} accent={accent} />

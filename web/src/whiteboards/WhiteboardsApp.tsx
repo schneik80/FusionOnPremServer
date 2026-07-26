@@ -14,6 +14,7 @@ import {
 } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { Suspense, lazy, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthMe, useWhiteboardMutations, useWhiteboards } from '../api/queries'
 import { APP_RAIL_WIDTH } from '../components/Column'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -33,6 +34,7 @@ const WhiteboardCanvas = lazy(() =>
 // left, the selected board's canvas on the right — the same master/detail shape
 // as Tasks and Production, so the tab strip stays predictable.
 export function WhiteboardsApp({ active = true }: { active?: boolean }) {
+  const { t } = useTranslation('whiteboards')
   const nav = useNav()
   const projectId = nav.project?.id ?? null
   const q = useWhiteboards(projectId, active)
@@ -72,7 +74,7 @@ export function WhiteboardsApp({ active = true }: { active?: boolean }) {
       />
       <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', position: 'relative' }}>
         {selected ? (
-          <ErrorBoundary label="whiteboard" resetKey={selected.id}>
+          <ErrorBoundary label={t('errorLabel')} resetKey={selected.id}>
             <Suspense
               fallback={
                 <Box sx={{ flex: 1, display: 'grid', placeItems: 'center' }}>
@@ -101,10 +103,10 @@ export function WhiteboardsApp({ active = true }: { active?: boolean }) {
             }}
           >
             {q.isLoading
-              ? 'Loading whiteboards…'
+              ? t('list.loading')
               : canWrite
-                ? 'No whiteboards yet. Create one to sketch, and drop task, job, batch and document cards onto it.'
-                : 'This project has no whiteboards yet.'}
+                ? t('emptyState.canWrite')
+                : t('emptyState.readOnly')}
           </Box>
         )}
       </Box>
@@ -139,6 +141,7 @@ function BoardRail({
   onSelect: (id: string) => void
   onDeleted: () => void
 }) {
+  const { t } = useTranslation('whiteboards')
   const { create, rename, remove } = useWhiteboardMutations(projectId)
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -161,8 +164,8 @@ function BoardRail({
   }
 
   const commitRename = (boardId: string, original: string) => {
-    const t = renameDraft.trim()
-    if (t && t !== original) rename.mutate({ boardId, patch: { name: t } })
+    const next = renameDraft.trim()
+    if (next && next !== original) rename.mutate({ boardId, patch: { name: next } })
     setRenamingId(null)
   }
 
@@ -179,12 +182,10 @@ function BoardRail({
       }}
     >
       <RailHeader
-        title="Whiteboards"
+        title={t('list.title')}
         onNew={() => setAdding((v) => !v)}
         newDisabled={!canWrite}
-        newDisabledReason={
-          loading ? '' : 'Your project role is read-only — creating whiteboards needs Editor access'
-        }
+        newDisabledReason={loading ? '' : t('list.readOnlyReason')}
       />
 
       {adding && (
@@ -193,7 +194,7 @@ function BoardRail({
             autoFocus
             fullWidth
             size="small"
-            placeholder="Whiteboard name"
+            placeholder={t('list.namePlaceholder')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -206,7 +207,7 @@ function BoardRail({
           />
           <Stack direction="row" spacing={1} sx={{ mt: 1 }} justifyContent="flex-end">
             <Button size="small" onClick={() => setAdding(false)} sx={{ textTransform: 'none' }}>
-              Cancel
+              {t('common:cancel')}
             </Button>
             <Button
               size="small"
@@ -215,7 +216,7 @@ function BoardRail({
               disabled={!name.trim() || create.isPending}
               sx={{ textTransform: 'none' }}
             >
-              Create
+              {t('common:create')}
             </Button>
           </Stack>
         </Box>
@@ -224,11 +225,11 @@ function BoardRail({
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {error ? (
           <Typography variant="caption" color="error" sx={{ p: 2, display: 'block' }}>
-            Failed to load whiteboards.
+            {t('list.loadFailed')}
           </Typography>
         ) : boards.length === 0 && !loading ? (
           <Typography variant="caption" color="text.secondary" sx={{ p: 2, display: 'block' }}>
-            No whiteboards yet.
+            {t('list.empty')}
           </Typography>
         ) : (
           <List dense disablePadding>
@@ -280,14 +281,14 @@ function BoardRail({
                     </Typography>
                   </Box>
                   {canDelete && (
-                    <Tooltip title="Delete whiteboard">
+                    <Tooltip title={t('list.deleteTooltip')}>
                       <IconButton
                         size="small"
                         className="wb-del"
                         sx={{ opacity: 0, transition: 'opacity .1s', flexShrink: 0 }}
                         onClick={(e) => {
                           e.stopPropagation()
-                          if (window.confirm(`Delete whiteboard "${b.name}"? This cannot be undone.`)) {
+                          if (window.confirm(t('list.deleteConfirm', { name: b.name }))) {
                             remove.mutate(b.id, { onSuccess: onDeleted })
                           }
                         }}
@@ -305,7 +306,7 @@ function BoardRail({
 
       {canWrite && boards.length > 0 && (
         <Typography variant="caption" color="text.disabled" sx={{ px: 1.5, py: 0.75, borderTop: 1, borderColor: 'divider' }}>
-          Double-click a name to rename
+          {t('list.renameHint')}
         </Typography>
       )}
     </Box>

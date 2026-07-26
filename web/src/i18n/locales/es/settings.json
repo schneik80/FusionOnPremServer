@@ -1,0 +1,28 @@
+{
+  "title": "Configuración",
+  "theme": {
+    "label": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "language": {
+    "label": "Idioma"
+  },
+  "port": {
+    "label": "Puerto del servidor",
+    "applyRestart": "Aplicar y reiniciar",
+    "applying": "Aplicando…",
+    "fixedAtStartup": "Fijado al arrancar (iniciado con <cmd>-addr</cmd> o en modo de desarrollo).",
+    "restarting": "Servidor reiniciándose. Reconectando a <lnk>{{url}}</lnk>…",
+    "rangeHelp": "{{min}}–{{max}}. Cambiar el puerto reinicia el servidor; se reconectará por el puerto nuevo."
+  },
+  "region": {
+    "label": "Región",
+    "help": "Se establece al arrancar el servidor (solo lectura)."
+  },
+  "about": {
+    "label": "Acerca de",
+    "buildNote": "Abrir/insertar en Fusion y la descarga STEP aún no están disponibles en esta compilación."
+  }
+}

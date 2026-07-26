@@ -1,0 +1,34 @@
+{
+  "taskStatus": {
+    "todo": "À faire",
+    "inprogress": "En cours",
+    "blocked": "Bloquée",
+    "done": "Terminée"
+  },
+  "taskPriority": {
+    "low": "Basse",
+    "medium": "Moyenne",
+    "high": "Haute",
+    "urgent": "Urgente"
+  },
+  "batchKind": {
+    "prove": "Validation",
+    "production": "Production"
+  },
+  "batchStatus": {
+    "planned": "Planifié",
+    "running": "En cours",
+    "complete": "Terminé"
+  },
+  "role": {
+    "VIEWER": "Observateur",
+    "EDITOR": "Éditeur",
+    "MANAGER": "Gestionnaire",
+    "ADMIN": "Admin",
+    "READER": "Lecteur",
+    "CONTRIBUTOR": "Contributeur",
+    "ADMINISTRATOR": "Administrateur",
+    "PROJECT_ADMIN": "Admin du projet",
+    "OWNER": "Propriétaire"
+  }
+}

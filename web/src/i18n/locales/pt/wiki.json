@@ -1,0 +1,98 @@
+{
+  "untitledPage": "Sem título",
+  "pages": {
+    "title": "Páginas",
+    "searchPlaceholder": "Pesquisar páginas",
+    "noMatches": "Sem páginas correspondentes",
+    "empty": "Ainda não há páginas"
+  },
+  "statusShort": {
+    "draft": "Rascunho",
+    "edited": "Editada",
+    "synced": "Sincronizada",
+    "update": "Atualizar",
+    "conflict": "Conflito",
+    "published": "Publicada"
+  },
+  "status": {
+    "localDraft": "Rascunho local",
+    "unpublishedChanges": "Alterações não publicadas",
+    "updateAvailable": "Atualização disponível",
+    "conflict": "Conflito",
+    "synced": "Sincronizada",
+    "published": "Publicada"
+  },
+  "empty": {
+    "title": "Wiki do projeto",
+    "body": "Escreva páginas em markdown para este projeto. Os rascunhos ficam guardados neste dispositivo até os publicar na pasta Wiki do projeto.",
+    "newPage": "Nova página"
+  },
+  "alerts": {
+    "pagesLoadFailed": "Não foi possível carregar as páginas publicadas. Os rascunhos locais continuam disponíveis.",
+    "publishFailed": "Falha na publicação.",
+    "renameFailed": "Falha ao renomear.",
+    "refreshFailed": "Falha ao atualizar."
+  },
+  "publish": {
+    "conflictConfirm": "Esta página foi alterada desde que a abriu. Substituir a versão publicada?"
+  },
+  "reader": {
+    "rename": "Renomear",
+    "update": "Atualizar",
+    "takeLatest": "Usar a mais recente",
+    "behindBody": "Foi publicada uma versão mais recente noutro dispositivo.",
+    "conflictBody": "Foi publicada uma versão mais recente noutro dispositivo e tem edições locais não publicadas. «Usar a mais recente» descarta as suas edições; Editar → Publicar mantém as suas.",
+    "editAsDraft": "Editar como rascunho",
+    "downloadFailed": "Não foi possível transferir esta página."
+  },
+  "renameDialog": {
+    "title": "Renomear página",
+    "rename": "Renomear",
+    "renaming": "A renomear…"
+  },
+  "editor": {
+    "titlePlaceholder": "Título da página",
+    "savedLocally": "Guardado localmente",
+    "saving": "A guardar…",
+    "publish": "Publicar",
+    "publishing": "A publicar…",
+    "publishTooltip": "Publicar na pasta Wiki do projeto",
+    "publishUnavailable": "Publicação indisponível",
+    "heading1Tooltip": "Título 1",
+    "heading2Tooltip": "Título 2",
+    "heading3Tooltip": "Título 3",
+    "boldTooltip": "Negrito",
+    "italicTooltip": "Itálico",
+    "inlineCodeTooltip": "Código inline",
+    "bulletedListTooltip": "Lista com marcas",
+    "quoteTooltip": "Citação",
+    "linkTooltip": "Ligação",
+    "insertImageUploadTooltip": "Inserir imagem (carregada para a página)",
+    "insertImageUrlTooltip": "Inserir URL de imagem",
+    "insertImageFromPublicUrlTooltip": "Inserir imagem a partir de um URL público",
+    "embedHubImageTooltip": "Incorporar uma imagem guardada neste hub",
+    "insertDocCardTooltip": "Inserir um cartão de documento (procurar neste hub)",
+    "insertTaskCardTooltip": "Inserir um cartão de tarefa (tarefas deste projeto)",
+    "createTaskCardTooltip": "Criar uma tarefa e inserir o seu cartão",
+    "insertProdCardTooltip": "Inserir um cartão de trabalho ou lote (produção deste projeto)",
+    "imageUploadFailed": "Falha no carregamento da imagem.",
+    "hubImageDialogTitle": "Incorporar uma imagem do hub",
+    "embedImage": "Incorporar imagem",
+    "docCardDialogTitle": "Inserir um cartão de documento",
+    "insertCard": "Inserir cartão",
+    "preview": "Pré-visualizar",
+    "emptyPreview": "Ainda nada para pré-visualizar."
+  },
+  "imageUrlDialog": {
+    "title": "Inserir imagem a partir de URL",
+    "urlLabel": "URL da imagem",
+    "urlHelper": "O URL tem de estar acessível publicamente a qualquer leitor da página.",
+    "altLabel": "Texto alternativo (opcional)",
+    "previewFailed": "Não foi possível carregar uma pré-visualização — verifique se o URL aponta para uma imagem.",
+    "insert": "Inserir"
+  },
+  "toc": {
+    "title": "Nesta página",
+    "ariaLabel": "Índice"
+  }
+}

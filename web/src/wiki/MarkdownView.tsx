@@ -1,5 +1,6 @@
 import { Box, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Markdown } from './Markdown'
 
 // MarkdownView renders a wiki page in a scroll container with a sticky
@@ -23,6 +24,7 @@ const TOC_MIN_ENTRIES = 3
 const TRIGGER_OFFSET = 96
 
 export function MarkdownView({ children }: { children: string }) {
+  const { t } = useTranslation('wiki')
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const [toc, setToc] = useState<TocItem[]>([])
@@ -94,7 +96,7 @@ export function MarkdownView({ children }: { children: string }) {
       {toc.length >= TOC_MIN_ENTRIES && (
         <Box
           component="nav"
-          aria-label="Table of contents"
+          aria-label={t('toc.ariaLabel')}
           sx={{
             width: 200,
             flexShrink: 0,
@@ -106,7 +108,7 @@ export function MarkdownView({ children }: { children: string }) {
           }}
         >
           <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-            On this page
+            {t('toc.title')}
           </Typography>
           <Stack spacing={0}>
             {toc.map((t) => (

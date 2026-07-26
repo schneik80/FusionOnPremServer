@@ -25,6 +25,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthMe, useJob, useJobGraphMutations, useProductionMutations } from '../api/queries'
 import { BatchesView } from './BatchesView'
 import { PlaceholderChip, StepNumBadge } from './chips'
@@ -52,6 +53,7 @@ export function JobDetail({
   canModerate: boolean
   onDeleted: () => void
 }) {
+  const { t } = useTranslation('production')
   const jobQ = useJob(projectId, jobId, active)
   const { updateJob, removeJob } = useProductionMutations(projectId)
   const g = useJobGraphMutations(projectId, jobId)
@@ -77,7 +79,7 @@ export function JobDetail({
   if (!job) {
     return (
       <Box sx={{ flex: 1, display: 'grid', placeItems: 'center', color: 'text.secondary' }}>
-        <Typography variant="caption">This job is no longer available.</Typography>
+        <Typography variant="caption">{t('jobDetail.notAvailable')}</Typography>
       </Box>
     )
   }
@@ -86,8 +88,8 @@ export function JobDetail({
   const stepName = (id: string) => job.steps.find((s) => s.id === id)?.title ?? id
 
   const saveName = () => {
-    const t = (nameDraft ?? '').trim()
-    if (t && t !== job.name) updateJob.mutate({ jobId: job.id, patch: { name: t } })
+    const trimmed = (nameDraft ?? '').trim()
+    if (trimmed && trimmed !== job.name) updateJob.mutate({ jobId: job.id, patch: { name: trimmed } })
     setNameDraft(null) // blank or unchanged → revert to the server value
   }
   const saveDesc = () => {
@@ -125,7 +127,7 @@ export function JobDetail({
             onChange={(e) => setNameDraft(e.target.value)}
             onBlur={saveName}
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            placeholder="Job name"
+            placeholder={t('jobDetail.namePlaceholder')}
             sx={{
               minWidth: 0,
               maxWidth: 320,
@@ -152,15 +154,15 @@ export function JobDetail({
         >
           <ToggleButton value="flow">
             <FontAwesomeIcon icon={faDiagramProject} style={{ fontSize: 12, marginRight: 6 }} />
-            Flow
+            {t('jobDetail.viewFlow')}
           </ToggleButton>
           <ToggleButton value="list">
             <FontAwesomeIcon icon={faTableList} style={{ fontSize: 12, marginRight: 6 }} />
-            List
+            {t('jobDetail.viewList')}
           </ToggleButton>
           <ToggleButton value="batches">
             <FontAwesomeIcon icon={faFlask} style={{ fontSize: 12, marginRight: 6 }} />
-            Batches
+            {t('jobDetail.viewBatches')}
             {job.batches.length > 0 && (
               <Box
                 component="span"
@@ -181,13 +183,13 @@ export function JobDetail({
           </ToggleButton>
         </ToggleButtonGroup>
         {canDelete && (
-          <Tooltip title="Delete job">
+          <Tooltip title={t('jobDetail.deleteJob')}>
             <IconButton
               size="small"
               color="error"
               disabled={removeJob.isPending}
               onClick={() => {
-                if (window.confirm(`Delete job "${job.name}" and all its batches?`)) {
+                if (window.confirm(t('jobDetail.deleteConfirm', { name: job.name }))) {
                   removeJob.mutate(job.id, { onSuccess: onDeleted })
                 }
               }}
@@ -236,7 +238,7 @@ export function JobDetail({
               onFocus={() => setDescDraft(job.description ?? '')}
               onChange={(e) => setDescDraft(e.target.value)}
               onBlur={saveDesc}
-              placeholder="Add a job description…"
+              placeholder={t('jobDetail.descPlaceholder')}
               sx={{
                 mb: 1.5,
                 '& textarea': { fontSize: 13 },
@@ -255,7 +257,7 @@ export function JobDetail({
         <Stack spacing={1.5}>
           {job.steps.length === 0 && (
             <Typography variant="caption" color="text.secondary">
-              No steps yet. Add the first step of this job’s flow.
+              {t('jobDetail.emptySteps')}
             </Typography>
           )}
           {job.steps.map((step) => (
@@ -275,7 +277,7 @@ export function JobDetail({
           <Stack direction="row" spacing={1} sx={{ mt: 2 }} alignItems="center">
             <TextField
               size="small"
-              placeholder="New step title"
+              placeholder={t('jobDetail.newStepPlaceholder')}
               value={newStep}
               onChange={(e) => setNewStep(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addStep()}
@@ -289,7 +291,7 @@ export function JobDetail({
               startIcon={<FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} />}
               sx={{ textTransform: 'none' }}
             >
-              Add step
+              {t('jobDetail.addStep')}
             </Button>
           </Stack>
           )}
@@ -316,6 +318,7 @@ function StepCard({
   canWrite: boolean
   graph: Graph
 }) {
+  const { t } = useTranslation('production')
   const [placeholder, setPlaceholder] = useState('')
   const [connectTo, setConnectTo] = useState('')
   const [title, setTitle] = useState(step.title)
@@ -326,9 +329,9 @@ function StepCard({
   const candidates = allSteps.filter((s) => s.id !== step.id && !connected.has(s.id))
 
   const saveTitle = () => {
-    const t = title.trim()
-    if (t && t !== step.title) graph.updateStep.mutate({ stepId: step.id, patch: { title: t } })
-    else if (!t) setTitle(step.title) // titles can't be blank — revert
+    const trimmed = title.trim()
+    if (trimmed && trimmed !== step.title) graph.updateStep.mutate({ stepId: step.id, patch: { title: trimmed } })
+    else if (!trimmed) setTitle(step.title) // titles can't be blank — revert
   }
   const saveDesc = () => {
     if (desc !== (step.description ?? '')) graph.updateStep.mutate({ stepId: step.id, patch: { description: desc } })
@@ -345,7 +348,7 @@ function StepCard({
             onChange={(e) => setTitle(e.target.value)}
             onBlur={saveTitle}
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            placeholder="Step name"
+            placeholder={t('stepCard.namePlaceholder')}
             sx={{ flex: 1, minWidth: 0, '& input': { fontWeight: 600, fontSize: 14, py: 0.25 } }}
           />
         ) : (
@@ -354,7 +357,7 @@ function StepCard({
           </Typography>
         )}
         {canWrite && (
-          <Tooltip title="Delete step">
+          <Tooltip title={t('stepCard.deleteStep')}>
             <IconButton
               size="small"
               onClick={() => graph.removeStep.mutate(step.id)}
@@ -375,7 +378,7 @@ function StepCard({
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             onBlur={saveDesc}
-            placeholder="Add a description…"
+            placeholder={t('stepCard.descPlaceholder')}
             sx={{ '& textarea': { fontSize: 12 }, '& .MuiInput-root': { fontSize: 12, color: 'text.secondary' } }}
           />
         </Box>
@@ -390,7 +393,7 @@ function StepCard({
       {/* placeholders */}
       <Box sx={{ mt: 1, pl: 3.75 }}>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-          Placeholders
+          {t('stepCard.placeholders')}
         </Typography>
         <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
           {step.placeholders.map((ph) => (
@@ -406,7 +409,7 @@ function StepCard({
           ))}
           {step.placeholders.length === 0 && (
             <Typography variant="caption" color="text.disabled">
-              none
+              {t('empty.none')}
             </Typography>
           )}
         </Stack>
@@ -415,7 +418,7 @@ function StepCard({
             <TextField
               size="small"
               variant="standard"
-              placeholder="Add a placeholder (e.g. Setup 1 NC program)"
+              placeholder={t('placeholders.addHint')}
               value={placeholder}
               onChange={(e) => setPlaceholder(e.target.value)}
               onKeyDown={(e) => {
@@ -435,7 +438,7 @@ function StepCard({
       {/* connections (outgoing edges) */}
       <Box sx={{ mt: 1, pl: 3.75 }}>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-          Leads to
+          {t('stepCard.leadsTo')}
         </Typography>
         <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
           {outgoing.map((e) => (
@@ -450,7 +453,7 @@ function StepCard({
           ))}
           {outgoing.length === 0 && (
             <Typography variant="caption" color="text.disabled">
-              nothing yet
+              {t('empty.nothingYet')}
             </Typography>
           )}
         </Stack>
@@ -471,7 +474,7 @@ function StepCard({
             sx={{ mt: 0.75, minWidth: 180, fontSize: 12, '& .MuiSelect-select': { py: 0.5 } }}
           >
             <MenuItem value="" disabled>
-              Connect to…
+              {t('stepCard.connectTo')}
             </MenuItem>
             {candidates.map((s) => (
               <MenuItem key={s.id} value={s.id} sx={{ fontSize: 12 }}>

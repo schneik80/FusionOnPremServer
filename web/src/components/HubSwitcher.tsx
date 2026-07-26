@@ -12,18 +12,20 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { useHubs } from '../api/queries'
 import { useNav } from '../state/nav'
 import { HubIcon } from './entityIcons'
 
 export function HubSwitcher({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation('browse')
   const nav = useNav()
   const hubsQ = useHubs()
   const hubs = hubsQ.data ?? []
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Switch hub</DialogTitle>
+      <DialogTitle>{t('hubSwitcher.title')}</DialogTitle>
       <DialogContent dividers sx={{ p: 0 }}>
         {hubsQ.isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -54,7 +56,7 @@ export function HubSwitcher({ open, onClose }: { open: boolean; onClose: () => v
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('common:close')}</Button>
       </DialogActions>
     </Dialog>
   )

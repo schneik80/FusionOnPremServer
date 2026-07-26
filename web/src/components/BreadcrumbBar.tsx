@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronRight } from '@fortawesome/free-solid-svg-icons'
 import { Box, Breadcrumbs, Link, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { useNav } from '../state/nav'
 import { HubIcon } from './entityIcons'
 
@@ -11,6 +12,7 @@ interface Crumb {
 }
 
 export function BreadcrumbBar({ onOpenHubs }: { onOpenHubs: () => void }) {
+  const { t } = useTranslation('browse')
   const nav = useNav()
 
   const crumbs: Crumb[] = []
@@ -39,7 +41,7 @@ export function BreadcrumbBar({ onOpenHubs }: { onOpenHubs: () => void }) {
     >
       {crumbs.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          No hub selected — choose one from the rail
+          {t('breadcrumb.noHub')}
         </Typography>
       ) : (
         <Breadcrumbs

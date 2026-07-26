@@ -1,0 +1,85 @@
+{
+  "unavailable": "Le chat est indisponible : {{message}}",
+  "unknownError": "erreur",
+  "header": {
+    "archived": "archivé",
+    "reconnecting": "reconnexion…"
+  },
+  "emptyState": {
+    "noMessages": "Aucun message pour l'instant — lancez la conversation."
+  },
+  "sidebar": {
+    "title": "Canaux",
+    "archived": "archivé",
+    "newDisabledReason": "Votre rôle sur le projet ne permet pas de créer des canaux — l'accès Éditeur est requis"
+  },
+  "createDialog": {
+    "title": "Nouveau canal",
+    "name": "Nom",
+    "topicOptional": "Sujet (facultatif)",
+    "private": "Privé (visible uniquement par les membres invités)",
+    "members": "Membres",
+    "membersPlaceholder": "Ajouter des membres du projet",
+    "createFailed": "impossible de créer le canal"
+  },
+  "channelMenu": {
+    "options": "Options du canal",
+    "edit": "Modifier le canal…",
+    "members": "Membres…",
+    "archive": "Archiver le canal…",
+    "leave": "Quitter le canal"
+  },
+  "editDialog": {
+    "title": "Modifier #{{name}}",
+    "name": "Nom",
+    "topic": "Sujet",
+    "rootNoRename": "Le canal racine ne peut pas être renommé",
+    "updateFailed": "impossible de mettre à jour le canal"
+  },
+  "archiveDialog": {
+    "title": "Archiver #{{name}} ?",
+    "body": "Le canal reste lisible, mais plus personne ne peut y publier. L'archivage est irréversible.",
+    "confirm": "Archiver"
+  },
+  "membersDialog": {
+    "title": "Membres de #{{name}}",
+    "addMember": "Ajouter un membre du projet",
+    "everyoneHere": "Tous les membres du projet sont déjà ici",
+    "owner": "propriétaire",
+    "removeFromChannel": "Retirer du canal",
+    "changeFailed": "échec de la modification des membres",
+    "done": "Terminé"
+  },
+  "composer": {
+    "placeholder": "Message",
+    "placeholderChannel": "Message dans #{{name}}",
+    "disabledArchived": "Ce canal est archivé",
+    "disabledReadOnly": "Votre rôle sur le projet est en lecture seule",
+    "attachDoc": "Joindre une carte de document",
+    "attachTask": "Joindre une carte de tâche",
+    "createTask": "Créer une tâche et joindre sa carte",
+    "linkProduction": "Lier un ordre de fabrication ou un lot",
+    "attach": "Joindre",
+    "send": "envoyer le message",
+    "sendFailed": "échec de l'envoi"
+  },
+  "message": {
+    "unknownAuthor": "Inconnu",
+    "edited": "(modifié)",
+    "deleted": "message supprimé",
+    "addReaction": "Ajouter une réaction",
+    "replyInThread": "Répondre dans le fil",
+    "delete": "Supprimer le message",
+    "replies_one": "{{count}} réponse",
+    "replies_other": "{{count}} réponses"
+  },
+  "thread": {
+    "title": "Fil de discussion",
+    "close": "fermer le fil",
+    "notFound": "Fil de discussion introuvable.",
+    "replyPlaceholder": "Répondre…"
+  },
+  "typing_one": "{{name}} est en train d'écrire…",
+  "typing_other": "{{count}} personnes sont en train d'écrire…",
+  "typingTwo": "{{a}} et {{b}} sont en train d'écrire…"
+}

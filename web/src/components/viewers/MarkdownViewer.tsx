@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Markdown } from '../../wiki/Markdown'
 import type { ViewerFile } from './kind'
 import { FallbackViewer, ViewerSpinner } from './ui'
@@ -14,10 +15,11 @@ export function MarkdownViewer({
   dmProjectId: string
   itemId: string
 }) {
+  const { t } = useTranslation('browse')
   const { loading, text, tooLarge, error } = useFileText(dmProjectId, itemId)
 
   if (loading) return <ViewerSpinner />
   if (error) return <FallbackViewer file={file} reason={error} />
-  if (tooLarge) return <FallbackViewer file={file} reason="This file is too large to preview." />
+  if (tooLarge) return <FallbackViewer file={file} reason={t('viewer.tooLarge')} />
   return <Markdown>{text}</Markdown>
 }

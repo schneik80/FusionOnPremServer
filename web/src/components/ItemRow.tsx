@@ -10,6 +10,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useClassify } from '../api/queries'
 import { thumbnailSrc } from '../api/thumbnails'
 import type { Item } from '../api/types'
@@ -37,6 +38,7 @@ export function ItemRow({
   onTogglePin,
   classifyEnabled,
 }: ItemRowProps) {
+  const { t } = useTranslation('browse')
   // Both the classify query and the thumbnail below wait until the row is
   // near the viewport. The column renders every item with no windowing, so
   // eagerly refining a 40-design folder fired ~80 APS requests the moment it
@@ -89,7 +91,7 @@ export function ItemRow({
       }}
       secondaryAction={
         showStar ? (
-          <Tooltip title={pinned ? 'Unpin' : 'Pin'}>
+          <Tooltip title={pinned ? t('itemRow.unpin') : t('itemRow.pin')}>
             <IconButton
               className="pin-star"
               edge="end"

@@ -1,5 +1,6 @@
 import { Box, Paper, Slide, Stack, Tab, Tabs } from '@mui/material'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useChatUnreads } from '../api/queries'
 import { ChatApp } from '../chat/ChatApp'
 import { useChatEvents } from '../chat/useChatEvents'
@@ -41,6 +42,7 @@ const TAB_ORDER: ProjectTab[] = ['dashboard', 'production', 'tasks', 'whiteboard
 
 
 export function ProjectPanel() {
+  const { t } = useTranslation('browse')
   const nav = useNav()
   const [tab, setTab] = useState<ProjectTab>('dashboard')
 
@@ -121,18 +123,18 @@ export function ProjectPanel() {
           '& .MuiTab-root': { minHeight: 40, py: 0, textTransform: 'none' },
         }}
       >
-        <Tab label="Dashboard" value="dashboard" />
-        {atRoot && <Tab label="Production" value="production" />}
-        {atRoot && <Tab label="Tasks" value="tasks" />}
-        {atRoot && <Tab label="Whiteboards" value="whiteboards" />}
-        {atRoot && <Tab label="Wiki" value="wiki" />}
+        <Tab label={t('projectPanel.tabs.dashboard')} value="dashboard" />
+        {atRoot && <Tab label={t('projectPanel.tabs.production')} value="production" />}
+        {atRoot && <Tab label={t('projectPanel.tabs.tasks')} value="tasks" />}
+        {atRoot && <Tab label={t('projectPanel.tabs.whiteboards')} value="whiteboards" />}
+        {atRoot && <Tab label={t('projectPanel.tabs.wiki')} value="wiki" />}
         {atRoot && (
           <Tab
             value="chat"
             label={
               totalUnread > 0 ? (
                 <Stack direction="row" spacing={0.75} alignItems="center">
-                  <span>Chat</span>
+                  <span>{t('projectPanel.tabs.chat')}</span>
                   <Box
                     component="span"
                     sx={{
@@ -150,7 +152,7 @@ export function ProjectPanel() {
                   </Box>
                 </Stack>
               ) : (
-                'Chat'
+                t('projectPanel.tabs.chat')
               )
             }
           />

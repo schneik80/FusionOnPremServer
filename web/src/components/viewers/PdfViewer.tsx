@@ -1,5 +1,6 @@
 import { Box } from '@mui/material'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -19,6 +20,7 @@ const MAX_PAGE_WIDTH = 900
 // it doesn't blow up on a wide window). Pages stream via Range as pdf.js reads
 // them. withCredentials carries the session cookie to the same-origin endpoint.
 export function PdfViewer({ file }: { file: ViewerFile }) {
+  const { t } = useTranslation('browse')
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [numPages, setNumPages] = useState(0)
   const [width, setWidth] = useState<number>()
@@ -37,7 +39,7 @@ export function PdfViewer({ file }: { file: ViewerFile }) {
   // Memoize so react-pdf doesn't reload the document on every render.
   const source = useMemo(() => ({ url: file.url, withCredentials: true }), [file.url])
 
-  if (failed) return <FallbackViewer file={file} reason="This PDF could not be rendered." />
+  if (failed) return <FallbackViewer file={file} reason={t('viewer.pdfFailed')} />
 
   return (
     <Box ref={hostRef}>

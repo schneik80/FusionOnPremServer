@@ -1,6 +1,7 @@
 import { faXmark } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, IconButton, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { useChatThread } from '../api/queries'
 import { MessageComposer } from './MessageComposer'
 import { MessageList } from './MessageList'
@@ -40,6 +41,7 @@ export function ThreadPanel({
   onTyping?: () => void
   sending: boolean
 }) {
+  const { t } = useTranslation('chat')
   const threadQ = useChatThread(projectId, channelId, rootSeq, active, live)
   const messages = threadQ.data?.messages ?? []
 
@@ -68,9 +70,9 @@ export function ThreadPanel({
         }}
       >
         <Typography variant="subtitle2" sx={{ flex: 1 }}>
-          Thread
+          {t('thread.title')}
         </Typography>
-        <IconButton size="small" onClick={onClose} aria-label="close thread">
+        <IconButton size="small" onClick={onClose} aria-label={t('thread.close')}>
           <FontAwesomeIcon icon={faXmark} size="xs" />
         </IconButton>
       </Box>
@@ -78,15 +80,15 @@ export function ThreadPanel({
         messages={messages}
         meId={meId}
         caps={caps}
-        emptyText={threadQ.isLoading ? 'Loading…' : 'Thread not found.'}
+        emptyText={threadQ.isLoading ? t('common:loading') : t('thread.notFound')}
         onDelete={onDelete}
         onToggleReaction={onToggleReaction}
       />
       <MessageComposer
-        placeholder="Reply…"
+        placeholder={t('thread.replyPlaceholder')}
         disabled={!caps.post || archived}
         disabledReason={
-          archived ? 'This channel is archived' : 'Your project role is read-only'
+          archived ? t('composer.disabledArchived') : t('composer.disabledReadOnly')
         }
         sending={sending}
         onSend={(body) => onSend(body, rootSeq)}

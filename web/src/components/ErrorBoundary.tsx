@@ -1,5 +1,6 @@
 import { Box, Button, Typography } from '@mui/material'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { withTranslation, type WithTranslation } from 'react-i18next'
 
 // ErrorBoundary contains a render crash to one region instead of letting it
 // unmount the whole app — React tears the entire tree down on an uncaught
@@ -19,7 +20,9 @@ interface State {
   error: Error | null
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+// Class components can't use hooks, so translations arrive via the
+// withTranslation HOC (t injected as a prop, bound to the browse namespace).
+class ErrorBoundaryInner extends Component<Props & WithTranslation, State> {
   state: State = { error: null }
 
   static getDerivedStateFromError(error: Error): State {
@@ -38,6 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   render() {
+    const { t } = this.props
     if (!this.state.error) return this.props.children
     return (
       <Box
@@ -52,14 +56,18 @@ export class ErrorBoundary extends Component<Props, State> {
           textAlign: 'center',
         }}
       >
-        <Typography variant="subtitle2">This {this.props.label} failed to load.</Typography>
+        <Typography variant="subtitle2">
+          {t('errorBoundary.failed', { label: this.props.label })}
+        </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 420 }}>
-          {this.state.error.message || 'An unexpected error occurred.'}
+          {this.state.error.message || t('errorBoundary.unexpected')}
         </Typography>
         <Button size="small" variant="outlined" onClick={() => this.setState({ error: null })} sx={{ mt: 1, textTransform: 'none' }}>
-          Try again
+          {t('errorBoundary.tryAgain')}
         </Button>
       </Box>
     )
   }
 }
+
+export const ErrorBoundary = withTranslation('browse')(ErrorBoundaryInner)

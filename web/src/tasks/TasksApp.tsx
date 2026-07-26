@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useTasks } from '../api/queries'
 import { useNav } from '../state/nav'
 import { TaskGantt } from './gantt/TaskGantt'
@@ -23,6 +24,7 @@ import { TaskListView } from './TaskListView'
 // lives here — the create button is disabled (with the reason) for read-only
 // roles instead of letting the POST bounce off the 403 (composer precedent).
 export function TasksApp({ active = true }: { active?: boolean }) {
+  const { t } = useTranslation('tasks')
   const nav = useNav()
   const projectId = nav.project?.id ?? null
   const tasksQ = useTasks(projectId, active)
@@ -57,15 +59,15 @@ export function TasksApp({ active = true }: { active?: boolean }) {
         >
           <ToggleButton value="list">
             <FontAwesomeIcon icon={faTableList} style={{ fontSize: 13, marginRight: 6 }} />
-            List
+            {t('app.viewList')}
           </ToggleButton>
           <ToggleButton value="board">
             <FontAwesomeIcon icon={faTableColumns} style={{ fontSize: 13, marginRight: 6 }} />
-            Board
+            {t('app.viewBoard')}
           </ToggleButton>
           <ToggleButton value="gantt">
             <FontAwesomeIcon icon={faChartGantt} style={{ fontSize: 13, marginRight: 6 }} />
-            Gantt
+            {t('app.viewGantt')}
           </ToggleButton>
         </ToggleButtonGroup>
         <Box sx={{ flex: 1 }} />
@@ -74,11 +76,7 @@ export function TasksApp({ active = true }: { active?: boolean }) {
             TaskKanban carries no create affordance, so a rail-only button would
             be unreachable there. */}
         <Tooltip
-          title={
-            canWrite || tasksQ.isLoading
-              ? ''
-              : 'Your project role is read-only — creating tasks needs Editor access'
-          }
+          title={canWrite || tasksQ.isLoading ? '' : t('app.createNeedsEditor')}
         >
           <span>
             <Button
@@ -89,7 +87,7 @@ export function TasksApp({ active = true }: { active?: boolean }) {
               onClick={() => setCreateOpen(true)}
               sx={{ py: 0.25, textTransform: 'none' }}
             >
-              New
+              {t('app.newTask')}
             </Button>
           </span>
         </Tooltip>

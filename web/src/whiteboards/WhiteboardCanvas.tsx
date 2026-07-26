@@ -2,6 +2,7 @@ import { faDiagramProject, faListCheck, faPaperclip, faSitemap } from '@fortawes
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Alert, Box, Button, CircularProgress, Snackbar, Stack, Typography } from '@mui/material'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Tldraw,
   createBindingId,
@@ -69,6 +70,7 @@ export function WhiteboardCanvas({
   boardId: string
   canWrite: boolean
 }) {
+  const { t } = useTranslation('whiteboards')
   const nav = useNav()
   const { mode } = useColorMode()
   // The store's schema must know EVERY shape the editor can create, not just
@@ -112,7 +114,7 @@ export function WhiteboardCanvas({
         if (doc) loadSnapshot(store, { document: doc as never })
       })
       .catch((e) => {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'could not load this whiteboard')
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : t('canvas.loadFailed'))
       })
       .finally(() => {
         if (cancelled) return
@@ -299,7 +301,7 @@ export function WhiteboardCanvas({
         cvId = details.rootComponentVersionId
       }
       if (!cvId) {
-        setNotice(`Couldn't resolve "${item.name}" — no component version to expand.`)
+        setNotice(t('assembly.noComponentVersion', { name: item.name }))
         return
       }
       const children = await api.uses({ cvId, hubId })
@@ -325,14 +327,12 @@ export function WhiteboardCanvas({
       placeAssembly(encodeDocRef(docRefFromItem(hubId, item)), childTokens)
 
       if (childTokens.length === 0) {
-        setNotice(`"${item.name}" has no sub-components to expand.`)
+        setNotice(t('assembly.noChildren', { name: item.name }))
       } else if (skipped > 0) {
-        setNotice(
-          `Placed ${childTokens.length} component${childTokens.length === 1 ? '' : 's'}; skipped ${skipped} with no separate document.`,
-        )
+        setNotice(t('assembly.placedSkipped', { count: childTokens.length, skipped }))
       }
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Could not expand this assembly.')
+      setNotice(e instanceof Error ? e.message : t('assembly.expandFailed'))
     } finally {
       setBusy(false)
     }
@@ -348,7 +348,7 @@ export function WhiteboardCanvas({
           sx={{ px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}
         >
           <Typography variant="caption" color="text.secondary">
-            Place a card
+            {t('canvas.placeCard')}
           </Typography>
           <Button
             size="small"
@@ -356,7 +356,7 @@ export function WhiteboardCanvas({
             onClick={() => setPending('task')}
             sx={{ textTransform: 'none' }}
           >
-            Task
+            {t('canvas.taskButton')}
           </Button>
           <Button
             size="small"
@@ -364,7 +364,7 @@ export function WhiteboardCanvas({
             onClick={() => setPending('production')}
             sx={{ textTransform: 'none' }}
           >
-            Job / batch
+            {t('canvas.jobBatchButton')}
           </Button>
           <Button
             size="small"
@@ -372,7 +372,7 @@ export function WhiteboardCanvas({
             onClick={() => setPending('document')}
             sx={{ textTransform: 'none' }}
           >
-            Document
+            {t('canvas.documentButton')}
           </Button>
           <Button
             size="small"
@@ -387,11 +387,11 @@ export function WhiteboardCanvas({
             onClick={() => setPending('assembly')}
             sx={{ textTransform: 'none' }}
           >
-            Assembly
+            {t('canvas.assemblyButton')}
           </Button>
           <Box sx={{ flex: 1 }} />
           <Typography variant="caption" color="text.disabled" sx={{ transition: 'opacity .2s' }}>
-            {saving ? 'Saving…' : 'Saved'}
+            {saving ? t('canvas.saving') : t('canvas.saved')}
           </Typography>
         </Stack>
       )}
@@ -448,8 +448,8 @@ export function WhiteboardCanvas({
         <HubBrowserDialog
           open
           hubId={nav.hubId ?? null}
-          title="Place a document card"
-          pickLabel="Place"
+          title={t('canvas.placeDocumentTitle')}
+          pickLabel={t('canvas.place')}
           initialProject={nav.project ?? null}
           onClose={() => setPending(null)}
           onPick={(pick) => {
@@ -463,8 +463,8 @@ export function WhiteboardCanvas({
         <HubBrowserDialog
           open
           hubId={nav.hubId ?? null}
-          title="Expand an assembly"
-          pickLabel="Expand"
+          title={t('assembly.expandTitle')}
+          pickLabel={t('assembly.expand')}
           initialProject={nav.project ?? null}
           onClose={() => setPending(null)}
           onPick={(pick) => {

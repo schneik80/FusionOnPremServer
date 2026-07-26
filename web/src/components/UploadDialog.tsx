@@ -20,6 +20,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useRef, type DragEvent } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import type { UploadJob } from '../api/types'
 import { isActiveUpload, useUploads } from '../state/uploads'
 
@@ -48,8 +49,16 @@ function jobProgress(j: UploadJob): number {
 }
 
 function JobRow({ job }: { job: UploadJob }) {
+  const { t } = useTranslation('browse')
   const up = useUploads()
   const active = isActiveUpload(job)
+  // Localize the terminal statuses shown as the row caption; unknown values
+  // degrade to the raw token.
+  const statusLabel = (s: UploadJob['status']) => {
+    const key = `upload.status.${s}`
+    const out = t(key)
+    return out === key ? s : out
+  }
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
       <Box
@@ -68,7 +77,7 @@ function JobRow({ job }: { job: UploadJob }) {
         {job.status === 'done' ? (
           <FontAwesomeIcon icon={faCheck} style={{ fontSize: 12 }} />
         ) : job.status === 'error' ? (
-          <Tooltip title={job.error ?? 'upload failed'}>
+          <Tooltip title={job.error ?? t('upload.failedFallback')}>
             <FontAwesomeIcon icon={faTriangleExclamation} style={{ fontSize: 12 }} />
           </Tooltip>
         ) : job.status === 'canceled' ? (
@@ -85,9 +94,7 @@ function JobRow({ job }: { job: UploadJob }) {
           <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
             {job.status === 'uploading'
               ? `${fmtBytes(job.bytesSent)} / ${fmtBytes(job.size)}`
-              : job.status === 'queued'
-                ? 'queued'
-                : job.status}
+              : statusLabel(job.status)}
           </Typography>
         </Box>
         {active && (
@@ -103,10 +110,14 @@ function JobRow({ job }: { job: UploadJob }) {
           </Typography>
         )}
       </Box>
-      <Tooltip title={active ? 'Cancel upload' : 'Remove from list'}>
+      <Tooltip title={active ? t('upload.cancelUpload') : t('upload.removeFromList')}>
         <IconButton
           size="small"
-          aria-label={active ? `Cancel upload of ${job.fileName}` : `Dismiss ${job.fileName}`}
+          aria-label={
+            active
+              ? t('upload.cancelUploadOf', { name: job.fileName })
+              : t('upload.dismissFile', { name: job.fileName })
+          }
           onClick={() => (active ? up.cancelJob(job.id) : up.dismissFinished(job.id))}
           sx={{ color: 'text.secondary', flexShrink: 0 }}
         >
@@ -118,6 +129,7 @@ function JobRow({ job }: { job: UploadJob }) {
 }
 
 export function UploadDialog() {
+  const { t } = useTranslation('browse')
   const up = useUploads()
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -137,27 +149,32 @@ export function UploadDialog() {
   const canUpload = !!up.target && up.pending.length > 0 && !up.submitting
   const n = up.pending.length
   const uploadLabel = up.submitting
-    ? 'Uploading…'
+    ? t('upload.uploading')
     : n === 0
-      ? 'Upload'
-      : `Upload ${n} file${n === 1 ? '' : 's'}`
+      ? t('upload.upload')
+      : t('upload.uploadCount', { count: n })
 
   return (
     <Dialog open={up.dialogOpen} onClose={up.closeDialog} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
-        Upload files
-        <IconButton size="small" aria-label="Close" onClick={up.closeDialog} sx={{ color: 'text.secondary' }}>
+        {t('upload.title')}
+        <IconButton size="small" aria-label={t('common:close')} onClick={up.closeDialog} sx={{ color: 'text.secondary' }}>
           <FontAwesomeIcon icon={faXmark} style={{ fontSize: 14 }} />
         </IconButton>
       </DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {up.target ? (
           <Typography variant="body2" color="text.secondary">
-            Uploading to <b>{up.target.label}</b>
+            <Trans
+              t={t}
+              i18nKey="upload.uploadingTo"
+              values={{ target: up.target.label }}
+              components={{ strong: <b /> }}
+            />
           </Typography>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            Open a project or folder to choose where files go.
+            {t('upload.chooseTarget')}
           </Typography>
         )}
 
@@ -179,10 +196,10 @@ export function UploadDialog() {
           >
             <FontAwesomeIcon icon={faCloudArrowUp} style={{ fontSize: 26, opacity: 0.6 }} />
             <Typography variant="body2" sx={{ mt: 1 }}>
-              Drag &amp; drop files here
+              {t('upload.dropHint')}
             </Typography>
             <Button size="small" sx={{ mt: 0.5 }} onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}>
-              Add files
+              {t('upload.addFiles')}
             </Button>
             <input
               ref={inputRef}
@@ -200,7 +217,7 @@ export function UploadDialog() {
         {up.pending.length > 0 && (
           <Box>
             <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Ready to upload ({up.pending.length})
+              {t('upload.readyToUpload', { count: up.pending.length })}
             </Typography>
             {up.pending.map((p) => (
               <Box key={p.key} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
@@ -213,7 +230,7 @@ export function UploadDialog() {
                 </Typography>
                 <IconButton
                   size="small"
-                  aria-label={`Remove ${p.file.name}`}
+                  aria-label={t('upload.removeFile', { name: p.file.name })}
                   onClick={() => up.removeFile(p.key)}
                   sx={{ color: 'text.secondary' }}
                 >
@@ -228,11 +245,11 @@ export function UploadDialog() {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Uploads
+                {t('upload.uploadsHeading')}
               </Typography>
               {finished.length > 0 && (
                 <Button size="small" onClick={() => up.dismissFinished()}>
-                  Clear finished
+                  {t('upload.clearFinished')}
                 </Button>
               )}
             </Box>
@@ -243,7 +260,7 @@ export function UploadDialog() {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={up.closeDialog}>Close</Button>
+        <Button onClick={up.closeDialog}>{t('common:close')}</Button>
         <Button variant="contained" disabled={!canUpload} onClick={up.startUpload}>
           {uploadLabel}
         </Button>

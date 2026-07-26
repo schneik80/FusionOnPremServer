@@ -1,0 +1,173 @@
+{
+  "appLayout": {
+    "changeHub": "Mudar de hub",
+    "selectHub": "Selecionar um hub",
+    "switchToLight": "Mudar para claro",
+    "switchToDark": "Mudar para escuro",
+    "toggleTheme": "Alternar tema",
+    "signOut": "Terminar sessão"
+  },
+  "breadcrumb": {
+    "noHub": "Nenhum hub selecionado — escolha um na barra lateral"
+  },
+  "column": {
+    "emptyDefault": "Nada aqui"
+  },
+  "projectsColumn": {
+    "title": "Projetos",
+    "emptyInHub": "Sem projetos neste hub",
+    "selectHubHint": "Selecione um hub para começar"
+  },
+  "contents": {
+    "title": "Conteúdo",
+    "uploadHere": "Carregar ficheiros para aqui",
+    "uploadAria": "Carregar ficheiros",
+    "sort": "Ordenar",
+    "sortAria": "Ordenar conteúdo",
+    "sortName": "Nome (A–Z)",
+    "sortModified": "Última modificação",
+    "sortType": "Tipo",
+    "emptyFolder": "Pasta vazia",
+    "selectProject": "Selecione um projeto"
+  },
+  "itemRow": {
+    "pin": "Afixar",
+    "unpin": "Desafixar"
+  },
+  "hubSwitcher": {
+    "title": "Mudar de hub"
+  },
+  "pins": {
+    "title": "Afixados",
+    "groupProjects": "Projetos",
+    "groupFolders": "Pastas",
+    "groupDocuments": "Documentos",
+    "selectHub": "Selecione um hub para ver os seus itens afixados.",
+    "empty": "Ainda não há itens afixados. Clique na estrela em qualquer projeto, pasta ou documento para o marcar.",
+    "navigate": "Navegar",
+    "openInsertSoon": "Abrir / Inserir (em breve)",
+    "removePin": "Remover dos afixados",
+    "unknownProject": "(projeto)"
+  },
+  "upload": {
+    "title": "Carregar ficheiros",
+    "uploadingTo": "A carregar para <strong>{{target}}</strong>",
+    "chooseTarget": "Abra um projeto ou pasta para escolher o destino dos ficheiros.",
+    "dropHint": "Arraste e largue ficheiros aqui",
+    "addFiles": "Adicionar ficheiros",
+    "readyToUpload": "Prontos a carregar ({{count}})",
+    "uploadsHeading": "Carregamentos",
+    "clearFinished": "Limpar concluídos",
+    "uploading": "A carregar…",
+    "upload": "Carregar",
+    "uploadCount_one": "Carregar {{count}} ficheiro",
+    "uploadCount_other": "Carregar {{count}} ficheiros",
+    "removeFile": "Remover {{name}}",
+    "cancelUpload": "Cancelar carregamento",
+    "removeFromList": "Remover da lista",
+    "cancelUploadOf": "Cancelar o carregamento de {{name}}",
+    "dismissFile": "Dispensar {{name}}",
+    "failedFallback": "falha no carregamento",
+    "status": {
+      "queued": "em fila",
+      "done": "concluído",
+      "error": "erro",
+      "canceled": "cancelado"
+    }
+  },
+  "uploadFooter": {
+    "starting": "A iniciar o carregamento…",
+    "progress": "A carregar {{current}} de {{total}} — {{pct}}%",
+    "doneAndFailed": "{{done}} carregados, {{failed}} com falha",
+    "filesUploaded_one": "{{count}} ficheiro carregado",
+    "filesUploaded_other": "{{count}} ficheiros carregados",
+    "view": "Ver",
+    "dismiss": "Dispensar",
+    "dropTitle": "Largue os ficheiros para carregar",
+    "dropTarget": "para {{target}}"
+  },
+  "login": {
+    "tagline": "Inicie sessão com a sua conta Autodesk para navegar pelos seus hubs, projetos e documentos de projeto do Fusion.",
+    "signInButton": "Iniciar sessão com a Autodesk",
+    "errors": {
+      "expired": "A tentativa de início de sessão expirou ou não pôde ser verificada. Tente novamente.",
+      "incomplete": "A Autodesk não concluiu o início de sessão. Tente novamente.",
+      "session": "O servidor não conseguiu iniciar uma sessão. Tente novamente.",
+      "denied": "O início de sessão foi cancelado ou o acesso foi negado.",
+      "generic": "Falha no início de sessão ({{reason}})."
+    }
+  },
+  "errorBoundary": {
+    "failed": "Não foi possível carregar este {{label}}.",
+    "unexpected": "Ocorreu um erro inesperado.",
+    "tryAgain": "Tentar novamente"
+  },
+  "projectPanel": {
+    "tabs": {
+      "dashboard": "Painel",
+      "production": "Produção",
+      "tasks": "Tarefas",
+      "whiteboards": "Quadros",
+      "wiki": "Wiki",
+      "chat": "Chat"
+    }
+  },
+  "railHeader": {
+    "new": "Novo"
+  },
+  "hubBrowser": {
+    "filterPlaceholder": "Filtrar projetos",
+    "loadProjectsFailed": "Não foi possível carregar os projetos.",
+    "loadFolderFailed": "Não foi possível carregar esta pasta.",
+    "emptyFolder": "Esta pasta está vazia.",
+    "nonePickable": "Nenhum destes documentos pode ser escolhido aqui.",
+    "selectProjectToBrowse": "Selecione um projeto para navegar.",
+    "notBrowsable": "Este projeto não pode ser navegado (sem id de Data Management).",
+    "selectProjectOrFolder": "Selecione um projeto ou uma pasta.",
+    "selectDocument": "Selecione um documento.",
+    "selectThisFolder": "Selecionar esta pasta",
+    "select": "Selecionar"
+  },
+  "docCard": {
+    "open": "Ir para este documento",
+    "locating": "A localizar…",
+    "locationUnavailable": "Localização indisponível"
+  },
+  "taskCard": {
+    "open": "Abrir esta tarefa",
+    "notFound": "Tarefa não encontrada (eliminada)",
+    "unavailable": "Tarefa indisponível",
+    "due": "prazo {{date}}"
+  },
+  "prodCard": {
+    "openJob": "Abrir este trabalho",
+    "openBatch": "Abrir este lote",
+    "jobNotFound": "Trabalho não encontrado",
+    "batchNotFound": "Lote não encontrado",
+    "jobUnavailable": "Trabalho indisponível",
+    "batchUnavailable": "Lote indisponível",
+    "steps_one": "{{count}} etapa",
+    "steps_other": "{{count}} etapas",
+    "batches_one": "{{count}} lote",
+    "batches_other": "{{count}} lotes"
+  },
+  "prodView": {
+    "jobGone": "Este trabalho já não está disponível.",
+    "batchGone": "Este lote já não está disponível.",
+    "batchDeletedFrom": "Este lote foi eliminado de {{job}}.",
+    "stepsHeading": "Etapas",
+    "noSteps": "ainda sem etapas",
+    "noDocuments": "sem documentos"
+  },
+  "viewer": {
+    "previewUnavailable": "Pré-visualização indisponível para este documento.",
+    "noInlinePreview": "Sem pré-visualização integrada para este tipo de ficheiro.",
+    "download": "Transferir",
+    "openInFusion": "Abrir no Fusion",
+    "imageFailed": "Não foi possível apresentar esta imagem.",
+    "videoFailed": "Este formato de vídeo não pode ser reproduzido aqui.",
+    "pdfFailed": "Não foi possível apresentar este PDF.",
+    "tooLarge": "Este ficheiro é demasiado grande para pré-visualizar.",
+    "loadFailed": "Falha ao carregar o ficheiro"
+  }
+}

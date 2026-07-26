@@ -1,0 +1,39 @@
+{
+  "list": {
+    "title": "Lavagne",
+    "loading": "Caricamento lavagne…",
+    "loadFailed": "Impossibile caricare le lavagne.",
+    "empty": "Ancora nessuna lavagna.",
+    "namePlaceholder": "Nome lavagna",
+    "readOnlyReason": "Il tuo ruolo nel progetto è di sola lettura — per creare lavagne serve l'accesso Editor",
+    "deleteTooltip": "Elimina lavagna",
+    "deleteConfirm": "Eliminare la lavagna \"{{name}}\"? L'operazione non può essere annullata.",
+    "renameHint": "Fai doppio clic su un nome per rinominarlo"
+  },
+  "emptyState": {
+    "canWrite": "Ancora nessuna lavagna. Creane una per disegnare a mano libera e trascinarvi schede di attività, commesse, lotti e documenti.",
+    "readOnly": "Questo progetto non ha ancora lavagne."
+  },
+  "canvas": {
+    "loadFailed": "impossibile caricare questa lavagna",
+    "placeCard": "Posiziona una scheda",
+    "taskButton": "Attività",
+    "jobBatchButton": "Commessa / lotto",
+    "documentButton": "Documento",
+    "assemblyButton": "Assieme",
+    "saving": "Salvataggio…",
+    "saved": "Salvato",
+    "placeDocumentTitle": "Posiziona una scheda documento",
+    "place": "Posiziona"
+  },
+  "assembly": {
+    "expandTitle": "Espandi un assieme",
+    "expand": "Espandi",
+    "noComponentVersion": "Impossibile risolvere \"{{name}}\" — nessuna versione del componente da espandere.",
+    "noChildren": "\"{{name}}\" non ha sottocomponenti da espandere.",
+    "placedSkipped_one": "Posizionato {{count}} componente; ignorati {{skipped}} senza documento separato.",
+    "placedSkipped_other": "Posizionati {{count}} componenti; ignorati {{skipped}} senza documento separato.",
+    "expandFailed": "Impossibile espandere questo assieme."
+  },
+  "errorLabel": "lavagna"
+}

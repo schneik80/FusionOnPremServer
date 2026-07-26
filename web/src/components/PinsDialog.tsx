@@ -19,6 +19,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { useProjects } from '../api/queries'
 import { usePinMutations, usePins } from '../api/queries'
 import type { Item, Pin } from '../api/types'
@@ -27,17 +28,18 @@ import { ItemIcon } from './entityIcons'
 
 // Groups for display, in order. Anything that isn't a project or folder is a
 // document.
-const GROUPS: Array<{ key: string; label: string; match: (p: Pin) => boolean }> = [
-  { key: 'project', label: 'Projects', match: (p) => p.kind === 'project' },
-  { key: 'folder', label: 'Folders', match: (p) => p.kind === 'folder' },
+const GROUPS: Array<{ key: string; labelKey: string; match: (p: Pin) => boolean }> = [
+  { key: 'project', labelKey: 'pins.groupProjects', match: (p) => p.kind === 'project' },
+  { key: 'folder', labelKey: 'pins.groupFolders', match: (p) => p.kind === 'folder' },
   {
     key: 'document',
-    label: 'Documents',
+    labelKey: 'pins.groupDocuments',
     match: (p) => p.kind !== 'project' && p.kind !== 'folder',
   },
 ]
 
 export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation('browse')
   const nav = useNav()
   const pinsQ = usePins(nav.hubId)
   const projectsQ = useProjects(nav.hubId)
@@ -66,7 +68,7 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
     const project: Item =
       real ?? {
         id: lookupId!,
-        name: '(project)',
+        name: t('pins.unknownProject'),
         kind: 'project',
         altId: pin.project_alt_id,
         isContainer: true,
@@ -88,7 +90,7 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>
-        Pins
+        {t('pins.title')}
         {nav.hubName ? (
           <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
             · {nav.hubName}
@@ -98,7 +100,7 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
       <DialogContent dividers sx={{ p: 0 }}>
         {!nav.hubId ? (
           <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
-            Select a hub to see its pins.
+            {t('pins.selectHub')}
           </Typography>
         ) : pinsQ.isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -106,7 +108,7 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
           </Box>
         ) : pins.length === 0 ? (
           <Typography sx={{ p: 2 }} variant="body2" color="text.secondary">
-            No pins yet. Click the star on any project, folder, or document to bookmark it.
+            {t('pins.empty')}
           </Typography>
         ) : (
           <List disablePadding>
@@ -116,18 +118,18 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
               return (
                 <li key={g.key}>
                   <ul style={{ padding: 0 }}>
-                    <ListSubheader sx={{ bgcolor: 'background.paper' }}>{g.label}</ListSubheader>
+                    <ListSubheader sx={{ bgcolor: 'background.paper' }}>{t(g.labelKey)}</ListSubheader>
                     {group.map((pin) => (
                       <ListItem
                         key={pin.id}
                         secondaryAction={
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            <Tooltip title="Navigate">
+                            <Tooltip title={t('pins.navigate')}>
                               <IconButton size="small" onClick={() => navigateToPin(pin)}>
                                 <FontAwesomeIcon icon={faLocationArrow} style={{ fontSize: 13 }} />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Open / Insert (coming soon)">
+                            <Tooltip title={t('pins.openInsertSoon')}>
                               <span>
                                 <IconButton size="small" disabled>
                                   <FontAwesomeIcon
@@ -137,7 +139,7 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                                 </IconButton>
                               </span>
                             </Tooltip>
-                            <Tooltip title="Remove pin">
+                            <Tooltip title={t('pins.removePin')}>
                               <IconButton
                                 size="small"
                                 onClick={() => remove.mutate(pin.id)}

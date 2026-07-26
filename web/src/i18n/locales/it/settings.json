@@ -1,0 +1,28 @@
+{
+  "title": "Impostazioni",
+  "theme": {
+    "label": "Tema",
+    "light": "Chiaro",
+    "dark": "Scuro",
+    "system": "Sistema"
+  },
+  "language": {
+    "label": "Lingua"
+  },
+  "port": {
+    "label": "Porta del server",
+    "applyRestart": "Applica e riavvia",
+    "applying": "Applicazione…",
+    "fixedAtStartup": "Fissata all'avvio (avviato con <cmd>-addr</cmd> o in modalità di sviluppo).",
+    "restarting": "Riavvio del server in corso. Riconnessione a <lnk>{{url}}</lnk>…",
+    "rangeHelp": "{{min}}–{{max}}. Cambiare la porta riavvia il server; la connessione verrà ristabilita sulla nuova porta."
+  },
+  "region": {
+    "label": "Regione",
+    "help": "Impostata all'avvio del server (sola lettura)."
+  },
+  "about": {
+    "label": "Informazioni",
+    "buildNote": "L'apertura/inserimento in Fusion e il download STEP non sono ancora disponibili in questa build."
+  }
+}

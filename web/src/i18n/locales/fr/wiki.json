@@ -1,0 +1,98 @@
+{
+  "untitledPage": "Sans titre",
+  "pages": {
+    "title": "Pages",
+    "searchPlaceholder": "Rechercher des pages",
+    "noMatches": "Aucune page correspondante",
+    "empty": "Aucune page pour l'instant"
+  },
+  "statusShort": {
+    "draft": "Brouillon",
+    "edited": "Modifiée",
+    "synced": "Synchronisée",
+    "update": "Mise à jour",
+    "conflict": "Conflit",
+    "published": "Publiée"
+  },
+  "status": {
+    "localDraft": "Brouillon local",
+    "unpublishedChanges": "Modifications non publiées",
+    "updateAvailable": "Mise à jour disponible",
+    "conflict": "Conflit",
+    "synced": "Synchronisée",
+    "published": "Publiée"
+  },
+  "empty": {
+    "title": "Wiki du projet",
+    "body": "Rédigez des pages markdown pour ce projet. Les brouillons sont enregistrés sur cet appareil jusqu'à leur publication dans le dossier Wiki du projet.",
+    "newPage": "Nouvelle page"
+  },
+  "alerts": {
+    "pagesLoadFailed": "Impossible de charger les pages publiées. Les brouillons locaux restent disponibles.",
+    "publishFailed": "Échec de la publication.",
+    "renameFailed": "Échec du renommage.",
+    "refreshFailed": "Échec de l'actualisation."
+  },
+  "publish": {
+    "conflictConfirm": "Cette page a changé depuis que vous l'avez ouverte. Écraser la version publiée ?"
+  },
+  "reader": {
+    "rename": "Renommer",
+    "update": "Mettre à jour",
+    "takeLatest": "Prendre la dernière version",
+    "behindBody": "Une version plus récente a été publiée depuis un autre appareil.",
+    "conflictBody": "Une version plus récente a été publiée depuis un autre appareil, et vous avez des modifications locales non publiées. « Prendre la dernière version » abandonne vos modifications ; Modifier → Publier conserve les vôtres.",
+    "editAsDraft": "Modifier en brouillon",
+    "downloadFailed": "Impossible de télécharger cette page."
+  },
+  "renameDialog": {
+    "title": "Renommer la page",
+    "rename": "Renommer",
+    "renaming": "Renommage…"
+  },
+  "editor": {
+    "titlePlaceholder": "Titre de la page",
+    "savedLocally": "Enregistré localement",
+    "saving": "Enregistrement…",
+    "publish": "Publier",
+    "publishing": "Publication…",
+    "publishTooltip": "Publier dans le dossier Wiki du projet",
+    "publishUnavailable": "Publication indisponible",
+    "heading1Tooltip": "Titre 1",
+    "heading2Tooltip": "Titre 2",
+    "heading3Tooltip": "Titre 3",
+    "boldTooltip": "Gras",
+    "italicTooltip": "Italique",
+    "inlineCodeTooltip": "Code en ligne",
+    "bulletedListTooltip": "Liste à puces",
+    "quoteTooltip": "Citation",
+    "linkTooltip": "Lien",
+    "insertImageUploadTooltip": "Insérer une image (téléversée dans la page)",
+    "insertImageUrlTooltip": "Insérer une URL d'image",
+    "insertImageFromPublicUrlTooltip": "Insérer une image depuis une URL publique",
+    "embedHubImageTooltip": "Intégrer une image stockée dans ce hub",
+    "insertDocCardTooltip": "Insérer une carte de document (parcourir ce hub)",
+    "insertTaskCardTooltip": "Insérer une carte de tâche (tâches de ce projet)",
+    "createTaskCardTooltip": "Créer une tâche et insérer sa carte",
+    "insertProdCardTooltip": "Insérer une carte d'ordre ou de lot (production de ce projet)",
+    "imageUploadFailed": "Échec du téléversement de l'image.",
+    "hubImageDialogTitle": "Intégrer une image du hub",
+    "embedImage": "Intégrer l'image",
+    "docCardDialogTitle": "Insérer une carte de document",
+    "insertCard": "Insérer la carte",
+    "preview": "Aperçu",
+    "emptyPreview": "Rien à prévisualiser pour l'instant."
+  },
+  "imageUrlDialog": {
+    "title": "Insérer une image depuis une URL",
+    "urlLabel": "URL de l'image",
+    "urlHelper": "L'URL doit être accessible publiquement par toute personne lisant la page.",
+    "altLabel": "Texte alternatif (facultatif)",
+    "previewFailed": "Impossible de charger un aperçu — vérifiez que l'URL pointe vers une image.",
+    "insert": "Insérer"
+  },
+  "toc": {
+    "title": "Sur cette page",
+    "ariaLabel": "Table des matières"
+  }
+}

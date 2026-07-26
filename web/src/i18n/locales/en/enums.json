@@ -10,5 +10,25 @@
     "medium": "Medium",
     "high": "High",
     "urgent": "Urgent"
+  },
+  "batchKind": {
+    "prove": "Prove",
+    "production": "Production"
+  },
+  "batchStatus": {
+    "planned": "Planned",
+    "running": "Running",
+    "complete": "Complete"
+  },
+  "role": {
+    "VIEWER": "Viewer",
+    "EDITOR": "Editor",
+    "MANAGER": "Manager",
+    "ADMIN": "Admin",
+    "READER": "Reader",
+    "CONTRIBUTOR": "Contributor",
+    "ADMINISTRATOR": "Administrator",
+    "PROJECT_ADMIN": "Project admin",
+    "OWNER": "Owner"
   }
 }

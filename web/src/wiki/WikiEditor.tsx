@@ -32,8 +32,9 @@ import { markdown } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
-import { tags as t } from '@lezer/highlight'
+import { tags } from '@lezer/highlight'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Item } from '../api/types'
 import { docRefFromItem, docRefMarkdown } from '../components/doccard/docref'
 import { taskRefFromTask, taskRefMarkdown } from '../components/taskcard/taskref'
@@ -145,6 +146,7 @@ export function WikiEditor({
   hubProject,
   saved,
 }: WikiEditorProps) {
+  const { t } = useTranslation('wiki')
   const theme = useTheme()
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -202,18 +204,18 @@ export function WikiEditor({
         // Prose content stays at the full text color and only carries weight /
         // style — so headings, bold, italic, lists and inline code all read
         // crisply; earlier they inherited grey from the list/marker rules.
-        { tag: t.heading, color: p.text.primary, fontWeight: '700' },
-        { tag: t.strong, color: p.text.primary, fontWeight: '700' },
-        { tag: t.emphasis, color: p.text.primary, fontStyle: 'italic' },
-        { tag: t.strikethrough, color: p.text.primary, textDecoration: 'line-through' },
-        { tag: t.list, color: p.text.primary },
-        { tag: t.monospace, color: p.text.primary },
+        { tag: tags.heading, color: p.text.primary, fontWeight: '700' },
+        { tag: tags.strong, color: p.text.primary, fontWeight: '700' },
+        { tag: tags.emphasis, color: p.text.primary, fontStyle: 'italic' },
+        { tag: tags.strikethrough, color: p.text.primary, textDecoration: 'line-through' },
+        { tag: tags.list, color: p.text.primary },
+        { tag: tags.monospace, color: p.text.primary },
         // Links use the accent.
-        { tag: [t.link, t.url, t.labelName], color: p.primary.main, textDecoration: 'underline' },
+        { tag: [tags.link, tags.url, tags.labelName], color: p.primary.main, textDecoration: 'underline' },
         // Blockquotes and the syntax punctuation (**, _, -, #, >, `) get one
         // readable muted tone — dim enough to distinguish, not washed out.
-        { tag: t.quote, color: p.text.secondary },
-        { tag: [t.processingInstruction, t.meta], color: p.text.secondary },
+        { tag: tags.quote, color: p.text.secondary },
+        { tag: [tags.processingInstruction, tags.meta], color: p.text.secondary },
       ]),
     )
   }, [theme])
@@ -268,7 +270,7 @@ export function WikiEditor({
       insertImageRef(viewRef.current, alt, src)
     } catch {
       // eslint-disable-next-line no-alert
-      alert('Image upload failed.')
+      alert(t('editor.imageUploadFailed'))
     } finally {
       setUploadingImage(false)
     }
@@ -301,7 +303,7 @@ export function WikiEditor({
     insertText(viewRef.current, taskRefMarkdown(taskRefFromTask(task)))
   }
 
-  const status = saved ? 'Saved locally' : 'Saving…'
+  const status = saved ? t('editor.savedLocally') : t('editor.saving')
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: 0 }}>
@@ -315,7 +317,7 @@ export function WikiEditor({
         <TextField
           value={titleValue}
           onChange={(e) => onChangeTitle(e.target.value)}
-          placeholder="Page title"
+          placeholder={t('editor.titlePlaceholder')}
           variant="standard"
           InputProps={{ disableUnderline: true, sx: { fontSize: 18, fontWeight: 600 } }}
           sx={{ flex: 1, minWidth: 0 }}
@@ -323,7 +325,7 @@ export function WikiEditor({
         <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
           {status}
         </Typography>
-        <Tooltip title={onPublish ? 'Publish to the project Wiki folder' : 'Publishing unavailable'}>
+        <Tooltip title={onPublish ? t('editor.publishTooltip') : t('editor.publishUnavailable')}>
           <span>
             <Button
               size="small"
@@ -331,12 +333,12 @@ export function WikiEditor({
               disabled={!onPublish || publishing}
               onClick={onPublish}
             >
-              {publishing ? 'Publishing…' : 'Publish'}
+              {publishing ? t('editor.publishing') : t('editor.publish')}
             </Button>
           </span>
         </Tooltip>
         <Button size="small" color="inherit" onClick={onDiscard}>
-          Close
+          {t('common:close')}
         </Button>
       </Stack>
 
@@ -347,59 +349,59 @@ export function WikiEditor({
         alignItems="center"
         sx={{ px: 1, py: 0.5, borderBottom: 1, borderColor: 'divider', flexWrap: 'wrap' }}
       >
-        <ToolBtn title="Heading 1" label="H1" onClick={act((v) => prefixLine(v, '# '))} />
-        <ToolBtn title="Heading 2" label="H2" onClick={act((v) => prefixLine(v, '## '))} />
-        <ToolBtn title="Heading 3" label="H3" onClick={act((v) => prefixLine(v, '### '))} />
+        <ToolBtn title={t('editor.heading1Tooltip')} label="H1" onClick={act((v) => prefixLine(v, '# '))} />
+        <ToolBtn title={t('editor.heading2Tooltip')} label="H2" onClick={act((v) => prefixLine(v, '## '))} />
+        <ToolBtn title={t('editor.heading3Tooltip')} label="H3" onClick={act((v) => prefixLine(v, '### '))} />
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-        <ToolBtn title="Bold" icon={faBold} onClick={act((v) => wrapSelection(v, '**'))} />
-        <ToolBtn title="Italic" icon={faItalic} onClick={act((v) => wrapSelection(v, '_'))} />
-        <ToolBtn title="Inline code" icon={faCode} onClick={act((v) => wrapSelection(v, '`'))} />
+        <ToolBtn title={t('editor.boldTooltip')} icon={faBold} onClick={act((v) => wrapSelection(v, '**'))} />
+        <ToolBtn title={t('editor.italicTooltip')} icon={faItalic} onClick={act((v) => wrapSelection(v, '_'))} />
+        <ToolBtn title={t('editor.inlineCodeTooltip')} icon={faCode} onClick={act((v) => wrapSelection(v, '`'))} />
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-        <ToolBtn title="Bulleted list" icon={faListUl} onClick={act((v) => prefixLine(v, '- '))} />
-        <ToolBtn title="Quote" icon={faQuoteRight} onClick={act((v) => prefixLine(v, '> '))} />
-        <ToolBtn title="Link" icon={faLink} onClick={act(insertLink)} />
+        <ToolBtn title={t('editor.bulletedListTooltip')} icon={faListUl} onClick={act((v) => prefixLine(v, '- '))} />
+        <ToolBtn title={t('editor.quoteTooltip')} icon={faQuoteRight} onClick={act((v) => prefixLine(v, '> '))} />
+        <ToolBtn title={t('editor.linkTooltip')} icon={faLink} onClick={act(insertLink)} />
         <ToolBtn
-          title={onUploadImage ? 'Insert image (uploads to the page)' : 'Insert image URL'}
+          title={onUploadImage ? t('editor.insertImageUploadTooltip') : t('editor.insertImageUrlTooltip')}
           icon={faImage}
           busy={uploadingImage}
           onClick={onImageClick}
         />
         <ToolBtn
-          title="Insert image from a public URL"
+          title={t('editor.insertImageFromPublicUrlTooltip')}
           icon={faGlobe}
           onClick={() => setUrlDialogOpen(true)}
         />
         {hubId && (
           <ToolBtn
-            title="Embed an image stored in this hub"
+            title={t('editor.embedHubImageTooltip')}
             icon={faImages}
             onClick={() => setHubPickerOpen(true)}
           />
         )}
         {hubId && (
           <ToolBtn
-            title="Insert a document card (browse this hub)"
+            title={t('editor.insertDocCardTooltip')}
             icon={faFileCirclePlus}
             onClick={() => setDocPickerOpen(true)}
           />
         )}
         {hubProject && (
           <ToolBtn
-            title="Insert a task card (this project's tasks)"
+            title={t('editor.insertTaskCardTooltip')}
             icon={faListCheck}
             onClick={() => setTaskPickerOpen(true)}
           />
         )}
         {hubProject && (
           <ToolBtn
-            title="Create a task and insert its card"
+            title={t('editor.createTaskCardTooltip')}
             icon={faSquarePlus}
             onClick={() => setTaskCreateOpen(true)}
           />
         )}
         {hubProject && (
           <ToolBtn
-            title="Insert a job or batch card (this project's production)"
+            title={t('editor.insertProdCardTooltip')}
             icon={faDiagramProject}
             onClick={() => setProdPickerOpen(true)}
           />
@@ -429,7 +431,7 @@ export function WikiEditor({
         />
         <Box sx={{ flex: 1, minWidth: 0, overflowY: 'auto', p: 2 }}>
           <PreviewHeader status={draft.status} />
-          <Markdown>{markdownValue || '_Nothing to preview yet._'}</Markdown>
+          <Markdown>{markdownValue || `_${t('editor.emptyPreview')}_`}</Markdown>
         </Box>
       </Box>
 
@@ -445,10 +447,10 @@ export function WikiEditor({
         <HubBrowserDialog
           open={hubPickerOpen}
           hubId={hubId}
-          title="Embed an image from the hub"
+          title={t('editor.hubImageDialogTitle')}
           selectable={isImageDocument}
           initialProject={hubProject}
-          pickLabel="Embed image"
+          pickLabel={t('editor.embedImage')}
           onClose={() => setHubPickerOpen(false)}
           onPick={handleHubPick}
         />
@@ -457,9 +459,9 @@ export function WikiEditor({
         <HubBrowserDialog
           open={docPickerOpen}
           hubId={hubId}
-          title="Insert a document card"
+          title={t('editor.docCardDialogTitle')}
           initialProject={hubProject}
-          pickLabel="Insert card"
+          pickLabel={t('editor.insertCard')}
           onClose={() => setDocPickerOpen(false)}
           onPick={handleDocPick}
         />
@@ -534,14 +536,21 @@ function ToolBtn({
 }
 
 function PreviewHeader({ status }: { status: WikiDraft['status'] }) {
+  const { t } = useTranslation('wiki')
   return (
     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
       <Typography variant="overline" color="text.secondary">
-        Preview
+        {t('editor.preview')}
       </Typography>
       <Chip
         size="small"
-        label={status === 'draft' ? 'Local draft' : status === 'modified' ? 'Unpublished changes' : 'Published'}
+        label={
+          status === 'draft'
+            ? t('status.localDraft')
+            : status === 'modified'
+              ? t('status.unpublishedChanges')
+              : t('status.published')
+        }
         color={status === 'published' ? 'success' : 'default'}
         variant="outlined"
         sx={{ height: 18, fontSize: 10 }}

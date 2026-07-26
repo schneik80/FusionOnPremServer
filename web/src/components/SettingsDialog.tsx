@@ -59,7 +59,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           </Field>
 
           <Field label={t('about.label')}>
-            <Typography variant="body2">fusionlocalserver · {meta?.version ?? '—'}</Typography>
+            {/* eslint-disable-next-line i18next/no-literal-string -- product name */}
+          <Typography variant="body2">fusionlocalserver · {meta?.version ?? '—'}</Typography>
             <Typography variant="caption" color="text.secondary">
               {t('about.buildNote')}
             </Typography>

@@ -23,6 +23,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { useBrowseContents, useProjects } from '../../api/queries'
 import type { Item } from '../../api/types'
@@ -100,6 +101,7 @@ export function HubBrowserDialog({
   onClose,
   onPick,
 }: HubBrowserDialogProps) {
+  const { t } = useTranslation('browse')
   // The current browse location (project + folder trail), the highlighted
   // document, and which tree nodes are unfolded.
   const [project, setProject] = useState<Item | null>(null)
@@ -189,20 +191,20 @@ export function HubBrowserDialog({
           {mode === 'folder'
             ? project
               ? [project.name, ...folderStack.map((f) => f.name)].join(' / ')
-              : 'Select a project or folder.'
+              : t('hubBrowser.selectProjectOrFolder')
             : doc
               ? doc.name
-              : 'Select a document.'}
+              : t('hubBrowser.selectDocument')}
         </Typography>
         <Button onClick={onClose} color="inherit">
-          Cancel
+          {t('common:cancel')}
         </Button>
         <Button
           variant="contained"
           disabled={!canConfirm}
           onClick={() => confirm(mode === 'folder' ? null : doc)}
         >
-          {pickLabel ?? (mode === 'folder' ? 'Select this folder' : 'Select')}
+          {pickLabel ?? (mode === 'folder' ? t('hubBrowser.selectThisFolder') : t('hubBrowser.select'))}
         </Button>
       </DialogActions>
     </Dialog>
@@ -240,6 +242,7 @@ function TreePane({
   onFilter,
   ...c
 }: TreeCommon & { filter: string; onFilter: (q: string) => void }) {
+  const { t } = useTranslation('browse')
   const projectsQ = useProjects(c.hubId)
   const projects = useMemo(() => {
     const all = projectsQ.data ?? []
@@ -263,7 +266,7 @@ function TreePane({
         <TextField
           value={filter}
           onChange={(e) => onFilter(e.target.value)}
-          placeholder="Filter projects"
+          placeholder={t('hubBrowser.filterPlaceholder')}
           size="small"
           fullWidth
           InputProps={{
@@ -282,7 +285,7 @@ function TreePane({
           </Box>
         ) : projectsQ.error ? (
           <Alert severity="error" variant="outlined" sx={{ m: 1 }}>
-            Couldn't load projects.
+            {t('hubBrowser.loadProjectsFailed')}
           </Alert>
         ) : (
           <List dense disablePadding>
@@ -444,6 +447,7 @@ function ContentsPane({
   onSelectDoc: (item: Item) => void
   onPickDoc: (item: Item) => void
 }) {
+  const { t } = useTranslation('browse')
   const top = folderStack.length ? folderStack[folderStack.length - 1] : null
   const contentsQ = useBrowseContents(project ? hubId : null, project?.altId, top?.id ?? '')
   const loading = contentsQ.isLoading
@@ -467,7 +471,7 @@ function ContentsPane({
     return (
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          Select a project to browse.
+          {t('hubBrowser.selectProjectToBrowse')}
         </Typography>
       </Box>
     )
@@ -476,7 +480,7 @@ function ContentsPane({
     return (
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          This project can't be browsed (no Data Management id).
+          {t('hubBrowser.notBrowsable')}
         </Typography>
       </Box>
     )
@@ -523,11 +527,11 @@ function ContentsPane({
           </Box>
         ) : error ? (
           <Alert severity="error" variant="outlined" sx={{ m: 1 }}>
-            Couldn't load this folder.
+            {t('hubBrowser.loadFolderFailed')}
           </Alert>
         ) : rows.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-            This folder is empty.
+            {t('hubBrowser.emptyFolder')}
           </Typography>
         ) : (
           <>
@@ -559,7 +563,7 @@ function ContentsPane({
             </List>
             {nonePickable && (
               <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 1, display: 'block' }}>
-                None of these documents can be picked here.
+                {t('hubBrowser.nonePickable')}
               </Typography>
             )}
           </>

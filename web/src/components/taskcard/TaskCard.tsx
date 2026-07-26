@@ -2,11 +2,13 @@ import { faArrowUpRightFromSquare, faListCheck } from '@fortawesome/free-solid-s
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, Tooltip, Typography } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api/client'
 import { useTask } from '../../api/queries'
+import { taskStatusLabel } from '../../i18n/enums'
 import { STATUS_COLOR, fmtDue, isOverdue } from '../../tasks/chips'
 import { TaskViewDialog } from '../../tasks/TaskViewDialog'
-import { STATUS_LABEL, taskDisplayId } from '../../tasks/types'
+import { taskDisplayId } from '../../tasks/types'
 import type { TaskRef } from './taskref'
 
 // TaskCard is the unfurled form of a TaskRef (see taskref.ts) — the task
@@ -24,6 +26,7 @@ import type { TaskRef } from './taskref'
 // Built entirely from span elements so it is valid inside a <p> — markdown
 // paragraphs and chat text bodies are its two homes.
 export function TaskCard({ taskRef }: { taskRef: TaskRef }) {
+  const { t } = useTranslation('browse')
   const taskQ = useTask(taskRef.projectId, taskRef.taskId)
   const [open, setOpen] = useState(false)
 
@@ -33,19 +36,19 @@ export function TaskCard({ taskRef }: { taskRef: TaskRef }) {
   const statusColor = task ? STATUS_COLOR[task.status] : 'default'
 
   const subtitle = gone
-    ? 'Task not found (deleted)'
+    ? t('taskCard.notFound')
     : task
       ? [
           task.projectName,
-          STATUS_LABEL[task.status],
+          taskStatusLabel(t, task.status),
           task.assignee?.name || task.assignee?.email,
-          task.dueDate ? `due ${fmtDue(task.dueDate)}` : undefined,
+          task.dueDate ? t('taskCard.due', { date: fmtDue(task.dueDate) }) : undefined,
         ]
           .filter(Boolean)
           .join(' · ')
       : taskQ.isLoading
-        ? 'Loading…'
-        : 'Task unavailable'
+        ? t('common:loading')
+        : t('taskCard.unavailable')
 
   const card = (
     <Box
@@ -141,7 +144,7 @@ export function TaskCard({ taskRef }: { taskRef: TaskRef }) {
 
   return (
     <>
-      {gone ? card : <Tooltip title="Open this task">{card}</Tooltip>}
+      {gone ? card : <Tooltip title={t('taskCard.open')}>{card}</Tooltip>}
       {open && (
         <TaskViewDialog
           open={open}

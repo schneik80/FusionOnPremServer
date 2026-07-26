@@ -17,12 +17,13 @@ import { CSS } from '@dnd-kit/utilities'
 import { Avatar, Box, Paper, Stack, Tooltip, Typography } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useTaskMutations } from '../api/queries'
+import { taskStatusLabel } from '../i18n/enums'
 import { PriorityDot, fmtDue, isOverdue } from './chips'
 import { TaskViewDialog } from './TaskViewDialog'
 import {
   STATUSES,
-  STATUS_LABEL,
   taskDisplayId,
   type Task,
   type TaskCaps,
@@ -218,6 +219,7 @@ function BoardColumn({
   over: boolean
   onOpen: (id: string) => void
 }) {
+  const { t } = useTranslation('tasks')
   // The droppable is the whole column (Paper), so the pointer test covers
   // the header and padding, not just the card list.
   const { setNodeRef } = useDroppable({ id: `col:${status}` })
@@ -239,7 +241,7 @@ function BoardColumn({
     >
       <Stack direction="row" alignItems="center" spacing={0.75} sx={{ px: 1.25, py: 0.75 }}>
         <Typography variant="subtitle2" sx={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          {STATUS_LABEL[status]}
+          {taskStatusLabel(t, status)}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           {loading ? '…' : tasks.length}

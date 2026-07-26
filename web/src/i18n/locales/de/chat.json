@@ -1,0 +1,85 @@
+{
+  "unavailable": "Chat ist nicht verfügbar: {{message}}",
+  "unknownError": "Fehler",
+  "header": {
+    "archived": "archiviert",
+    "reconnecting": "Verbindung wird wiederhergestellt…"
+  },
+  "emptyState": {
+    "noMessages": "Noch keine Nachrichten — beginnen Sie die Unterhaltung."
+  },
+  "sidebar": {
+    "title": "Kanäle",
+    "archived": "archiviert",
+    "newDisabledReason": "Ihre Projektrolle kann keine Kanäle erstellen — dafür ist Editor-Zugriff erforderlich"
+  },
+  "createDialog": {
+    "title": "Neuer Kanal",
+    "name": "Name",
+    "topicOptional": "Thema (optional)",
+    "private": "Privat (nur eingeladene Mitglieder können ihn sehen)",
+    "members": "Mitglieder",
+    "membersPlaceholder": "Projektmitglieder hinzufügen",
+    "createFailed": "Kanal konnte nicht erstellt werden"
+  },
+  "channelMenu": {
+    "options": "Kanaloptionen",
+    "edit": "Kanal bearbeiten…",
+    "members": "Mitglieder…",
+    "archive": "Kanal archivieren…",
+    "leave": "Kanal verlassen"
+  },
+  "editDialog": {
+    "title": "#{{name}} bearbeiten",
+    "name": "Name",
+    "topic": "Thema",
+    "rootNoRename": "Der Hauptkanal kann nicht umbenannt werden",
+    "updateFailed": "Kanal konnte nicht aktualisiert werden"
+  },
+  "archiveDialog": {
+    "title": "#{{name}} archivieren?",
+    "body": "Der Kanal bleibt lesbar, aber niemand kann mehr darin schreiben. Die Archivierung kann nicht aufgehoben werden.",
+    "confirm": "Archivieren"
+  },
+  "membersDialog": {
+    "title": "Mitglieder von #{{name}}",
+    "addMember": "Projektmitglied hinzufügen",
+    "everyoneHere": "Alle Projektmitglieder sind bereits hier",
+    "owner": "Eigentümer",
+    "removeFromChannel": "Aus dem Kanal entfernen",
+    "changeFailed": "Mitgliedschaftsänderung fehlgeschlagen",
+    "done": "Fertig"
+  },
+  "composer": {
+    "placeholder": "Nachricht",
+    "placeholderChannel": "Nachricht an #{{name}}",
+    "disabledArchived": "Dieser Kanal ist archiviert",
+    "disabledReadOnly": "Ihre Projektrolle ist schreibgeschützt",
+    "attachDoc": "Dokumentkarte anhängen",
+    "attachTask": "Aufgabenkarte anhängen",
+    "createTask": "Aufgabe erstellen und ihre Karte anhängen",
+    "linkProduction": "Auftrag oder Charge verknüpfen",
+    "attach": "Anhängen",
+    "send": "Nachricht senden",
+    "sendFailed": "Senden fehlgeschlagen"
+  },
+  "message": {
+    "unknownAuthor": "Unbekannt",
+    "edited": "(bearbeitet)",
+    "deleted": "Nachricht gelöscht",
+    "addReaction": "Reaktion hinzufügen",
+    "replyInThread": "Im Thread antworten",
+    "delete": "Nachricht löschen",
+    "replies_one": "{{count}} Antwort",
+    "replies_other": "{{count}} Antworten"
+  },
+  "thread": {
+    "title": "Thread",
+    "close": "Thread schließen",
+    "notFound": "Thread nicht gefunden.",
+    "replyPlaceholder": "Antworten…"
+  },
+  "typing_one": "{{name}} schreibt…",
+  "typing_other": "{{count}} Personen schreiben…",
+  "typingTwo": "{{a}} und {{b}} schreiben…"
+}

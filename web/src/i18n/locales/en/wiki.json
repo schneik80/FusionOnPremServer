@@ -1,0 +1,98 @@
+{
+  "untitledPage": "Untitled",
+  "pages": {
+    "title": "Pages",
+    "searchPlaceholder": "Search pages",
+    "noMatches": "No matching pages",
+    "empty": "No pages yet"
+  },
+  "statusShort": {
+    "draft": "Draft",
+    "edited": "Edited",
+    "synced": "Synced",
+    "update": "Update",
+    "conflict": "Conflict",
+    "published": "Published"
+  },
+  "status": {
+    "localDraft": "Local draft",
+    "unpublishedChanges": "Unpublished changes",
+    "updateAvailable": "Update available",
+    "conflict": "Conflict",
+    "synced": "Synced",
+    "published": "Published"
+  },
+  "empty": {
+    "title": "Project Wiki",
+    "body": "Author markdown pages for this project. Drafts are saved on this device until you publish them to the project's Wiki folder.",
+    "newPage": "New page"
+  },
+  "alerts": {
+    "pagesLoadFailed": "Couldn't load published pages. Local drafts are still available.",
+    "publishFailed": "Publish failed.",
+    "renameFailed": "Rename failed.",
+    "refreshFailed": "Refresh failed."
+  },
+  "publish": {
+    "conflictConfirm": "This page changed since you opened it. Overwrite the published version?"
+  },
+  "reader": {
+    "rename": "Rename",
+    "update": "Update",
+    "takeLatest": "Take latest",
+    "behindBody": "A newer version was published on another device.",
+    "conflictBody": "A newer version was published on another device, and you have unpublished local edits. Take latest discards your edits; Edit → Publish keeps yours.",
+    "editAsDraft": "Edit as draft",
+    "downloadFailed": "Couldn't download this page."
+  },
+  "renameDialog": {
+    "title": "Rename page",
+    "rename": "Rename",
+    "renaming": "Renaming…"
+  },
+  "editor": {
+    "titlePlaceholder": "Page title",
+    "savedLocally": "Saved locally",
+    "saving": "Saving…",
+    "publish": "Publish",
+    "publishing": "Publishing…",
+    "publishTooltip": "Publish to the project Wiki folder",
+    "publishUnavailable": "Publishing unavailable",
+    "heading1Tooltip": "Heading 1",
+    "heading2Tooltip": "Heading 2",
+    "heading3Tooltip": "Heading 3",
+    "boldTooltip": "Bold",
+    "italicTooltip": "Italic",
+    "inlineCodeTooltip": "Inline code",
+    "bulletedListTooltip": "Bulleted list",
+    "quoteTooltip": "Quote",
+    "linkTooltip": "Link",
+    "insertImageUploadTooltip": "Insert image (uploads to the page)",
+    "insertImageUrlTooltip": "Insert image URL",
+    "insertImageFromPublicUrlTooltip": "Insert image from a public URL",
+    "embedHubImageTooltip": "Embed an image stored in this hub",
+    "insertDocCardTooltip": "Insert a document card (browse this hub)",
+    "insertTaskCardTooltip": "Insert a task card (this project's tasks)",
+    "createTaskCardTooltip": "Create a task and insert its card",
+    "insertProdCardTooltip": "Insert a job or batch card (this project's production)",
+    "imageUploadFailed": "Image upload failed.",
+    "hubImageDialogTitle": "Embed an image from the hub",
+    "embedImage": "Embed image",
+    "docCardDialogTitle": "Insert a document card",
+    "insertCard": "Insert card",
+    "preview": "Preview",
+    "emptyPreview": "Nothing to preview yet."
+  },
+  "imageUrlDialog": {
+    "title": "Insert image from URL",
+    "urlLabel": "Image URL",
+    "urlHelper": "The URL must be publicly reachable by anyone reading the page.",
+    "altLabel": "Alt text (optional)",
+    "previewFailed": "Couldn't load a preview — check the URL points at an image.",
+    "insert": "Insert"
+  },
+  "toc": {
+    "title": "On this page",
+    "ariaLabel": "Table of contents"
+  }
+}

@@ -2,6 +2,7 @@ import { faHashtag, faLock } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useAuthMe,
   useChatChannels,
@@ -29,6 +30,7 @@ const NO_CAPS: ChatCaps = { post: false, createChannel: false, moderate: false }
 // fallback while the stream is down. `active` gates fetching to the
 // visible tab.
 export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
+  const { t } = useTranslation('chat')
   const nav = useNav()
   const projectId = nav.project?.id ?? null
   const meId = useAuthMe().data?.user?.id ?? ''
@@ -90,7 +92,10 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
     return (
       <Box sx={{ flex: 1, p: 2 }}>
         <Alert severity="warning">
-          Chat is unavailable: {channelsQ.error instanceof Error ? channelsQ.error.message : 'error'}
+          {t('unavailable', {
+            message:
+              channelsQ.error instanceof Error ? channelsQ.error.message : t('unknownError'),
+          })}
         </Alert>
       </Box>
     )
@@ -132,13 +137,13 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
             )}
             {archived && (
               <Typography variant="caption" color="warning.main">
-                archived
+                {t('header.archived')}
               </Typography>
             )}
             <Box sx={{ flex: 1 }} />
             {!live && (
               <Typography variant="caption" color="text.disabled">
-                reconnecting…
+                {t('header.reconnecting')}
               </Typography>
             )}
             <ChannelMenu projectId={projectId} channel={current} caps={caps} meId={meId} />
@@ -148,19 +153,21 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
           messages={(messagesQ.data?.messages ?? []).filter((m) => !m.threadRoot)}
           meId={meId}
           caps={caps}
-          emptyText={
-            messagesQ.isLoading ? 'Loading…' : 'No messages yet — start the conversation.'
-          }
+          emptyText={messagesQ.isLoading ? t('common:loading') : t('emptyState.noMessages')}
           onOpenThread={setThreadRoot}
           onDelete={doDelete}
           onToggleReaction={doToggleReaction}
         />
         <TypingIndicator names={typingNames} />
         <MessageComposer
-          placeholder={current ? `Message #${current.name}` : 'Message'}
+          placeholder={
+            current
+              ? t('composer.placeholderChannel', { name: current.name })
+              : t('composer.placeholder')
+          }
           disabled={!caps.post || archived || !current}
           disabledReason={
-            archived ? 'This channel is archived' : 'Your project role is read-only'
+            archived ? t('composer.disabledArchived') : t('composer.disabledReadOnly')
           }
           sending={sending}
           onSend={(body) => send(body)}

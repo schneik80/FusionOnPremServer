@@ -4,6 +4,7 @@
 import { faDownload, faFileArrowDown } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import type { ViewerFile } from './kind'
 
 export function ViewerSpinner() {
@@ -18,6 +19,7 @@ export function ViewerSpinner() {
 // error state when a viewer fails to load. It always offers a plain download
 // (the bytes URL doubles as the href) and, when known, an "Open in Fusion" link.
 export function FallbackViewer({ file, reason }: { file: ViewerFile; reason?: string }) {
+  const { t } = useTranslation('browse')
   return (
     <Stack spacing={1.25} alignItems="center" sx={{ py: 5, px: 2, textAlign: 'center' }}>
       <FontAwesomeIcon icon={faFileArrowDown} style={{ fontSize: 40, opacity: 0.4 }} />
@@ -43,11 +45,11 @@ export function FallbackViewer({ file, reason }: { file: ViewerFile; reason?: st
           variant="outlined"
           startIcon={<FontAwesomeIcon icon={faDownload} style={{ fontSize: 12 }} />}
         >
-          Download
+          {t('viewer.download')}
         </Button>
         {file.webUrl && (
           <Button component="a" href={file.webUrl} target="_blank" rel="noopener" size="small">
-            Open in Fusion
+            {t('viewer.openInFusion')}
           </Button>
         )}
       </Stack>

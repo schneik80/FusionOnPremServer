@@ -27,6 +27,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowsRotate, faBug, faCircleCheck } from '@fortawesome/free-solid-svg-icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   useBOM,
   useClassify,
@@ -68,16 +70,17 @@ type TabKey =
   | 'drawings'
   | 'permissions'
 
+// Catalog keys per tab (details namespace); rendered through t() below.
 const TAB_LABEL: Record<TabKey, string> = {
-  preview: 'Preview',
-  history: 'History',
-  activity: 'Activity',
-  properties: 'Properties',
-  bom: 'BOM',
-  uses: 'Uses',
-  whereUsed: 'Where Used',
-  drawings: 'Drawings',
-  permissions: 'Permissions',
+  preview: 'details.tab.preview',
+  history: 'details.tab.history',
+  activity: 'details.tab.activity',
+  properties: 'details.tab.properties',
+  bom: 'details.tab.bom',
+  uses: 'details.tab.uses',
+  whereUsed: 'details.tab.whereUsed',
+  drawings: 'details.tab.drawings',
+  permissions: 'details.tab.permissions',
 }
 
 // Designs get the full set; configured designs add Properties + BOM; drawings
@@ -102,6 +105,7 @@ function tabsFor(kind: string): TabKey[] {
 }
 
 export function DetailsPanel() {
+  const { t } = useTranslation('details')
   const nav = useNav()
   const selected = nav.selected
 
@@ -138,7 +142,7 @@ export function DetailsPanel() {
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            Select a document to view its details
+            {t('details.selectDocument')}
           </Typography>
         </Box>
       )}
@@ -155,6 +159,7 @@ function SelectedDetails({
   item: Item
   projectAltId?: string
 }) {
+  const { t } = useTranslation('details')
   const nav = useNav()
   const available = useMemo(() => tabsFor(item.kind), [item.kind])
   // Open the tab a cross-document jump requested (nav.selectedTab), if valid for
@@ -266,6 +271,7 @@ function SelectedDetails({
               {docState && <StateBadge state={docState} />}
               <Box sx={{ flex: 1 }} />
               {debug && (
+                /* eslint-disable i18next/no-literal-string -- dev-only (meta.debug gated) */
                 <Tooltip title="Probe version/milestone fields (dev)">
                   <IconButton
                     size="small"
@@ -277,13 +283,14 @@ function SelectedDetails({
                     <FontAwesomeIcon icon={faBug} style={{ fontSize: 14 }} />
                   </IconButton>
                 </Tooltip>
+                /* eslint-enable i18next/no-literal-string */
               )}
-              <Tooltip title="Refresh document data">
+              <Tooltip title={t('details.refreshDocument')}>
                 <IconButton
                   size="small"
                   onClick={refresh}
                   disabled={detailsQ.isFetching}
-                  aria-label="Refresh document data"
+                  aria-label={t('details.refreshDocument')}
                   sx={{ flexShrink: 0 }}
                 >
                   <FontAwesomeIcon icon={faArrowsRotate} spin={detailsQ.isFetching} style={{ fontSize: 14 }} />
@@ -308,8 +315,8 @@ function SelectedDetails({
         scrollButtons="auto"
         sx={{ minHeight: 40, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}
       >
-        {available.map((t) => (
-          <Tab key={t} value={t} label={TAB_LABEL[t]} sx={{ minHeight: 40, py: 0 }} />
+        {available.map((tk) => (
+          <Tab key={tk} value={tk} label={t(TAB_LABEL[tk])} sx={{ minHeight: 40, py: 0 }} />
         ))}
       </Tabs>
 
@@ -384,6 +391,7 @@ function Thumbnail({
   projectAltId?: string
   size?: number
 }) {
+  const { t } = useTranslation('details')
   const isDrawing = kind === 'drawing'
   const isDesign = kind === 'design' || kind === 'configured'
 
@@ -439,7 +447,7 @@ function Thumbnail({
         <Box
           component="img"
           src={isDesign ? thumbnailSrc({ kind, cvId })! : drawingImageUrl!}
-          alt={`${name} preview`}
+          alt={t('details.previewAlt', { name })}
           sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
           onError={() => {
             if (isDrawing) setDrawingFailed(true)
@@ -499,17 +507,18 @@ function fmtDate(s?: string): string {
 // typeLabel renders a friendly document type, appending the lazily-classified
 // Part/Assembly to designs — e.g. "3D Design — Assembly". Falls back to the raw
 // GraphQL typename for kinds we don't have a friendly name for.
-function typeLabel(kind: string, typename?: string, subtype?: string): string {
+function typeLabel(t: TFunction, kind: string, typename?: string, subtype?: string): string {
   const base =
     kind === 'design'
-      ? '3D Design'
+      ? t('details.type3dDesign')
       : kind === 'configured'
-        ? 'Configured Design'
+        ? t('details.typeConfiguredDesign')
         : kind === 'drawing'
-          ? 'Drawing'
-          : typename || kind || 'Document'
-  const sub = subtype === 'assembly' ? 'Assembly' : subtype === 'part' ? 'Part' : ''
-  return sub ? `${base} — ${sub}` : base
+          ? t('details.typeDrawing')
+          : typename || kind || t('details.typeDocument')
+  const sub =
+    subtype === 'assembly' ? t('details.subtypeAssembly') : subtype === 'part' ? t('details.subtypePart') : ''
+  return sub ? t('details.typeWithSubtype', { base, sub }) : base
 }
 
 // Fusion-native document kinds. Their "extension" is an internal type marker
@@ -559,24 +568,28 @@ function DetailsSummary({
   loading: boolean
   error: Error | null
 }) {
+  const { t } = useTranslation('details')
   if (loading) return <TabSpinner />
   if (error) return <TabError error={error} />
-  if (!query) return <TabEmpty text="No details" />
+  if (!query) return <TabEmpty text={t('details.noDetails')} />
 
   // Identity / spec fields stay in the first column; the version + authorship
   // fields move into a second column once the details panel is wide enough,
   // compacting the header height. See the container query below.
   const primaryRows: Array<[string, ReactNode]> = [
-    ['Type', typeLabel(kind, query.typename, subtype)],
-    ['Part number', query.partNumber],
-    ['Description', query.partDesc],
-    ['Material', query.material],
-    ['Extension', FUSION_NATIVE_KINDS.has(kind) ? undefined : query.extensionType],
+    [t('details.fieldType'), typeLabel(t, kind, query.typename, subtype)],
+    [t('details.fieldPartNumber'), query.partNumber],
+    [t('details.fieldDescription'), query.partDesc],
+    [t('details.fieldMaterial'), query.material],
+    [t('details.fieldExtension'), FUSION_NATIVE_KINDS.has(kind) ? undefined : query.extensionType],
   ]
   const secondaryRows: Array<[string, ReactNode]> = [
-    ['Version', query.versionNumber ? `v${query.versionNumber}` : undefined],
-    ['Created', query.createdOn ? `${fmtDate(query.createdOn)} · ${query.createdBy ?? ''}` : undefined],
-    ['Modified', query.modifiedOn ? `${fmtDate(query.modifiedOn)} · ${query.modifiedBy ?? ''}` : undefined],
+    [
+      t('details.fieldVersion'),
+      query.versionNumber ? t('details.versionNumber', { number: query.versionNumber }) : undefined,
+    ],
+    [t('details.fieldCreated'), query.createdOn ? `${fmtDate(query.createdOn)} · ${query.createdBy ?? ''}` : undefined],
+    [t('details.fieldModified'), query.modifiedOn ? `${fmtDate(query.modifiedOn)} · ${query.modifiedBy ?? ''}` : undefined],
   ]
   return (
     <Box
@@ -611,6 +624,7 @@ function SectionLabel({ children }: { children: ReactNode }) {
 // PropertiesTab shows the component's custom/standard named properties (when
 // any are available) above its physical/mass properties.
 function PropertiesTab({ cvId, active }: { cvId?: string; active: boolean }) {
+  const { t } = useTranslation('details')
   const cpQ = useCustomProperties(cvId, active)
   const customRows: Array<[string, ReactNode]> = (cpQ.data ?? []).map((p) => [p.name, p.value])
 
@@ -618,12 +632,12 @@ function PropertiesTab({ cvId, active }: { cvId?: string; active: boolean }) {
     <Stack spacing={2}>
       {customRows.length > 0 && (
         <Box>
-          <SectionLabel>Properties</SectionLabel>
+          <SectionLabel>{t('details.sectionProperties')}</SectionLabel>
           <LabelGrid rows={customRows} />
         </Box>
       )}
       <Box>
-        <SectionLabel>Physical</SectionLabel>
+        <SectionLabel>{t('details.sectionPhysical')}</SectionLabel>
         <PhysicalProperties cvId={cvId} active={active} />
       </Box>
     </Stack>
@@ -631,22 +645,23 @@ function PropertiesTab({ cvId, active }: { cvId?: string; active: boolean }) {
 }
 
 function PhysicalProperties({ cvId, active }: { cvId?: string; active: boolean }) {
+  const { t } = useTranslation('details')
   const q = useProperties(cvId, active)
   if (q.isLoading) return <TabSpinner />
   if (q.error) return <TabError error={q.error as Error} />
   const p = q.data
-  if (!p) return <TabEmpty text="No properties" />
+  if (!p) return <TabEmpty text={t('details.noProperties')} />
 
   if (p.status !== 'COMPLETED') {
     return q.isFetching ? (
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 2 }}>
         <CircularProgress size={18} />
         <Typography variant="body2" color="text.secondary">
-          Computing physical properties…
+          {t('details.computingPhysical')}
         </Typography>
       </Stack>
     ) : (
-      <TabEmpty text="Physical properties not available" />
+      <TabEmpty text={t('details.physicalUnavailable')} />
     )
   }
 
@@ -666,38 +681,39 @@ function PhysicalProperties({ cvId, active }: { cvId?: string; active: boolean }
       : undefined
 
   const rows: Array<[string, ReactNode]> = [
-    ['Mass', fmt(p.mass)],
-    ['Volume', fmt(p.volume)],
-    ['Surface area', fmt(p.area)],
-    ['Density', fmt(p.density)],
-    ['Bounding box', bbox],
+    [t('details.mass'), fmt(p.mass)],
+    [t('details.volume'), fmt(p.volume)],
+    [t('details.surfaceArea'), fmt(p.area)],
+    [t('details.density'), fmt(p.density)],
+    [t('details.boundingBox'), bbox],
   ]
-  if (!rows.some(([, v]) => !!v)) return <TabEmpty text="No physical properties" />
+  if (!rows.some(([, v]) => !!v)) return <TabEmpty text={t('details.noPhysicalProperties')} />
   return <LabelGrid rows={rows} />
 }
 
 // BOMTab shows a flat bill of materials: one row per unique sub-component with
 // a quantity (the occurrence count — the v2 API has no explicit quantity field).
 function BOMTab({ cvId, active }: { cvId?: string; active: boolean }) {
+  const { t } = useTranslation('details')
   const q = useBOM(cvId, active)
   if (q.isLoading) return <TabSpinner />
   if (q.error) return <TabError error={q.error as Error} />
   const rows = q.data ?? []
-  if (rows.length === 0) return <TabEmpty text="No bill of materials" />
+  if (rows.length === 0) return <TabEmpty text={t('details.noBom')} />
 
   const total = rows.reduce((n, r) => n + r.quantity, 0)
   return (
     <>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-        {rows.length} component{rows.length === 1 ? '' : 's'} · {total} occurrence{total === 1 ? '' : 's'}
+        {t('details.bomComponents', { count: rows.length })} · {t('details.bomOccurrences', { count: total })}
       </Typography>
       <Table size="small" sx={{ '& td, & th': { px: 1, py: 0.5 } }}>
         <TableHead>
           <TableRow>
-            <TableCell>Component</TableCell>
-            <TableCell>Part №</TableCell>
-            <TableCell>Material</TableCell>
-            <TableCell align="right">Qty</TableCell>
+            <TableCell>{t('details.colComponent')}</TableCell>
+            <TableCell>{t('details.colPartNumber')}</TableCell>
+            <TableCell>{t('details.colMaterial')}</TableCell>
+            <TableCell align="right">{t('details.colQty')}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -729,10 +745,11 @@ function HistoryTab({
   error: Error | null
   projectAltId?: string
 }) {
+  const { t } = useTranslation('details')
   if (loading) return <TabSpinner />
   if (error) return <TabError error={error} />
   const versions = query?.versions ?? []
-  if (versions.length === 0) return <TabEmpty text="No version history" />
+  if (versions.length === 0) return <TabEmpty text={t('details.noVersionHistory')} />
 
   return <HistoryGraph versions={versions} projectAltId={projectAltId} />
 }
@@ -770,6 +787,7 @@ function RelationStats({ text }: { text: ReactNode }) {
 // UsesTab shows a design's sub-components (or a drawing's source design) as an
 // interactive relationship graph; clicking a node jumps to that document's Uses tab.
 function UsesTab({ item, hubId, cvId, active }: { item: Item; hubId: string | null; cvId?: string; active: boolean }) {
+  const { t } = useTranslation('details')
   const isDrawing = item.kind === 'drawing'
   const goTo = useGoToDocument()
   const q = useUses({
@@ -781,11 +799,10 @@ function UsesTab({ item, hubId, cvId, active }: { item: Item; hubId: string | nu
   if (q.isLoading) return <TabSpinner />
   if (q.error) return <TabError error={q.error as Error} />
   const nodes = componentRefsToNodes(q.data ?? [])
-  const noun = isDrawing ? 'source design' : 'sub-component'
   return (
     <Stack spacing={1.5} sx={{ height: '100%' }}>
       {nodes.length === 0 ? (
-        <TabEmpty text={isDrawing ? 'No source design' : 'No sub-components'} />
+        <TabEmpty text={isDrawing ? t('details.noSourceDesign') : t('details.noSubComponents')} />
       ) : (
         <RelationGraph
           focus={{ name: item.name, kind: item.kind, cvId, itemId: item.id }}
@@ -797,8 +814,14 @@ function UsesTab({ item, hubId, cvId, active }: { item: Item; hubId: string | nu
       <RelationStats
         text={
           <>
-            <b>{nodes.length}</b> first-level {noun}
-            {nodes.length === 1 ? '' : 's'} · {item.name} · {typeLabel(item.kind, undefined, item.subtype)}
+            <Trans
+              t={t}
+              i18nKey={isDrawing ? 'details.usesSourceDesigns' : 'details.usesSubComponents'}
+              count={nodes.length}
+              components={{ b: <b /> }}
+            />
+            {' · '}
+            {item.name} · {typeLabel(t, item.kind, undefined, item.subtype)}
           </>
         }
       />
@@ -809,6 +832,7 @@ function UsesTab({ item, hubId, cvId, active }: { item: Item; hubId: string | nu
 // WhereUsedTab shows the parent designs (and optionally drawings) that use this
 // document; clicking a node jumps to that document's Where Used tab.
 function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string | null; cvId?: string; active: boolean }) {
+  const { t } = useTranslation('details')
   const goTo = useGoToDocument()
   const [showDrawings, setShowDrawings] = useState(true)
   const wuQ = useWhereUsed(cvId, active)
@@ -832,10 +856,10 @@ function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string
       <FormControlLabel
         sx={{ m: 0 }}
         control={<Checkbox size="small" checked={showDrawings} onChange={(e) => setShowDrawings(e.target.checked)} />}
-        label={<Typography variant="body2">Show drawings</Typography>}
+        label={<Typography variant="body2">{t('details.showDrawings')}</Typography>}
       />
       {relations.length === 0 ? (
-        <TabEmpty text="Not used by any design" />
+        <TabEmpty text={t('details.notUsedByAnyDesign')} />
       ) : (
         <RelationGraph
           focus={{ name: item.name, kind: item.kind, cvId, itemId: item.id }}
@@ -847,15 +871,15 @@ function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string
       <RelationStats
         text={
           <>
-            <b>{parents.length}</b> parent{parents.length === 1 ? '' : 's'}
+            <Trans t={t} i18nKey="details.whereUsedParents" count={parents.length} components={{ b: <b /> }} />
             {showDrawings && drawings.length > 0 ? (
               <>
                 {' · '}
-                {drawings.length} drawing{drawings.length === 1 ? '' : 's'}
+                {t('details.whereUsedDrawings', { count: drawings.length })}
               </>
             ) : null}
             {' · '}
-            {item.name} · {typeLabel(item.kind, undefined, item.subtype)}
+            {item.name} · {typeLabel(t, item.kind, undefined, item.subtype)}
           </>
         }
       />
@@ -882,6 +906,7 @@ function ActivityTab({
   subtype?: string
   active: boolean
 }) {
+  const { t } = useTranslation('details')
   const reportQ = useDesignActivity(active ? hubId : null, active ? itemId : null)
 
   // Only assemblies have children; gate the (potentially expensive) recursive
@@ -911,7 +936,7 @@ function ActivityTab({
 
   if (reportQ.isLoading) return <TabSpinner />
   if (reportQ.error) return <TabError error={reportQ.error as Error} />
-  if (!report) return <TabEmpty text="No activity recorded" />
+  if (!report) return <TabEmpty text={t('details.noActivityRecorded')} />
   return (
     <ActivityHeatmap
       report={report}
@@ -930,11 +955,12 @@ function DrawingsTab({
   designItemId: string
   active: boolean
 }) {
+  const { t } = useTranslation('details')
   const q = useDrawings(hubId, designItemId, active)
   if (q.isLoading) return <TabSpinner />
   if (q.error) return <TabError error={q.error as Error} />
   const drawings = q.data ?? []
-  if (drawings.length === 0) return <TabEmpty text="No drawings reference this design" />
+  if (drawings.length === 0) return <TabEmpty text={t('details.noDrawingsReference')} />
   return (
     <List dense disablePadding>
       {drawings.map((d: DrawingRef) => (

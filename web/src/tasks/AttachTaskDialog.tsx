@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useTasks } from '../api/queries'
 import { TaskRow } from './TaskListView'
 import type { Task } from './types'
@@ -32,6 +33,7 @@ export function AttachTaskDialog({
   onClose: () => void
   onPick: (task: Task) => void
 }) {
+  const { t } = useTranslation('tasks')
   const tasksQ = useTasks(projectId, open)
   const [search, setSearch] = useState('')
 
@@ -42,14 +44,14 @@ export function AttachTaskDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Attach a task</DialogTitle>
+      <DialogTitle>{t('attachDialog.title')}</DialogTitle>
       <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column', height: 420 }}>
         <Box sx={{ px: 2, pb: 1 }}>
           <TextField
             fullWidth
             size="small"
             autoFocus
-            placeholder="Search tasks"
+            placeholder={t('attachDialog.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{
@@ -72,7 +74,7 @@ export function AttachTaskDialog({
             </Typography>
           ) : tasks.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-              {q ? 'No tasks match the search' : 'No tasks in this project yet'}
+              {q ? t('attachDialog.emptySearch') : t('attachDialog.empty')}
             </Typography>
           ) : (
             <List dense disablePadding>
@@ -84,7 +86,7 @@ export function AttachTaskDialog({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:cancel')}</Button>
       </DialogActions>
     </Dialog>
   )
