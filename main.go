@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/schneik80/fusionlocalserver/config"
+	"github.com/schneik80/fusionlocalserver/internal/appver"
 	"github.com/schneik80/fusionlocalserver/server"
 )
 
@@ -13,6 +14,9 @@ import (
 var version = "dev"
 
 func main() {
+	// Recorded first so every data file the stores stamp from here on
+	// carries the real build version (schemameta reads it).
+	appver.Set(version)
 	var (
 		verbose   = flag.Bool("v", false, "verbose logging (debug level, to console and the log file)")
 		dev       = flag.Bool("dev", false, "developer mode: proxy the web UI to the Vite dev server for HMR")

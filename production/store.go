@@ -11,7 +11,14 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
+	"github.com/schneik80/fusionlocalserver/internal/migrate"
 )
+
+// registry is the production migration table; steps register as the
+// schema evolves past fileVersion 1.
+var registry = migrate.NewRegistry("production", fileVersion)
 
 // Store owns all production persistence. One Store per server; all mutation of
 // a project's data happens under that project's mutex, so the single process
@@ -1185,16 +1192,23 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("production: reading %s: %w", path, err)
 	}
+	// Migrate older files forward before decoding (registry has no steps
+	// while fileVersion is the floor); future versions refuse. Counter
+	// repair below still runs AFTER migration — repairs are for value
+	// drift, migrations are for shape changes.
+	data, _, err = registry.Apply(path, data)
+	if err != nil {
+		if errors.Is(err, migrate.ErrFutureVersion) {
+			return nil, fmt.Errorf("%w: %s", ErrFutureVersion, err)
+		}
+		_ = os.Rename(path, path+".bak")
+		return fresh, nil
+	}
 	var pf projectFile
 	if err := json.Unmarshal(data, &pf); err != nil {
 		_ = os.Rename(path, path+".bak")
 		return fresh, nil
 	}
-	if pf.Version > fileVersion {
-		return nil, fmt.Errorf("%w: production.json v%d > v%d", ErrFutureVersion, pf.Version, fileVersion)
-	}
-	// pf.Version < fileVersion: in-place upgrade functions slot in here when
-	// fileVersion moves past 1.
 	if pf.Jobs == nil {
 		pf.Jobs = []*Job{}
 	}
@@ -1227,30 +1241,7 @@ func (s *Store) saveFile(projectID string, pf *projectFile) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, "production-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	if err := tmp.Chmod(0600); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	if err := os.Rename(tmpName, s.filePath(projectID)); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	return nil
+	return atomicfile.WriteFile(s.filePath(projectID), data, 0600)
 }
 
 // sanitizeID maps a URN-format identifier to a filesystem-safe slug: any

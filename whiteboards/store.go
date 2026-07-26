@@ -11,7 +11,14 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
+	"github.com/schneik80/fusionlocalserver/internal/migrate"
 )
+
+// registry is the whiteboards migration table (metadata file only; tldraw
+// doc files are opaque snapshots and version with tldraw itself).
+var registry = migrate.NewRegistry("whiteboards", fileVersion)
 
 // Store owns all whiteboard persistence. One Store per server; all mutation of
 // a project's data happens under that project's mutex, so the single process is
@@ -327,13 +334,20 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("whiteboards: reading %s: %w", path, err)
 	}
+	// Migrate older files forward before decoding (no steps registered
+	// while fileVersion is the floor); future versions refuse.
+	data, _, err = registry.Apply(path, data)
+	if err != nil {
+		if errors.Is(err, migrate.ErrFutureVersion) {
+			return nil, fmt.Errorf("%w: %s", ErrFutureVersion, err)
+		}
+		_ = os.Rename(path, path+".bak")
+		return fresh, nil
+	}
 	var pf projectFile
 	if err := json.Unmarshal(data, &pf); err != nil {
 		_ = os.Rename(path, path+".bak")
 		return fresh, nil
-	}
-	if pf.Version > fileVersion {
-		return nil, fmt.Errorf("%w: whiteboards.json v%d > v%d", ErrFutureVersion, pf.Version, fileVersion)
 	}
 	if pf.Boards == nil {
 		pf.Boards = []*Board{}
@@ -360,34 +374,12 @@ func (s *Store) writeSnapshot(projectID, boardID string, doc []byte) error {
 // never leave a half-written file behind — the difference between a whiteboard
 // and a truncated whiteboard.
 func (s *Store) writeAtomic(projectID, path, pattern string, data []byte) error {
+	_ = pattern // retained in the signature for call-site clarity
 	dir := s.projectDir(projectID)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("whiteboards: creating project dir: %w", err)
 	}
-	tmp, err := os.CreateTemp(dir, pattern)
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	if err := tmp.Chmod(0600); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	return nil
+	return atomicfile.WriteFile(path, data, 0600)
 }
 
 // sanitizeID maps a URN-format identifier to a filesystem-safe slug — copied

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
+	"github.com/schneik80/fusionlocalserver/internal/migrate"
 )
 
 // Per-user, per-channel read cursors (docs/chat/PLAN.md phase 4) — the
@@ -150,13 +153,19 @@ func (s *Store) loadCursors(projectID string) (*cursorsFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("chat: reading %s: %w", path, err)
 	}
+	// Same registry hook as meta.json (no steps at v1; future refuses).
+	data, _, err = cursorsRegistry.Apply(path, data)
+	if err != nil {
+		if errors.Is(err, migrate.ErrFutureVersion) {
+			return nil, fmt.Errorf("%w: %s", ErrFutureVersion, err)
+		}
+		_ = os.Rename(path, path+".bak")
+		return fresh, nil
+	}
 	var cf cursorsFile
 	if err := json.Unmarshal(data, &cf); err != nil {
 		_ = os.Rename(path, path+".bak")
 		return fresh, nil
-	}
-	if cf.Version > cursorsVersion {
-		return nil, fmt.Errorf("%w: cursors.json v%d > v%d", ErrFutureVersion, cf.Version, cursorsVersion)
 	}
 	if cf.Cursors == nil {
 		cf.Cursors = make(map[string]map[string]int64)
@@ -175,27 +184,7 @@ func (s *Store) saveCursors(projectID string, cf *cursorsFile) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, "cursors-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	if err := tmp.Chmod(0600); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	if err := os.Rename(tmpName, s.cursorsPath(projectID)); err != nil {
-		os.Remove(tmpName)
+	if err := atomicfile.WriteFile(s.cursorsPath(projectID), data, 0600); err != nil {
 		return err
 	}
 	return nil

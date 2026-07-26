@@ -302,3 +302,129 @@ func TestIsPinnable(t *testing.T) {
 		}
 	}
 }
+
+// ---- v1 envelope + migration posture ----
+
+func TestSaveWritesV1Envelope(t *testing.T) {
+	dir := withTempConfigDir(t)
+	hub := "hubV1"
+	if err := Save(hub, []Pin{{ID: "p1", Name: "One", Kind: "design", HubID: hub}}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "pins-"+hub+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pf struct {
+		Version int `json:"version"`
+		Schema  struct {
+			CreatedAt        time.Time `json:"createdAt"`
+			UpdatedByVersion string    `json:"updatedByVersion"`
+		} `json:"schema"`
+		Pins []Pin `json:"pins"`
+	}
+	if err := json.Unmarshal(data, &pf); err != nil {
+		t.Fatalf("not an envelope: %s", data)
+	}
+	if pf.Version != fileVersion || len(pf.Pins) != 1 || pf.Schema.CreatedAt.IsZero() || pf.Schema.UpdatedByVersion == "" {
+		t.Errorf("envelope = %+v", pf)
+	}
+	got, err := Load(hub)
+	if err != nil || len(got) != 1 || got[0].ID != "p1" {
+		t.Errorf("Load = %v, %v", got, err)
+	}
+}
+
+func TestLoadLegacyArrayMigrates(t *testing.T) {
+	dir := withTempConfigDir(t)
+	hub := "hubLegacy"
+	path := filepath.Join(dir, "pins-"+hub+".json")
+	legacy := `[{"id":"p1","name":"Old","kind":"design","hub_id":"hubLegacy","pinned_at":"2024-01-02T03:04:05Z"}]`
+	if err := os.WriteFile(path, []byte(legacy), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(hub)
+	if err != nil || len(got) != 1 || got[0].ID != "p1" {
+		t.Fatalf("Load legacy = %v, %v", got, err)
+	}
+	// Snapshot of the pre-envelope bytes exists.
+	snap, err := os.ReadFile(path + ".v0.bak")
+	if err != nil || string(snap) != legacy {
+		t.Errorf("v0 snapshot missing/wrong: %v", err)
+	}
+	// Next save rewrites in the envelope; reload still works.
+	if err := Save(hub, got); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), `"version": 1`) {
+		t.Errorf("not upgraded on save: %s", data)
+	}
+	again, err := Load(hub)
+	if err != nil || len(again) != 1 {
+		t.Errorf("reload = %v, %v", again, err)
+	}
+}
+
+func TestLoadFutureVersionRefused(t *testing.T) {
+	dir := withTempConfigDir(t)
+	hub := "hubFuture"
+	path := filepath.Join(dir, "pins-"+hub+".json")
+	if err := os.WriteFile(path, []byte(`{"version": 99, "pins": []}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(hub); err == nil {
+		t.Fatal("expected ErrFutureVersion")
+	}
+}
+
+func TestLoadCorruptRecovers(t *testing.T) {
+	dir := withTempConfigDir(t)
+	hub := "hubCorrupt"
+	path := filepath.Join(dir, "pins-"+hub+".json")
+	if err := os.WriteFile(path, []byte(`{"version": 1, "pins": [truncated`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(hub)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("Load corrupt = %v, %v", got, err)
+	}
+	if _, err := os.Stat(path + ".bak"); err != nil {
+		t.Error("corrupt file not preserved as .bak")
+	}
+}
+
+func TestSavePreservesBirthStamp(t *testing.T) {
+	dir := withTempConfigDir(t)
+	hub := "hubStamp"
+	if err := Save(hub, []Pin{{ID: "p1", HubID: hub}}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "pins-"+hub+".json")
+	var first struct {
+		Schema struct {
+			CreatedAt time.Time `json:"createdAt"`
+		} `json:"schema"`
+	}
+	data, _ := os.ReadFile(path)
+	_ = json.Unmarshal(data, &first)
+
+	time.Sleep(5 * time.Millisecond)
+	if err := Save(hub, []Pin{{ID: "p1", HubID: hub}, {ID: "p2", HubID: hub}}); err != nil {
+		t.Fatal(err)
+	}
+	var second struct {
+		Schema struct {
+			CreatedAt time.Time `json:"createdAt"`
+			UpdatedAt time.Time `json:"updatedAt"`
+		} `json:"schema"`
+	}
+	data, _ = os.ReadFile(path)
+	_ = json.Unmarshal(data, &second)
+	if !second.Schema.CreatedAt.Equal(first.Schema.CreatedAt) {
+		t.Errorf("birth stamp changed across saves: %v → %v", first.Schema.CreatedAt, second.Schema.CreatedAt)
+	}
+	if !second.Schema.UpdatedAt.After(second.Schema.CreatedAt) {
+		t.Errorf("updatedAt not touched: %+v", second.Schema)
+	}
+}

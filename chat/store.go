@@ -10,6 +10,17 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
+	"github.com/schneik80/fusionlocalserver/internal/migrate"
+)
+
+// metaRegistry / cursorsRegistry are chat's migration tables (meta.json
+// and cursors.json version independently; JSONL records have their own
+// per-record hook in replay).
+var (
+	metaRegistry    = migrate.NewRegistry("chat-meta", metaVersion)
+	cursorsRegistry = migrate.NewRegistry("chat-cursors", cursorsVersion)
 )
 
 // Validation caps, enforced here as well as at the HTTP boundary so no
@@ -824,16 +835,21 @@ func (s *Store) loadMeta(projectID string) (*projectMeta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("chat: reading %s: %w", path, err)
 	}
+	// Migrate older files forward before decoding (no steps registered
+	// while metaVersion is the floor); future versions refuse.
+	data, _, err = metaRegistry.Apply(path, data)
+	if err != nil {
+		if errors.Is(err, migrate.ErrFutureVersion) {
+			return nil, fmt.Errorf("%w: %s", ErrFutureVersion, err)
+		}
+		_ = os.Rename(path, path+".bak")
+		return fresh, nil
+	}
 	var meta projectMeta
 	if err := json.Unmarshal(data, &meta); err != nil {
 		_ = os.Rename(path, path+".bak")
 		return fresh, nil
 	}
-	if meta.Version > metaVersion {
-		return nil, fmt.Errorf("%w: meta.json v%d > v%d", ErrFutureVersion, meta.Version, metaVersion)
-	}
-	// meta.Version < metaVersion: in-place upgrade functions slot in here
-	// when metaVersion moves past 1.
 	if meta.Channels == nil {
 		meta.Channels = []*Channel{}
 	}
@@ -851,30 +867,7 @@ func (s *Store) saveMeta(projectID string, meta *projectMeta) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, "meta-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	if err := tmp.Chmod(0600); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	if err := os.Rename(tmpName, s.metaPath(projectID)); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	return nil
+	return atomicfile.WriteFile(s.metaPath(projectID), data, 0600)
 }
 
 // sanitizeID maps a URN-format identifier to a filesystem-safe slug: any
