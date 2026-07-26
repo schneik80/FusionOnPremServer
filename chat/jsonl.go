@@ -98,6 +98,11 @@ func replayLog(path string) ([]record, error) {
 		if rec.V > recordVersion {
 			return nil, fmt.Errorf("%w: %s record v%d > v%d", ErrFutureVersion, path, rec.V, recordVersion)
 		}
+		// Per-record migration seam: when recordVersion moves past 1, older
+		// records upgrade here (migrateRecord), and the log is compacted —
+		// rewritten in the new shape — only after the whole replay succeeds,
+		// never mid-file. No steps exist at v1, so this is the identity.
+		rec = migrateRecord(rec)
 		recs = append(recs, rec)
 		validEnd = len(data) - len(rest)
 	}
@@ -112,6 +117,14 @@ func replayLog(path string) ([]record, error) {
 		}
 	}
 	return recs, nil
+}
+
+// migrateRecord upgrades a decoded record from an older version to the
+// current recordVersion. The identity while recordVersion == 1; when a v2
+// record shape lands, the upgrade logic goes here and replayLog's caller
+// compacts the file after a fully successful migrating replay.
+func migrateRecord(rec record) record {
+	return rec
 }
 
 // replayMessages folds a record log into message state: ordered messages,

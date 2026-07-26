@@ -13,15 +13,30 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
 	"github.com/schneik80/fusionlocalserver/internal/migrate"
+
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
 // metaRegistry / cursorsRegistry are chat's migration tables (meta.json
 // and cursors.json version independently; JSONL records have their own
 // per-record hook in replay).
 var (
-	metaRegistry    = migrate.NewRegistry("chat-meta", metaVersion)
-	cursorsRegistry = migrate.NewRegistry("chat-cursors", cursorsVersion)
+	metaRegistry    = newMetaRegistry()
+	cursorsRegistry = newCursorsRegistry()
 )
+
+func newMetaRegistry() *migrate.Registry {
+	r := migrate.NewRegistry("chat-meta", metaVersion)
+	// v1→v2: schema stamp joins the envelope; loader backfills it.
+	r.Register(1, func(raw map[string]any) (map[string]any, error) { return raw, nil })
+	return r
+}
+
+func newCursorsRegistry() *migrate.Registry {
+	r := migrate.NewRegistry("chat-cursors", cursorsVersion)
+	r.Register(1, func(raw map[string]any) (map[string]any, error) { return raw, nil })
+	return r
+}
 
 // Validation caps, enforced here as well as at the HTTP boundary so no
 // caller can bypass them.
@@ -81,11 +96,12 @@ type channelState struct {
 // must survive restarts. Message content lives in per-channel JSONL logs,
 // not here, so this file stays small enough for whole-file atomic rewrites.
 type projectMeta struct {
-	Version       int        `json:"version"`
-	ProjectID     string     `json:"projectId"`
-	EventEpoch    int64      `json:"eventEpoch"` // bumped at startup; prefixes SSE event ids
-	NextChannelID int64      `json:"nextChannelId"`
-	Channels      []*Channel `json:"channels"`
+	Version       int              `json:"version"`
+	Schema        schemameta.Stamp `json:"schema"`
+	ProjectID     string           `json:"projectId"`
+	EventEpoch    int64            `json:"eventEpoch"` // bumped at startup; prefixes SSE event ids
+	NextChannelID int64            `json:"nextChannelId"`
+	Channels      []*Channel       `json:"channels"`
 }
 
 // NewStore returns a Store rooted at dir, creating it if needed.
@@ -823,6 +839,7 @@ func (s *Store) loadMeta(projectID string) (*projectMeta, error) {
 	path := s.metaPath(projectID)
 	fresh := &projectMeta{
 		Version:       metaVersion,
+		Schema:        schemameta.New(),
 		ProjectID:     projectID,
 		EventEpoch:    1,
 		NextChannelID: 1,
@@ -853,6 +870,13 @@ func (s *Store) loadMeta(projectID string) (*projectMeta, error) {
 	if meta.Channels == nil {
 		meta.Channels = []*Channel{}
 	}
+	if meta.Schema.CreatedAt.IsZero() {
+		if info, statErr := os.Stat(path); statErr == nil {
+			meta.Schema = schemameta.Backfill(info.ModTime())
+		} else {
+			meta.Schema = schemameta.New()
+		}
+	}
 	return &meta, nil
 }
 
@@ -863,6 +887,7 @@ func (s *Store) saveMeta(projectID string, meta *projectMeta) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("chat: creating project dir: %w", err)
 	}
+	meta.Schema.Touch()
 	data, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
 		return err

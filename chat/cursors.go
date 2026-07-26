@@ -9,6 +9,8 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
 	"github.com/schneik80/fusionlocalserver/internal/migrate"
+
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
 // Per-user, per-channel read cursors (docs/chat/PLAN.md phase 4) — the
@@ -19,7 +21,8 @@ import (
 
 // cursorsVersion gates cursors.json the same way metaVersion gates
 // meta.json: newer files are refused, older ones upgrade in place.
-const cursorsVersion = 1
+// cursorsVersion 2 added the schema provenance stamp.
+const cursorsVersion = 2
 
 // cursorsFile mirrors cursors.json: user key → channel id → last-read seq.
 // The user key is the caller's stable identity (OIDC sub, with the
@@ -27,6 +30,7 @@ const cursorsVersion = 1
 // read.updated events at.
 type cursorsFile struct {
 	Version int                         `json:"version"`
+	Schema  schemameta.Stamp            `json:"schema"`
 	Cursors map[string]map[string]int64 `json:"cursors"`
 }
 
@@ -145,7 +149,7 @@ func (s *Store) cursorsPath(projectID string) string {
 // (losing read positions is annoying, not data loss), newer → refuse.
 func (s *Store) loadCursors(projectID string) (*cursorsFile, error) {
 	path := s.cursorsPath(projectID)
-	fresh := &cursorsFile{Version: cursorsVersion, Cursors: make(map[string]map[string]int64)}
+	fresh := &cursorsFile{Version: cursorsVersion, Schema: schemameta.New(), Cursors: make(map[string]map[string]int64)}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return fresh, nil
@@ -170,6 +174,13 @@ func (s *Store) loadCursors(projectID string) (*cursorsFile, error) {
 	if cf.Cursors == nil {
 		cf.Cursors = make(map[string]map[string]int64)
 	}
+	if cf.Schema.CreatedAt.IsZero() {
+		if info, statErr := os.Stat(path); statErr == nil {
+			cf.Schema = schemameta.Backfill(info.ModTime())
+		} else {
+			cf.Schema = schemameta.New()
+		}
+	}
 	return &cf, nil
 }
 
@@ -180,6 +191,7 @@ func (s *Store) saveCursors(projectID string, cf *cursorsFile) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("chat: creating project dir: %w", err)
 	}
+	cf.Schema.Touch()
 	data, err := json.MarshalIndent(cf, "", "  ")
 	if err != nil {
 		return err

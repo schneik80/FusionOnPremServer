@@ -14,11 +14,20 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
 	"github.com/schneik80/fusionlocalserver/internal/migrate"
+
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
 // registry is the production migration table; steps register as the
 // schema evolves past fileVersion 1.
-var registry = migrate.NewRegistry("production", fileVersion)
+var registry = newRegistry()
+
+func newRegistry() *migrate.Registry {
+	r := migrate.NewRegistry("production", fileVersion)
+	// v1→v2: schema stamp joins the envelope; loader backfills it.
+	r.Register(1, func(raw map[string]any) (map[string]any, error) { return raw, nil })
+	return r
+}
 
 // Store owns all production persistence. One Store per server; all mutation of
 // a project's data happens under that project's mutex, so the single process
@@ -1181,6 +1190,7 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 	path := s.filePath(projectID)
 	fresh := &projectFile{
 		Version:    fileVersion,
+		Schema:     schemameta.New(),
 		ProjectID:  projectID,
 		NextJobNum: 1,
 		Jobs:       []*Job{},
@@ -1227,6 +1237,14 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 			j.NextChildNum = 1
 		}
 	}
+	// v1→v2 backfill: birthdate approximated by file mtime.
+	if pf.Schema.CreatedAt.IsZero() {
+		if info, statErr := os.Stat(path); statErr == nil {
+			pf.Schema = schemameta.Backfill(info.ModTime())
+		} else {
+			pf.Schema = schemameta.New()
+		}
+	}
 	return &pf, nil
 }
 
@@ -1237,6 +1255,7 @@ func (s *Store) saveFile(projectID string, pf *projectFile) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("production: creating project dir: %w", err)
 	}
+	pf.Schema.Touch()
 	data, err := json.MarshalIndent(pf, "", "  ")
 	if err != nil {
 		return err

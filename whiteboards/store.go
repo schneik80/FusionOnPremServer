@@ -14,11 +14,20 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
 	"github.com/schneik80/fusionlocalserver/internal/migrate"
+
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
 // registry is the whiteboards migration table (metadata file only; tldraw
 // doc files are opaque snapshots and version with tldraw itself).
-var registry = migrate.NewRegistry("whiteboards", fileVersion)
+var registry = newRegistry()
+
+func newRegistry() *migrate.Registry {
+	r := migrate.NewRegistry("whiteboards", fileVersion)
+	// v1→v2: schema stamp joins the envelope; loader backfills it.
+	r.Register(1, func(raw map[string]any) (map[string]any, error) { return raw, nil })
+	return r
+}
 
 // Store owns all whiteboard persistence. One Store per server; all mutation of
 // a project's data happens under that project's mutex, so the single process is
@@ -323,6 +332,7 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 	path := s.filePath(projectID)
 	fresh := &projectFile{
 		Version:     fileVersion,
+		Schema:      schemameta.New(),
 		ProjectID:   projectID,
 		NextBoardID: 1,
 		Boards:      []*Board{},
@@ -355,10 +365,18 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 	if pf.NextBoardID < 1 {
 		pf.NextBoardID = 1
 	}
+	if pf.Schema.CreatedAt.IsZero() {
+		if info, statErr := os.Stat(path); statErr == nil {
+			pf.Schema = schemameta.Backfill(info.ModTime())
+		} else {
+			pf.Schema = schemameta.New()
+		}
+	}
 	return &pf, nil
 }
 
 func (s *Store) saveFile(projectID string, pf *projectFile) error {
+	pf.Schema.Touch()
 	data, err := json.MarshalIndent(pf, "", "  ")
 	if err != nil {
 		return err

@@ -14,11 +14,21 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
 	"github.com/schneik80/fusionlocalserver/internal/migrate"
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
 // registry is the tasks migration table: Target tracks fileVersion; steps
 // register here as the schema evolves.
-var registry = migrate.NewRegistry("tasks", fileVersion)
+var registry = newRegistry()
+
+func newRegistry() *migrate.Registry {
+	r := migrate.NewRegistry("tasks", fileVersion)
+	// v1→v2: the schema stamp joins the envelope. Content is untouched —
+	// the loader backfills the stamp (CreatedAt from file mtime) after
+	// decode, where the file path is in scope.
+	r.Register(1, func(raw map[string]any) (map[string]any, error) { return raw, nil })
+	return r
+}
 
 // Store owns all task persistence. One Store per server; all mutation of a
 // project's data happens under that project's mutex, so the single process
@@ -676,6 +686,7 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 	path := s.filePath(projectID)
 	fresh := &projectFile{
 		Version:    fileVersion,
+		Schema:     schemameta.New(),
 		ProjectID:  projectID,
 		NextTaskID: 1,
 		Tasks:      []*Task{},
@@ -709,6 +720,15 @@ func (s *Store) loadFile(projectID string) (*projectFile, error) {
 	if pf.NextTaskID < 1 {
 		pf.NextTaskID = 1
 	}
+	// v1→v2 backfill: a freshly migrated file carries no stamp yet; its
+	// birthdate is best-approximated by the file's mtime.
+	if pf.Schema.CreatedAt.IsZero() {
+		if info, statErr := os.Stat(path); statErr == nil {
+			pf.Schema = schemameta.Backfill(info.ModTime())
+		} else {
+			pf.Schema = schemameta.New()
+		}
+	}
 	return &pf, nil
 }
 
@@ -719,6 +739,7 @@ func (s *Store) saveFile(projectID string, pf *projectFile) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("tasks: creating project dir: %w", err)
 	}
+	pf.Schema.Touch()
 	data, err := json.MarshalIndent(pf, "", "  ")
 	if err != nil {
 		return err

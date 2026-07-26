@@ -11,9 +11,13 @@ package tasks
 import (
 	"errors"
 	"time"
+
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
-const fileVersion = 1
+// fileVersion 2 added the schema provenance stamp (v1→v2 backfills it
+// from the file's ModTime at load).
+const fileVersion = 2
 
 // Validation caps, enforced here as well as at the HTTP boundary so no
 // caller can bypass them.
@@ -170,10 +174,11 @@ type Patch struct {
 // be navigable without APS calls — same reason chat's projectMeta stores
 // ProjectID.
 type projectFile struct {
-	Version     int     `json:"version"`
-	ProjectID   string  `json:"projectId"`
-	HubID       string  `json:"hubId"`
-	ProjectName string  `json:"projectName"`
-	NextTaskID  int64   `json:"nextTaskId"`
-	Tasks       []*Task `json:"tasks"`
+	Version     int              `json:"version"`
+	Schema      schemameta.Stamp `json:"schema"`
+	ProjectID   string           `json:"projectId"`
+	HubID       string           `json:"hubId"`
+	ProjectName string           `json:"projectName"`
+	NextTaskID  int64            `json:"nextTaskId"`
+	Tasks       []*Task          `json:"tasks"`
 }

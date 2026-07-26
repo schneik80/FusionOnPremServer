@@ -14,9 +14,12 @@ package whiteboards
 import (
 	"errors"
 	"time"
+
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
-const fileVersion = 1
+// fileVersion 2 added the schema provenance stamp (v1→v2 backfill).
+const fileVersion = 2
 
 // Validation caps, enforced in the store as well as at the HTTP boundary so no
 // caller can bypass them.
@@ -90,10 +93,11 @@ type Patch struct {
 // the same reason tasks and production do: the directory slug is not reversible
 // to a URN, so a cross-project listing must need no APS call.
 type projectFile struct {
-	Version     int      `json:"version"`
-	ProjectID   string   `json:"projectId"`
-	HubID       string   `json:"hubId"`
-	ProjectName string   `json:"projectName"`
-	NextBoardID int64    `json:"nextBoardId"`
-	Boards      []*Board `json:"boards"`
+	Version     int              `json:"version"`
+	Schema      schemameta.Stamp `json:"schema"`
+	ProjectID   string           `json:"projectId"`
+	HubID       string           `json:"hubId"`
+	ProjectName string           `json:"projectName"`
+	NextBoardID int64            `json:"nextBoardId"`
+	Boards      []*Board         `json:"boards"`
 }

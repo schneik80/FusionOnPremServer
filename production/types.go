@@ -20,9 +20,12 @@ import (
 	"errors"
 	"slices"
 	"time"
+
+	"github.com/schneik80/fusionlocalserver/internal/schemameta"
 )
 
-const fileVersion = 1
+// fileVersion 2 added the schema provenance stamp (v1→v2 backfill).
+const fileVersion = 2
 
 // Validation caps, enforced in the store as well as at the HTTP boundary so no
 // caller can bypass them.
@@ -289,10 +292,11 @@ type FulfillmentDraft struct {
 // (captured from create requests, refreshed on writes) because the directory
 // slug is not reversible to a URN — same reason tasks' projectFile does.
 type projectFile struct {
-	Version     int    `json:"version"`
-	ProjectID   string `json:"projectId"`
-	HubID       string `json:"hubId"`
-	ProjectName string `json:"projectName"`
-	NextJobNum  int64  `json:"nextJobNum"`
-	Jobs        []*Job `json:"jobs"`
+	Version     int              `json:"version"`
+	Schema      schemameta.Stamp `json:"schema"`
+	ProjectID   string           `json:"projectId"`
+	HubID       string           `json:"hubId"`
+	ProjectName string           `json:"projectName"`
+	NextJobNum  int64            `json:"nextJobNum"`
+	Jobs        []*Job           `json:"jobs"`
 }
