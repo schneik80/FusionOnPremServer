@@ -65,7 +65,38 @@
     "empty": "Le journal est vide."
   },
   "backups": {
-    "comingSoon": "Les sauvegardes arrivent bientôt."
+    "configTitle": "Configuration",
+    "dirLabel": "Dossier de sauvegarde",
+    "dirPlaceholder": "/chemin/vers/sauvegardes",
+    "browse": "Parcourir…",
+    "timeLabel": "Heure de sauvegarde quotidienne",
+    "enabledLabel": "Sauvegarder chaque jour",
+    "saved": "Paramètres de sauvegarde enregistrés.",
+    "backUpNow": "Sauvegarder maintenant",
+    "backingUp": "Sauvegarde en cours…",
+    "runDone": "Sauvegarde terminée : {{files}} fichiers, {{size}}.",
+    "noDir": "Choisissez un dossier de sauvegarde pour activer les sauvegardes.",
+    "kinds": {
+      "daily": "Quotidienne",
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuelle",
+      "manual": "Manuelle",
+      "pre-restore": "Avant restauration"
+    },
+    "table": {
+      "title": "Sauvegardes",
+      "kind": "Type",
+      "created": "Créée",
+      "files": "Fichiers",
+      "size": "Taille",
+      "empty": "Aucune sauvegarde pour l'instant."
+    },
+    "picker": {
+      "title": "Choisir un dossier",
+      "up": "Remonter d'un niveau",
+      "select": "Utiliser ce dossier",
+      "empty": "Aucun sous-dossier."
+    }
   },
   "data": {
     "comingSoon": "La gestion des données arrive bientôt."

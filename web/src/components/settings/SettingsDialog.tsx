@@ -97,7 +97,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           {tool === 'appearance' && <AppearanceTool />}
           {tool === 'connection' && <ConnectionTool active={active('connection')} />}
           {tool === 'uptime' && <UptimeTool active={active('uptime')} />}
-          {tool === 'backups' && <BackupsTool />}
+          {tool === 'backups' && <BackupsTool active={active('backups')} />}
           {tool === 'logs' && <LogsTool active={active('logs')} />}
           {tool === 'data' && <DataTool />}
         </Box>

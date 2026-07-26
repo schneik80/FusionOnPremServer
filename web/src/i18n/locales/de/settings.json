@@ -65,7 +65,38 @@
     "empty": "Das Protokoll ist leer."
   },
   "backups": {
-    "comingSoon": "Sicherungen sind bald verfügbar."
+    "configTitle": "Konfiguration",
+    "dirLabel": "Sicherungsordner",
+    "dirPlaceholder": "/pfad/zu/sicherungen",
+    "browse": "Durchsuchen…",
+    "timeLabel": "Tägliche Sicherungszeit",
+    "enabledLabel": "Täglich sichern",
+    "saved": "Sicherungseinstellungen gespeichert.",
+    "backUpNow": "Jetzt sichern",
+    "backingUp": "Sicherung läuft…",
+    "runDone": "Sicherung abgeschlossen: {{files}} Dateien, {{size}}.",
+    "noDir": "Wählen Sie einen Sicherungsordner, um Sicherungen zu aktivieren.",
+    "kinds": {
+      "daily": "Täglich",
+      "weekly": "Wöchentlich",
+      "monthly": "Monatlich",
+      "manual": "Manuell",
+      "pre-restore": "Vor Wiederherstellung"
+    },
+    "table": {
+      "title": "Sicherungen",
+      "kind": "Art",
+      "created": "Erstellt",
+      "files": "Dateien",
+      "size": "Größe",
+      "empty": "Noch keine Sicherungen."
+    },
+    "picker": {
+      "title": "Ordner auswählen",
+      "up": "Eine Ebene nach oben",
+      "select": "Diesen Ordner verwenden",
+      "empty": "Keine Unterordner."
+    }
   },
   "data": {
     "comingSoon": "Datenverwaltung ist bald verfügbar."

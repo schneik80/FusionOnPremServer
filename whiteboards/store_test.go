@@ -77,7 +77,7 @@ func TestSnapshotRoundTripAndDeleteRemovesDocument(t *testing.T) {
 
 	// A never-saved board reads back as nil, not an error: that's an empty
 	// canvas, not a failure.
-	doc, err := s.Snapshot(testProject, b.ID)
+	doc, err := s.Document(testProject, b.ID)
 	if err != nil || doc != nil {
 		t.Fatalf("expected (nil, nil) for unsaved board, got (%v, %v)", doc, err)
 	}
@@ -91,7 +91,7 @@ func TestSnapshotRoundTripAndDeleteRemovesDocument(t *testing.T) {
 		t.Fatalf("metadata not stamped: %+v", updated)
 	}
 
-	back, err := s.Snapshot(testProject, b.ID)
+	back, err := s.Document(testProject, b.ID)
 	if err != nil || string(back) != string(saved) {
 		t.Fatalf("round trip mismatch: %q vs %q (err %v)", back, saved, err)
 	}
@@ -105,7 +105,7 @@ func TestSnapshotRoundTripAndDeleteRemovesDocument(t *testing.T) {
 
 	// A fresh store reads the same document from disk.
 	s2, _ := NewStore(dir)
-	back2, err := s2.Snapshot(testProject, b.ID)
+	back2, err := s2.Document(testProject, b.ID)
 	if err != nil || string(back2) != string(saved) {
 		t.Fatalf("document did not persist across reload: %q (err %v)", back2, err)
 	}
@@ -120,7 +120,7 @@ func TestSnapshotRoundTripAndDeleteRemovesDocument(t *testing.T) {
 	if _, err := os.Stat(docPath); !os.IsNotExist(err) {
 		t.Fatalf("document file outlived its board")
 	}
-	if _, err := s.Snapshot(testProject, b.ID); err == nil {
+	if _, err := s.Document(testProject, b.ID); err == nil {
 		t.Fatalf("expected not-found after delete")
 	}
 }

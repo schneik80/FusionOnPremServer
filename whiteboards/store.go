@@ -101,10 +101,12 @@ func (s *Store) ProjectInfo(projectID string) (hubID, projectName string, err er
 	return ps.file.HubID, ps.file.ProjectName, nil
 }
 
-// Snapshot returns a board's stored tldraw document. A board that has never
+// Document returns a board's stored tldraw document. A board that has never
 // been saved returns nil with no error — the client then starts an empty
 // canvas, which is the correct initial state rather than an error case.
-func (s *Store) Snapshot(projectID, boardID string) ([]byte, error) {
+// (Named Document rather than Snapshot so the backup engine's Snapshot(visit)
+// method can carry the store-uniform name.)
+func (s *Store) Document(projectID, boardID string) ([]byte, error) {
 	ps, err := s.project(projectID)
 	if err != nil {
 		return nil, err

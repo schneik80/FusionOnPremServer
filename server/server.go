@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
+	"github.com/schneik80/fusionlocalserver/backup"
 	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/config"
 	"github.com/schneik80/fusionlocalserver/pins"
@@ -148,6 +149,15 @@ type Server struct {
 
 	// uploads tracks background file-upload jobs (per-session; see uploads.go).
 	uploads *uploadManager
+
+	// backups is the snapshot engine (nil while no backup directory is
+	// configured; the run endpoint then replies 503). backupMu guards the
+	// pointer — the engine is rebuilt whenever the backup config changes.
+	// backupPoke wakes the scheduler goroutine to recompute its timer after a
+	// config change (buffered, cap 1, so posting never blocks a handler).
+	backupMu   sync.Mutex
+	backups    *backup.Engine
+	backupPoke chan struct{}
 }
 
 // serveReason explains why the inner serve loop returned.
@@ -275,6 +285,11 @@ func Run(opts Options) error {
 	}
 	s.whiteboardOpLim = chat.NewLimiter(2, 10)
 
+	// Backup engine over the four stores + pins + redacted config (nil until a
+	// backup directory is configured; rebuilt on config change).
+	s.backupPoke = make(chan struct{}, 1)
+	s.reloadBackupEngine()
+
 	// Resolve TLS once, before the bind loop spans restarts. A self-signed
 	// cert is generated/cached when -tls is given without a cert pair.
 	if opts.TLS {
@@ -308,6 +323,11 @@ func Run(opts Options) error {
 	// Expire idle/old sessions and abandoned in-flight logins in the background.
 	s.sessions.StartJanitor(ctx)
 	s.pending.StartJanitor(ctx)
+
+	// Daily backup scheduler. Idles (rather than exits) while backups are
+	// disabled or unconfigured so enabling them at runtime needs no goroutine
+	// management; stops with the lifecycle context.
+	go s.runBackupScheduler(ctx)
 
 	// Listener (re)bind loop. Auth + the token refresher above are set up once
 	// and span restarts; only the HTTP listener is recreated. A runtime port
@@ -368,7 +388,7 @@ func Run(opts Options) error {
 			logger.Error("rebind failed; reverting to previous port",
 				"failed_addr", addr, "prev_addr", prevAddr, "err", err)
 			if p, perr := portFromAddr(prevAddr); perr == nil {
-				if serr := SaveSettings(Settings{Port: p}); serr != nil {
+				if serr := UpdateSettings(func(set *Settings) { set.Port = p }); serr != nil {
 					logger.Error("reverting persisted port failed", "err", serr)
 				}
 			}

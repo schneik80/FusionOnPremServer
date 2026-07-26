@@ -108,6 +108,13 @@ func (s *Server) routes() http.Handler {
 	// gating; destructive tools confirm in the UI.
 	mux.HandleFunc("GET /api/admin/status", prot(s.handleAdminStatus))
 	mux.HandleFunc("GET /api/admin/log", prot(s.handleAdminLog))
+	// Backups (list, manual run, config) + the dirs-only filesystem browse
+	// backing the backup-folder picker.
+	mux.HandleFunc("GET /api/admin/backups", prot(s.handleAdminBackups))
+	mux.HandleFunc("POST /api/admin/backups/run", prot(s.handleAdminBackupRun))
+	mux.HandleFunc("GET /api/admin/backups/config", prot(s.handleAdminBackupConfigGet))
+	mux.HandleFunc("POST /api/admin/backups/config", prot(s.handleAdminBackupConfigSet))
+	mux.HandleFunc("GET /api/admin/fs/dirs", prot(s.handleAdminFsDirs))
 
 	// Production (light MES job & batch tracker; local store, chat-authz
 	// roles). GET /api/production/job (singular) is one job's full graph;

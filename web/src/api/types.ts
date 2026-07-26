@@ -40,6 +40,39 @@ export interface AdminStatus {
   logSizeBytes: number
 }
 
+// BackupConfig mirrors server.BackupConfigDTO (GET/POST /api/admin/backups/
+// config): where and when the daily backup runs.
+export interface BackupConfig {
+  backupDir: string
+  backupTime: string // "HH:MM", 24-hour
+  backupEnabled: boolean
+}
+
+// BackupSummary mirrors server.BackupSummaryDTO: one snapshot row.
+export interface BackupSummary {
+  path: string
+  kind: string // daily | weekly | monthly | manual | pre-restore
+  createdAt: string
+  appVersion: string
+  fileCount: number
+  totalBytes: number
+  warning?: string
+}
+
+// BackupList mirrors server.BackupListDTO (GET /api/admin/backups).
+export interface BackupList {
+  config: BackupConfig
+  backups: BackupSummary[]
+}
+
+// FsDirs mirrors server.FsDirsDTO (GET /api/admin/fs/dirs): one directory
+// level of the backup-folder picker — directories only, never files.
+export interface FsDirs {
+  path: string
+  parent: string
+  dirs: string[]
+}
+
 export type ItemKind =
   | 'hub'
   | 'project'

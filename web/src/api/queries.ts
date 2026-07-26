@@ -9,6 +9,8 @@ import type {
   ActivityReport,
   AdminStatus,
   AuthMe,
+  BackupConfig,
+  BackupList,
   BOMRow,
   Classify,
   ComponentRef,
@@ -90,6 +92,53 @@ export const useAdminLogTail = (active: boolean): UseQueryResult<string> =>
     enabled: active,
     staleTime: 0,
   })
+
+// Backups tool: snapshot list + config in one query (the table and the form
+// share a fetch), plus the folder picker's directory listing.
+export const useAdminBackups = (active: boolean): UseQueryResult<BackupList> =>
+  useQuery({
+    queryKey: ['adminBackups'],
+    queryFn: api.adminBackups,
+    enabled: active,
+    staleTime: 0,
+  })
+
+export const useAdminBackupConfig = (active: boolean): UseQueryResult<BackupConfig> =>
+  useQuery({
+    queryKey: ['adminBackupConfig'],
+    queryFn: api.adminBackupConfig,
+    enabled: active,
+    staleTime: 0,
+  })
+
+export const useAdminFsDirs = (path: string | undefined, active: boolean) =>
+  useQuery({
+    queryKey: ['adminFsDirs', path ?? ''],
+    queryFn: () => api.adminFsDirs(path),
+    enabled: active,
+    staleTime: 0,
+  })
+
+export const useAdminBackupRun = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.adminBackupRun,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['adminBackups'] })
+    },
+  })
+}
+
+export const useAdminBackupConfigSet = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (cfg: BackupConfig) => api.adminBackupConfigSet(cfg),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['adminBackups'] })
+      void qc.invalidateQueries({ queryKey: ['adminBackupConfig'] })
+    },
+  })
+}
 
 // useSetPort persists a new listen port and triggers a server restart. There's
 // nothing to invalidate — the server rebinds and the caller reconnects on the

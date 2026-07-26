@@ -285,7 +285,7 @@ func (s *Server) handleWhiteboardDocGet(w http.ResponseWriter, r *http.Request) 
 	if !s.whiteboardCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	doc, err := s.whiteboards.Snapshot(c.projectID, boardID)
+	doc, err := s.whiteboards.Document(c.projectID, boardID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return

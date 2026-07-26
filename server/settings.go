@@ -14,12 +14,20 @@ import (
 const defaultPort = 8080
 
 // Settings holds web-server runtime preferences that a user can change at
-// runtime (currently just the listen port). It is stored separately from
-// config.json — that file holds the APS identity (client_id/region) and has
-// strict load rules — so persisting a port never entangles with auth config,
-// and the TUI ignores it entirely.
+// runtime (the listen port and the backup configuration). It is stored
+// separately from config.json — that file holds the APS identity
+// (client_id/region) and has strict load rules — so persisting preferences
+// never entangles with auth config, and the TUI ignores it entirely.
 type Settings struct {
 	Port int `json:"port,omitempty"`
+
+	// Backup configuration (Settings console → Backups). BackupDir empty means
+	// backups are unconfigured (no engine); BackupTime is "HH:MM" local, empty
+	// falling back to backup.DefaultTime; BackupEnabled gates the daily
+	// scheduler only — manual "back up now" needs just a BackupDir.
+	BackupDir     string `json:"backupDir,omitempty"`
+	BackupTime    string `json:"backupTime,omitempty"`
+	BackupEnabled bool   `json:"backupEnabled,omitempty"`
 }
 
 // settingsPath is ~/.config/fusionlocalserver/server.json. config.Dir creates the
@@ -64,4 +72,17 @@ func SaveSettings(s Settings) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0600)
+}
+
+// UpdateSettings applies mutate to the current persisted settings and saves
+// the result — the load-modify-save cycle every writer must use so changing
+// one preference (say, the port) never wipes the others (say, the backup
+// config).
+func UpdateSettings(mutate func(*Settings)) error {
+	s, err := LoadSettings()
+	if err != nil {
+		return err
+	}
+	mutate(&s)
+	return SaveSettings(s)
 }

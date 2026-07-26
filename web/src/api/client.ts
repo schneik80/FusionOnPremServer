@@ -7,12 +7,16 @@ import type {
   ActivityReport,
   AdminStatus,
   AuthMe,
+  BackupConfig,
+  BackupList,
+  BackupSummary,
   BOMRow,
   Classify,
   ComponentRef,
   Contents,
   Details,
   DrawingRef,
+  FsDirs,
   GroupMember,
   Item,
   Location,
@@ -158,6 +162,23 @@ export const api = {
 
   adminLogTail: (tailBytes = 65536) =>
     requestText(`/api/admin/log${qs({ tailBytes: String(tailBytes) })}`),
+
+  // Backups (Settings console): snapshot list + config, manual run, config
+  // read/write, and the dirs-only filesystem browse for the folder picker.
+  adminBackups: () => request<BackupList>('/api/admin/backups'),
+
+  adminBackupRun: () =>
+    request<BackupSummary>('/api/admin/backups/run', { method: 'POST' }),
+
+  adminBackupConfig: () => request<BackupConfig>('/api/admin/backups/config'),
+
+  adminBackupConfigSet: (cfg: BackupConfig) =>
+    request<BackupConfig>('/api/admin/backups/config', {
+      method: 'POST',
+      body: JSON.stringify(cfg),
+    }),
+
+  adminFsDirs: (path?: string) => request<FsDirs>(`/api/admin/fs/dirs${qs({ path })}`),
 
   setPort: (port: number) =>
     request<SetPortResponse>('/api/settings/port', {

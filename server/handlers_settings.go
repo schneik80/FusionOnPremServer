@@ -54,7 +54,7 @@ func (s *Server) handleSetPort(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = ln.Close()
 
-	if err := SaveSettings(Settings{Port: req.Port}); err != nil {
+	if err := UpdateSettings(func(set *Settings) { set.Port = req.Port }); err != nil {
 		s.fail(w, r, fmt.Errorf("saving port setting: %w", err))
 		return
 	}

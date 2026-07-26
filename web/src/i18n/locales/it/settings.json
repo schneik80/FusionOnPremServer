@@ -65,7 +65,38 @@
     "empty": "Il log è vuoto."
   },
   "backups": {
-    "comingSoon": "I backup saranno disponibili a breve."
+    "configTitle": "Configurazione",
+    "dirLabel": "Cartella di backup",
+    "dirPlaceholder": "/percorso/dei/backup",
+    "browse": "Sfoglia…",
+    "timeLabel": "Orario del backup giornaliero",
+    "enabledLabel": "Backup giornaliero",
+    "saved": "Impostazioni di backup salvate.",
+    "backUpNow": "Esegui backup ora",
+    "backingUp": "Backup in corso…",
+    "runDone": "Backup completato: {{files}} file, {{size}}.",
+    "noDir": "Scegli una cartella di backup per attivare i backup.",
+    "kinds": {
+      "daily": "Giornaliero",
+      "weekly": "Settimanale",
+      "monthly": "Mensile",
+      "manual": "Manuale",
+      "pre-restore": "Pre-ripristino"
+    },
+    "table": {
+      "title": "Backup",
+      "kind": "Tipo",
+      "created": "Creato",
+      "files": "File",
+      "size": "Dimensione",
+      "empty": "Nessun backup finora."
+    },
+    "picker": {
+      "title": "Scegli una cartella",
+      "up": "Su di un livello",
+      "select": "Usa questa cartella",
+      "empty": "Nessuna sottocartella."
+    }
   },
   "data": {
     "comingSoon": "La gestione dei dati sarà disponibile a breve."

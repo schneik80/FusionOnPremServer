@@ -65,7 +65,38 @@
     "empty": "El registro está vacío."
   },
   "backups": {
-    "comingSoon": "Las copias de seguridad estarán disponibles próximamente."
+    "configTitle": "Configuración",
+    "dirLabel": "Carpeta de copias de seguridad",
+    "dirPlaceholder": "/ruta/a/copias",
+    "browse": "Examinar…",
+    "timeLabel": "Hora de la copia diaria",
+    "enabledLabel": "Copia de seguridad diaria",
+    "saved": "Configuración de copias de seguridad guardada.",
+    "backUpNow": "Hacer copia ahora",
+    "backingUp": "Realizando copia…",
+    "runDone": "Copia completada: {{files}} archivos, {{size}}.",
+    "noDir": "Elija una carpeta para activar las copias de seguridad.",
+    "kinds": {
+      "daily": "Diaria",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "manual": "Manual",
+      "pre-restore": "Previa a restauración"
+    },
+    "table": {
+      "title": "Copias de seguridad",
+      "kind": "Tipo",
+      "created": "Creada",
+      "files": "Archivos",
+      "size": "Tamaño",
+      "empty": "Aún no hay copias de seguridad."
+    },
+    "picker": {
+      "title": "Elegir una carpeta",
+      "up": "Subir un nivel",
+      "select": "Usar esta carpeta",
+      "empty": "Sin subcarpetas."
+    }
   },
   "data": {
     "comingSoon": "La gestión de datos estará disponible próximamente."

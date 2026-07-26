@@ -65,7 +65,38 @@
     "empty": "O registo está vazio."
   },
   "backups": {
-    "comingSoon": "As cópias de segurança estarão disponíveis em breve."
+    "configTitle": "Configuração",
+    "dirLabel": "Pasta de cópias de segurança",
+    "dirPlaceholder": "/caminho/para/copias",
+    "browse": "Procurar…",
+    "timeLabel": "Hora da cópia diária",
+    "enabledLabel": "Cópia de segurança diária",
+    "saved": "Definições de cópia de segurança guardadas.",
+    "backUpNow": "Criar cópia agora",
+    "backingUp": "A criar cópia…",
+    "runDone": "Cópia concluída: {{files}} ficheiros, {{size}}.",
+    "noDir": "Escolha uma pasta para ativar as cópias de segurança.",
+    "kinds": {
+      "daily": "Diária",
+      "weekly": "Semanal",
+      "monthly": "Mensal",
+      "manual": "Manual",
+      "pre-restore": "Pré-restauro"
+    },
+    "table": {
+      "title": "Cópias de segurança",
+      "kind": "Tipo",
+      "created": "Criada",
+      "files": "Ficheiros",
+      "size": "Tamanho",
+      "empty": "Ainda não há cópias de segurança."
+    },
+    "picker": {
+      "title": "Escolher uma pasta",
+      "up": "Subir um nível",
+      "select": "Usar esta pasta",
+      "empty": "Sem subpastas."
+    }
   },
   "data": {
     "comingSoon": "A gestão de dados estará disponível em breve."

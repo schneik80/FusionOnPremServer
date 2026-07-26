@@ -65,7 +65,38 @@
     "empty": "The log is empty."
   },
   "backups": {
-    "comingSoon": "Backups are coming soon."
+    "configTitle": "Configuration",
+    "dirLabel": "Backup folder",
+    "dirPlaceholder": "/path/to/backups",
+    "browse": "Browse…",
+    "timeLabel": "Daily backup time",
+    "enabledLabel": "Back up daily",
+    "saved": "Backup settings saved.",
+    "backUpNow": "Back up now",
+    "backingUp": "Backing up…",
+    "runDone": "Backup complete: {{files}} files, {{size}}.",
+    "noDir": "Choose a backup folder to enable backups.",
+    "kinds": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "manual": "Manual",
+      "pre-restore": "Pre-restore"
+    },
+    "table": {
+      "title": "Backups",
+      "kind": "Kind",
+      "created": "Created",
+      "files": "Files",
+      "size": "Size",
+      "empty": "No backups yet."
+    },
+    "picker": {
+      "title": "Choose a folder",
+      "up": "Up one level",
+      "select": "Use this folder",
+      "empty": "No subfolders."
+    }
   },
   "data": {
     "comingSoon": "Data management is coming soon."
