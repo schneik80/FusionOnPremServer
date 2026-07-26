@@ -10,7 +10,7 @@ The binary is a single dedicated HTTP server: a JSON API under `/api` plus an em
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Go | 1.23+ | Build and run (the `go` directive in `go.mod` is `go 1.23`) |
+| Go | 1.25+ | Build and run (the `go` directive in `go.mod` is `go 1.25.0`) |
 | Node + npm | LTS | Build the `web/` React/MUI UI |
 | goreleaser | v2 | Cross-platform release builds |
 | git | any | Version tags trigger releases |
@@ -24,15 +24,15 @@ Each browser user signs in with their own Autodesk account via OAuth (Authorizat
 
 - **App type:** Web app
 - **Scopes:** `data:read`, `user-profile:read`
-- **Callback URL:** one per origin that users reach the server by. The server derives `redirect_uri` from the request's origin as `<origin>/api/auth/callback`, so register a Callback URL for each origin. For local development that is:
+- **Callback URL:** one per origin that users reach the server by. The server derives `redirect_uri` from the request's origin as `<origin>/api/auth/callback`, so register a Callback URL for each origin. `-tls` is the default posture (`make run` serves HTTPS), so for local development that is:
 
   ```
-  http://localhost:8080/api/auth/callback
+  https://localhost:8080/api/auth/callback
   ```
 
-  Add the LAN URLs (e.g. `http://<lan-ip>:8080/api/auth/callback`) and any TLS-terminated public hostnames the same way.
+  Add the LAN URLs (e.g. `https://<lan-ip>:8080/api/auth/callback`) and any TLS-terminated public hostnames the same way. If you run plain HTTP (`make run TLS=`), register the `http://` variant instead. Alternatively, set `-public-url` (or bake it in via `.aps-public-url`) to pin one canonical callback so only that single URL needs registering — see [`authentication.md`](authentication.md).
 
-Copy the **Client ID** (and **Client Secret** if your app registration issues one — it is read from `APS_CLIENT_SECRET` / `config.json` when present). Sessions live in server memory; there is no on-disk token file.
+Copy the **Client ID** (and **Client Secret** if your app registration issues one — it is read from `APS_CLIENT_SECRET` / `config.json` when present). Sessions are held in server memory and mirrored encrypted at rest to `sessions.enc` (AES-256-GCM); no plaintext token file is ever written.
 
 ---
 
@@ -84,7 +84,7 @@ flowchart LR
     D -- No --> F([server starts])
 ```
 
-There is no `tokens.json` — per-user sessions are held in server memory only.
+There is no `tokens.json` — per-user sessions are held in server memory and persisted only as the encrypted `sessions.enc` (key in `session.key`, mode 0600).
 
 ---
 
@@ -116,7 +116,7 @@ cd web && npm run dev                           # Vite on :5173, separate termin
 APS_CLIENT_ID=your-id ./fusionlocalserver -dev  # reverse-proxies the UI to Vite
 ```
 
-> `make build` overwrites `server/webdist/index.html` with a built shell that references gitignored hashed assets. The whole `server/webdist/` tree is gitignored build output — restore the committed placeholder before committing.
+> The whole `server/webdist/` tree is gitignored build output — `vite build` writes the SPA there and `go build -tags embed_ui` embeds it. Nothing under it is committed, so there is nothing to restore; just remember to **build the web before `go build`** or the binary ships the stub UI.
 
 A plain `go build` (no `embed_ui` tag) still produces a working server; it serves the in-memory "not built yet" stub UI (`server/static_stub.go`) instead of the embedded SPA. That is what `make dev` produces — pair it with `npm run dev` and `-dev` so the Go server reverse-proxies the live Vite UI.
 
@@ -126,13 +126,41 @@ A plain `go build` (no `embed_ui` tag) still produces a working server; it serve
 
 ```mermaid
 graph TD
-    main["main.go\nentry point; parses -v / -dev,\ncalls server.Run"] --> config["config/\nClient ID, secret, region, paths"]
+    main["main.go\nentry point; parses -v / -dev / -tls /\n-tls-cert / -tls-key / -public-url,\ncalls server.Run"] --> config["config/\nClient ID, secret, region, paths"]
     main --> server["server/\nHTTP JSON API + embedded SPA"]
 
     server --> auth["auth/\nOAuth Authorization Code + PKCE"]
     server --> api_pkg["api/\nGraphQL client"]
-    server --> pins_pkg["pins/\nhub-scoped bookmarks"]
     server --> config
+
+    subgraph "local per-project stores (hubs/{hubslug}/…)"
+        pins_pkg["pins/\nhub-scoped bookmarks"]
+        chat_pkg["chat/\nJSONL channel logs +\nAuthorizer / Limiter"]
+        tasks_pkg["tasks/\nKanban + Gantt store"]
+        production_pkg["production/\njobs, steps, batches"]
+        whiteboards_pkg["whiteboards/\ntldraw board docs"]
+    end
+    server --> pins_pkg
+    server --> chat_pkg
+    server --> tasks_pkg
+    server --> production_pkg
+    server --> whiteboards_pkg
+
+    backup_pkg["backup/\nper-hub GFS engine:\nmanifests, verify, restore"]
+    server --> backup_pkg
+
+    subgraph "internal/ (shared plumbing)"
+        appver_i["appver\nbuild version for stamps"]
+        atomicfile_i["atomicfile\natomic JSON writes"]
+        hubslug_i["hubslug\nhub directory slugs"]
+        migrate_i["migrate\nper-store migration registry"]
+        schemameta_i["schemameta\nprovenance stamps"]
+    end
+    chat_pkg -.-> atomicfile_i
+    tasks_pkg -.-> migrate_i
+    production_pkg -.-> schemameta_i
+    whiteboards_pkg -.-> hubslug_i
+    backup_pkg -.-> appver_i
 
     auth --> config
     api_pkg --> config
@@ -176,12 +204,16 @@ graph TD
 
 ## Flags
 
-The binary takes exactly two flags:
+The binary takes six flags (`main.go`):
 
 | Flag | Effect |
 |------|--------|
 | `-v` | Verbose logging: raises the log level from info to debug, on **both** the console (stdout) and the log file. Adds a line per HTTP request and the `api` package's GraphQL request/response traces. |
 | `-dev` | Developer mode: reverse-proxy the web UI to the Vite dev server (`:5173`) for HMR instead of serving the embedded/stub SPA. |
+| `-tls` | Serve over HTTPS so the session cookie is `Secure`. A self-signed certificate is auto-generated and cached if `-tls-cert`/`-tls-key` are not given. On by default via `make run`. |
+| `-tls-cert` | Path to a TLS certificate (PEM); requires `-tls` and `-tls-key`. |
+| `-tls-key` | Path to the TLS private key (PEM); requires `-tls` and `-tls-cert`. |
+| `-public-url` | Canonical external base URL (e.g. `https://fusion.lan:8080`). When set, the OAuth `redirect_uri` is built from it (register just that one callback) and requests to other hosts redirect to it. Falls back to the build-time `config.DefaultPublicURL` (from `.aps-public-url`) when unset. |
 
 There is no `-server` flag (the binary always serves) and no `-addr` flag (the listen port is changed from the web UI's Settings dialog, defaulting to `0.0.0.0:8080`).
 
@@ -189,7 +221,7 @@ There is no `-server` flag (the binary always serves) and no `-addr` flag (the l
 
 ## Logging
 
-A single `log/slog` logger (see `server/logging.go`) writes to **both** the console (stdout) and `~/.config/fusionlocalserver/server.log` (mode `0600`, appended). The default level is **info** — essential lines only: startup URLs, warnings, errors, and auth events. `-v` raises it to debug, adding a structured line per request (method, path, status, duration, remote IP) and the `api` package's GraphQL request/response traces.
+A single `log/slog` logger (see `server/logging.go`) writes to **both** the console (stdout) and `~/.config/fusionlocalserver/server.log` (mode `0600`). The file is rotated by [lumberjack](https://gopkg.in/natefinch/lumberjack.v2): it caps at 10 MB and keeps 3 compressed (`.gz`) generations. The default level is **info** — essential lines only: startup URLs, warnings, errors, and auth events. `-v` raises it to debug, adding a structured line per request (method, path, status, duration, remote IP) and the `api` package's GraphQL request/response traces.
 
 Tokens and `Authorization` headers are never logged, and `signedUrl` values are redacted from traces. A panic in any handler is recovered, logged with its stack, and returned to the client as a JSON 500 rather than crashing the process.
 
@@ -213,17 +245,27 @@ The full test architecture — layer breakdown, fixtures, naming conventions, th
 
 ## Dependencies
 
-The Go module has **no third-party dependencies** — auth, the HTTP server, logging, and UI embedding are all built on the Go standard library (`net/http`, `log/slog`, `crypto/*`, `embed`). Removing the Bubble Tea TUI dropped every external Go dependency, so there is **no `go.sum`** and `go.mod` is just the module path plus the `go 1.23` directive.
+The Go module is deliberately lean: auth, the HTTP server, and UI embedding are built on the Go standard library (`net/http`, `log/slog`, `crypto/*`, `embed`), with exactly two third-party modules in `go.mod` (and a matching `go.sum`):
+
+| Module | Used for |
+|--------|----------|
+| `golang.org/x/sync` | `singleflight` — deduplicating concurrent authorization and drawing-preview fetches |
+| `gopkg.in/natefinch/lumberjack.v2` | `server.log` rotation (10 MB cap, 3 compressed generations) |
 
 ```sh
-go mod tidy     # keeps go.mod tidy (no go.sum to sync — pure stdlib)
+go mod tidy     # keeps go.mod / go.sum in sync
 ```
 
 The web UI has its own npm dependency tree under `web/` — React, MUI, TanStack Query, and Vite — bundled into `server/webdist` at build time and embedded into the binary. It is independent of the Go module graph.
 
 ```sh
 cd web && npm install   # sync web/ dependencies (package-lock.json)
+cd web && npm run build      # type-check (tsc --noEmit) + vite build → server/webdist
+cd web && npm run test       # vitest unit suite (i18n catalog shape, state, formatting helpers)
+cd web && npm run lint:i18n  # the i18n ratchet — forbids literal UI strings in extracted folders
 ```
+
+New user-facing UI strings must go through the i18n catalogs (`web/src/i18n/locales/<locale>/<namespace>.json`, semantic keys, en as source of truth) — see [`i18n/STATUS.md`](i18n/STATUS.md). `npm run lint:i18n` fails the build otherwise.
 
 ---
 
@@ -340,7 +382,9 @@ The binary version is set at build time:
 var version = "dev"   // overwritten by ldflag
 ```
 
-The version is logged at startup and returned by `GET /api/meta` (the web UI surfaces it in its About dialog). The current series is **v0.1.0**.
+`main` records the value in `internal/appver` at startup, so the local stores can stamp every data file's schema provenance (`schemameta`) with the real build version without threading it through each constructor.
+
+The version is logged at startup and returned by `GET /api/meta` (the web UI surfaces it in its About dialog). The current series is **v0.1.0** (the latest git tag).
 
 ---
 

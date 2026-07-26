@@ -2,7 +2,7 @@
 
 How the fusionlocalserver test suite is structured, how to run it, and how to add a new test that fits the existing pattern.
 
-The suite is small (finishes under five seconds with `-race`) but covers the full vertical slice from pure helpers up through HTTP integration against a fake APS server. The `server` package adds its own focused tests (per-user auth and session lifecycle, settings persistence, the thumbnail cache, and a thumbnail handler) alongside the shared layers it reuses.
+The suite is fast (finishes in seconds with `-race`) and covers the full vertical slice from pure helpers, through the file-backed local stores (chat, tasks, production, whiteboards, backup, pins), up through HTTP integration against a fake APS server. The `server` package adds its own focused tests (per-user auth and session lifecycle, hub isolation, settings persistence, the thumbnail cache, fuzz/security suites) alongside the shared layers it reuses.
 
 ---
 
@@ -29,37 +29,57 @@ flowchart LR
 
 ---
 
-## Two-layer architecture
+## Three-layer architecture
 
-Tests live alongside the code they exercise (`*_test.go` files) and fall into two layers. Each layer answers a different question; together they cover the same flow at different fidelities so failures point at the smallest broken piece.
+Tests live alongside the code they exercise (`*_test.go` files) and fall into three layers. Each layer answers a different question; together they cover the same flow at different fidelities so failures point at the smallest broken piece.
 
 | Layer | Question it answers | Example |
 |-------|--------------------|---------|
 | **L1 — pure unit** | "Does this helper return the right output for the right input?" | `formatSize`, `truncate`, `parseTime`, `verifierToChallenge`, `navItemFromTypename`, `randToken`, `redactSignedURLs` |
-| **L2 — HTTP integration** | "Does this code make the right HTTP request / handle the right HTTP request and parse the response correctly?" | `gqlQuery` against the fake APS GraphQL server, `ExchangeCode`/`Refresh` against a fake token endpoint, the server's `requireAuth`, login-redirect, and OAuth-callback handlers driven through `httptest` |
+| **L2 — store / persistence** | "Does this file-backed store round-trip, migrate, and survive corruption/concurrency?" | The `chat` / `tasks` / `production` / `whiteboards` / `backup` / `pins` suites against real files in `t.TempDir()`: atomic writes, `.bak` recovery, schema-version migration steps, race tests |
+| **L3 — HTTP integration** | "Does this code make the right HTTP request / handle the right HTTP request and parse the response correctly?" | `gqlQuery` against the fake APS GraphQL server, `ExchangeCode`/`Refresh` against a fake token endpoint, the server's `requireAuth`, login-redirect, OAuth-callback, and data handlers driven through `httptest` |
 
-L1 tests are the bulk of the suite. L2 tests catch wire-format bugs (wrong field name, wrong query shape, wrong header) on the outbound side and request-handling bugs (wrong status, missing cookie, state mismatch) on the inbound `server` side.
+L1 tests are the bulk of the suite. L2 tests pin down the on-disk contracts (envelope versions, migrations, hub partitioning). L3 tests catch wire-format bugs (wrong field name, wrong query shape, wrong header) on the outbound side and request-handling bugs (wrong status, missing cookie, state mismatch, hub-isolation violations) on the inbound `server` side.
 
 ```mermaid
 graph TD
     L1["L1: pure unit\nplain testing.T"]
-    L2["L2: HTTP integration\nhttptest fakes (outbound + inbound)"]
+    L2["L2: store / persistence\nreal files in t.TempDir()"]
+    L3["L3: HTTP integration\nhttptest fakes (outbound + inbound)"]
 
     L1 --> Cov[total line coverage]
     L2 --> Cov
+    L3 --> Cov
 ```
 
 ### Coverage expectations
 
-| Package | Floor (CI fails below) | What it covers |
+CI prints the per-function coverage summary rather than hard-gating on a number; these are the review guidelines per package.
+
+| Package | Guideline floor | What it covers |
 |---|---|---|
 | `config` | 80% | config dir/path resolution, region + legacy migration |
 | `auth` | 60% | PKCE generation, auth-URL building, code exchange (public + confidential clients), token refresh, token validity |
-| `api` | 65% | GraphQL client (queries, refs, classify, details, locate, thumbnail, properties), retry loop, signed-URL redaction |
+| `api` | 65% | GraphQL client (queries, refs, classify, details, locate, thumbnail, properties, BOM, uploads, wiki publish, activity, production snapshots), retry loop, signed-URL redaction |
 | `pins` | 70% | pin add/remove/list persistence |
-| `server` | 25% | per-user auth + session lifecycle (`requireAuth`, login/callback/logout, single-flight token refresh), settings persistence, thumbnail cache + handler |
+| `backup` | — | GFS engine (daily/weekly/monthly rotation), allow-list sources, manifest verify, restore safety (foreign-hub / path-escape refusal), per-hub config |
+| `chat` | — | JSONL append-only store (+ race tests), read cursors, message validation, `Authorizer` role mapping, store migrations |
+| `tasks` | — | tasks store round-trip, schedule snapshotting, store migrations |
+| `production` | — | jobs/steps/batches store round-trip (plan freezing), store migrations |
+| `whiteboards` | — | board metadata + per-board document store, store migrations |
+| `internal/hubslug` | — | hub-URN → filesystem-slug derivation |
+| `internal/migrate` | — | the shared migration framework: v(n)→v(n+1) step ordering, pre-migration `.vN.bak` snapshots, future-version guard |
+| `server` | 25% | per-user auth + session lifecycle (`requireAuth`, login/callback/logout, single-flight token refresh), session persistence, hub gating, settings, thumbnail cache + handler, feature handlers |
 
 The `server` floor is intentionally lower than the data-layer packages: a large fraction of its statements are the SPA file-serving / dev-proxy plumbing and the top-level serve loop, which are exercised by hand rather than in unit tests. The tested *logic* (auth, sessions, settings, thumbcache) is well-covered; don't chase the package number by asserting on static-asset wiring.
+
+### Security-focused server suites
+
+Three `server` test files deserve a callout because they encode the security contracts:
+
+- **`server/hub_isolation_test.go`** — the cross-hub attack matrix: two hubs sharing one server (and the *same* projectId), asserting a session locked to hub A can never read, alter, or leak hub B's data through any store, pins, admin data tools, backups, or SSE.
+- **`server/fuzz_security_test.go`** — Go fuzzers + boundary suites over the JSON-body endpoints; the invariant is no panic and no 5xx for client-supplied garbage (run with `-fuzz FuzzPinsAddBody` / `-fuzz FuzzRollupBody`, or as ordinary seed-corpus tests without `-fuzz`).
+- The per-store **migration tests** (`chat/migration_test.go`, `tasks/migration_test.go`, `production/migration_test.go`, `whiteboards/migration_test.go`, `internal/migrate/migrate_test.go`) — every schema bump lands with a test proving old files upgrade in place and future versions are refused.
 
 ---
 
@@ -145,7 +165,7 @@ The cheapest way to land a useful test is to copy the closest existing one and a
 
 1. Open the `*_test.go` file next to the code you're testing.
 2. Use a table-driven shape if there's more than one case. The pattern from `api/queries_test.go::TestNavItemFromTypename` is the canonical example.
-3. Avoid I/O — that's L2's job.
+3. Avoid I/O — that's the job of L2 (files) and L3 (HTTP).
 
 ### A new outbound HTTP-integration test (the `api` / `auth` client side)
 
@@ -181,6 +201,24 @@ Look at `server/auth_test.go::TestHandleAuthCallback_HappyPath` for the canonica
 
 ---
 
+## Web unit tests (vitest)
+
+The SPA has its own suite, run separately from Go:
+
+```sh
+cd web && npm run test        # vitest run src
+```
+
+It covers, among others:
+
+- **i18n catalog shape** (`web/src/i18n/catalogs.test.ts`) — every locale carries the same key set as the English source catalogs, plus i18next wiring tests (`i18n.test.ts`).
+- **State helpers** (`web/src/state/hubKeys.test.ts`, `web/src/state/teardown.test.ts`) — per-hub localStorage keying and the hub-switch teardown.
+- **Pure helpers** — grapheme-safe text utilities (`web/src/fmt/graphemes.test.ts`) and Gantt date math (`web/src/tasks/gantt/ganttMath.test.ts`).
+
+`npm run lint:i18n` (the eslint i18n ratchet) runs alongside it: any literal UI string in an extracted folder fails the lint.
+
+---
+
 ## Manual / exploratory testing
 
 Some things are hard to assert on automatically — the look and feel of the React/MUI SPA, OAuth login against the real APS tenant, hover/select theming, thumbnail rendering across real designs. The development workflow for those is:
@@ -188,6 +226,6 @@ Some things are hard to assert on automatically — the look and feel of the Rea
 1. `make build CLIENT_ID=…` to produce a binary with your APS client ID embedded, or run with `-dev` to proxy the web UI to the Vite dev server for HMR.
 2. Open the SPA in a browser, log in through the real OAuth flow, and exercise the feature end to end.
 3. Run with `-v` when you need request/response traces (console + `~/.config/fusionlocalserver/server.log`); `signedUrl` values are redacted and tokens are never logged.
-4. If a regression is found, capture it as a new test at the layer that most directly proves it works — an `api` decode test (L2) for a wire-format bug, a `server` handler test (L2) for an auth/session bug, or a pure-unit test (L1) for a helper.
+4. If a regression is found, capture it as a new test at the layer that most directly proves it works — an `api` decode test (L3) for a wire-format bug, a `server` handler test (L3) for an auth/session bug, a store test (L2) for a persistence bug, or a pure-unit test (L1) for a helper.
 
 The general rule: every new feature gets at least one test at the layer that most directly proves it works. Don't ship a feature without one.

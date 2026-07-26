@@ -58,6 +58,22 @@ and the approach is DOA. The feature is now a per-design **Activity tab**:
   `api.activityReport`, the feed client (`api/activity.go` `GetActivityFeed` + wire types + tests/
   fixtures). `/api/activity/report` is design-only; `api/activity.go` keeps only shared types + `HubSlug`.
 
+## Assembly rollup — `POST /api/activity/rollup`
+
+Merges a design's activity with its child documents' activity server-side (`server/routes.go` →
+`server/handlers_activity.go` `handleActivityRollup` → `api.RollUpDesignActivity` in
+`api/activity_graphql.go`). Design scope only, like the report endpoint.
+
+- **Body:** `{ hubId, itemId, childItemIds[] }` — the caller enumerates descendants
+  (`GET /api/items/descendants`) and passes the distinct child lineage ids.
+- **Caps:** body limited to 1 MB; `maxRollupChildren = 2000` (each child id becomes one APS GraphQL
+  call under the user's token, so an unbounded list would be an authenticated amplifier). Fan-out runs
+  with bounded concurrency (`rollupFanout = 12`) under a 5-minute timeout.
+- **Hub check:** the hub rides in the request *body*, so session-hub equality is enforced in the
+  handler (before any APS fan-out) rather than by `requireHub`'s query-param check.
+- **Result:** parent + child events aggregated into one report, labelled as the parent design's
+  (`scope=design`, `scopeId=itemId`, day buckets).
+
 ## Possible follow-ons (not planned)
 
 - `gqlQuery` partial-data fix (return usable data on a leaf-field `UNKNOWN` error instead of retrying)

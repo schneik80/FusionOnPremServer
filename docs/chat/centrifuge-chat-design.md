@@ -1,3 +1,5 @@
+> **SUPERSEDED (historical).** This was the original design brief; the shipped system uses a JSONL file store, stdlib SSE, and flat /api/chat/* routes instead of Postgres + centrifuge. See [PLAN.md](PLAN.md) for the adapted plan and [STATUS.md](STATUS.md) for what shipped.
+
 # Project-Scoped Threaded Chat — Centrifuge Embedded Design (v2)
 
 Chat is a **content region (tab)** inside a project, alongside Dashboard and Wiki.

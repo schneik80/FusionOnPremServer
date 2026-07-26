@@ -2,9 +2,11 @@
 
 [![test](https://github.com/schneik80/fusionlocalserver/actions/workflows/test.yml/badge.svg)](https://github.com/schneik80/fusionlocalserver/actions/workflows/test.yml)
 
-A local server and web UI for the [Autodesk Platform Services (APS)](https://aps.autodesk.com) Manufacturing Data Model. Run it on your LAN and let people browse your Fusion hubs, projects, folders, and designs from a browser — **each user signs in with their own Autodesk account**.
+A local server and web UI for [Autodesk Platform Services (APS)](https://aps.autodesk.com) and the Fusion Manufacturing Data Model. Run it on your LAN and give your team a browser-based workspace over your Fusion hubs — design browsing plus project tasks, wiki, chat, production tracking, and whiteboards — where **each user signs in with their own Autodesk account**.
 
-One Go binary: an HTTP server that exposes a JSON API and serves an embedded React/MUI single-page web UI. There are no external dependencies — it's pure Go standard library.
+One Go binary: an HTTP server exposing a JSON API and serving an embedded React/MUI single-page UI. The Go side stays close to the standard library (two small dependencies: `golang.org/x/sync` and `lumberjack` for log rotation); everything else — including all visualizations — is built in.
+
+> **Beta.** This is the first beta release. The feature set below is complete and tested, but expect rough edges; see [Beta notes](#beta-notes).
 
 ## Quick start
 
@@ -25,6 +27,24 @@ The first time, `-tls` generates and caches a self-signed certificate under `~/.
 
 > ⚠️ **Don't disable TLS on a shared network.** Over plain HTTP the session cookie is not marked `Secure` (browsers drop `Secure` cookies over `http://`), so anyone able to sniff the wire could capture a cookie and hijack that user's session until it expires. `make run` keeps `-tls` on for this reason; only override it (`make run TLS=`) behind a TLS-terminating proxy or for loopback-only testing. A warning is logged when the server binds a non-loopback address over plain HTTP.
 
+## What's inside
+
+**Design browser** — a three-column **Projects │ Contents │ Details** browser over hubs → projects → folders → designs. The details panel shows metadata beside a server-cached thumbnail, with tabs for version **History** (drawn as a branch graph), physical **Properties**, **Uses / Where Used / Drawings** (all clickable, navigating straight to the referenced document), **BOM**, folder/project **Permissions**, and an isometric **Activity** heat map built from the design's GraphQL activity report.
+
+**Project apps** — every project gets five workspace tabs beside the browser:
+
+- **Tasks** — a Kanban board plus a hand-drawn SVG **Gantt schedule**: drag bars to move/resize, drag between bars to add dependencies, group tasks into stages whose derived bar aggregates and moves its children, with progress roll-up and milestones. A cross-project "my tasks" screen sits on the nav rail.
+- **Wiki** — markdown pages with drafts, image upload, and publishing; pages live in the project's Fusion Team storage, not on this server.
+- **Chat** — channels (public and private), threads, reactions, unread cursors, and typing indicators, live over SSE. Access is derived from each user's APS project role — there is no parallel permission system.
+- **Production** — a light MES / product tracker: jobs as step graphs carrying version-pinned plan documents; batches freeze the plan at run time so later edits can never rewrite what a run recorded.
+- **Whiteboards** — tldraw boards with live cards for designs, tasks, jobs, and batches, including expanding an assembly into a card tree.
+
+**Hub isolation** — hubs are treated as hard client boundaries. Each browser session locks to one hub; every byte of local data (tasks, chat, production, whiteboards, pins, backups, even theme colors) is partitioned per hub, and no API or admin path can cross the partition. Switching hubs is a deliberate, full-reload action in Settings → Connection. See [`docs/hubs/STATUS.md`](docs/hubs/STATUS.md).
+
+**Admin console** — a Settings dialog with real operations tools: appearance (light/dark/system + per-hub custom colors), **language** (English, Deutsch, Français, Español, Italiano, Português — switchable live), connection (runtime port change, hub switch), uptime, a rotated-log viewer, per-hub **GFS backups** (7 daily / 4 weekly / 12 monthly, with verify and restore), and data management (disk usage, per-project deletion, stale-file cleanup).
+
+**Durability** — every local store writes one JSON/JSONL file per project with atomic writes, schema-versioned envelopes stamped with creation/update provenance, automatic forward migration on load, and `.bak` recovery on corruption. Backups carry sha256 manifests and refuse to restore into the wrong hub.
+
 ### Flags & settings
 
 | Flag | Default | Purpose |
@@ -36,23 +56,11 @@ The first time, `-tls` generates and caches a self-signed certificate under `~/.
 
 > **APS callback registration.** APS validates the OAuth `redirect_uri` by exact match (no wildcards). You don't register clients — you register the server's callback URL(s). The simplest setup is to pick **one** stable address everyone uses (a hostname or static IP), pass it as `-public-url`, and register just `<public-url>/api/auth/callback`. `localhost` ≠ `127.0.0.1`, each LAN IP/hostname is distinct, and `-tls` makes the scheme `https` — so a fixed `-public-url` is the way to keep it to a single registration.
 
-The listen **port is configurable at runtime** from the web UI's Settings dialog (persisted to `~/.config/fusionlocalserver/server.json`). Changing it restarts the listener in place; the page then reconnects on the new port. The port field is read-only in `-dev` mode (where the Vite proxy is pinned to the default port).
+The listen **port is configurable at runtime** from Settings → Connection (persisted to `~/.config/fusionlocalserver/server.json`). Changing it restarts the listener in place; the page then reconnects on the new port. The port field is read-only in `-dev` mode (where the Vite proxy is pinned to the default port).
 
-Sessions are kept in an encrypted file (`~/.config/fusionlocalserver/sessions.enc`), so a server restart no longer logs everyone out. Each browser also remembers its last-used hub.
+Sessions are kept in an encrypted file (`~/.config/fusionlocalserver/sessions.enc`, AES-256-GCM), so a server restart doesn't log anyone out. Each browser also remembers its last-used hub and relocks to it on the next login.
 
-Logs go to the console and to `~/.config/fusionlocalserver/server.log`. The default level is essential-only; `-v` adds the per-request and upstream-trace detail.
-
-### Web UI
-
-The web UI is a three-column browser — **Projects │ Contents │ Details** — with a global header (signed-in user + sign-out), a left rail (Hubs / Pins / Settings), and a clickable breadcrumb. Highlights:
-
-- **Details panel** — the document's metadata (type, part number, material, version, dates…) is always shown beside its **thumbnail**; tabs add **History**, **Properties**, **Uses**, **Where Used**, and **Drawings**.
-- **Thumbnails** are fetched once, cached server-side, warmed in the background as you browse, and streamed same-origin — so opening a design is usually instant.
-- **Properties** shows physical/mass properties (mass, volume, surface area, density, bounding box) from the v2 Manufacturing Data Model API.
-- **Uses / Where Used / Drawings** rows are clickable: selecting one navigates the browser straight to that document.
-- **Pins** and **Light/Dark/System theme** are available from the rail and Settings.
-
-See [`docs/web-ui.md`](docs/web-ui.md) for a full tour.
+Logs go to the console and to `~/.config/fusionlocalserver/server.log`, rotated at 10 MB with three compressed generations kept. The default level is essential-only; `-v` adds per-request and upstream-trace detail. Logs are also viewable in-app under Settings → Logs.
 
 ### Non-US hubs
 
@@ -78,7 +86,7 @@ Released binaries ship the embedded web UI and a publisher client ID, so they ne
 
 ## Building from source
 
-Requires **Go 1.23+** and **Node/npm** (for the web UI).
+Requires **Go 1.25+** and **Node/npm** (for the web UI).
 
 ```sh
 git clone https://github.com/schneik80/fusionlocalserver
@@ -96,6 +104,8 @@ make build                                # vite build → embed UI (-tags embed
 
 If `.aps-public-url` is present, `make build` bakes it in as the canonical base URL: the binary then builds the OAuth `redirect_uri` from it (so you register **one** callback) and redirects clients on other hosts to it — no `-public-url` flag needed. The flag still overrides the baked-in value.
 
+The whiteboards feature uses [tldraw](https://tldraw.dev), which requires a licence key at build time: put `VITE_TLDRAW_LICENSE_KEY=…` in the git-ignored `web/.env.local` (see `web/.env.example`). Without a key the other features are unaffected.
+
 | Target | What it does |
 |--------|--------------|
 | `make build` | Build the web UI, embed it (`-tags embed_ui`), and compile with the client ID baked in |
@@ -111,18 +121,33 @@ If `.aps-public-url` is present, `make build` bakes it in as the canonical base 
 - macOS 12+, Linux, or Windows 10+
 - The server's listen port (default `8080`) free on the host
 
+## Beta notes
+
+- The five non-English locales were machine-translation seeded and await native review ([`docs/i18n/STATUS.md`](docs/i18n/STATUS.md)).
+- Whiteboards build against a tldraw evaluation licence that expires 2026-10-29; supply your own key for production use.
+- The self-signed certificate produces a one-time browser warning per device; supply your own PEM pair to avoid it.
+- Backups taken before the hub-isolation release (pre-v2 manifests) are readable but deliberately not restorable — take fresh per-hub backups.
+
 ## Documentation
 
 | Doc | What it covers |
 |---|---|
-| [`docs/web-ui.md`](docs/web-ui.md) | The web UI: sign-in, the three-column browser, details tabs, pins, settings |
+| [`docs/web-ui.md`](docs/web-ui.md) | The full UI tour: sign-in, hub selection, the browser, project apps, settings |
+| [`docs/architecture.md`](docs/architecture.md) | C4 diagrams, package layout, request/session flow, stores, resilience |
 | [`docs/authentication.md`](docs/authentication.md) | Per-user OAuth (PKCE) login, sessions, cookies, token refresh |
-| [`docs/api.md`](docs/api.md) | APS Manufacturing Data Model GraphQL queries, retry behaviour, debug logging |
-| [`docs/architecture.md`](docs/architecture.md) | C4 diagrams, package layout, request/session flow, performance, resilience |
+| [`docs/hubs/STATUS.md`](docs/hubs/STATUS.md) | Hub isolation: the security model, per-hub layout, invariants |
+| [`docs/tasks/STATUS.md`](docs/tasks/STATUS.md) | Tasks: Kanban, the Gantt schedule model, cross-project view |
+| [`docs/wiki/STATUS.md`](docs/wiki/STATUS.md) | Wiki: drafts, publishing to Fusion Team, images |
+| [`docs/chat/STATUS.md`](docs/chat/STATUS.md) | Chat: channels, threads, SSE, authorization |
+| [`docs/production/STATUS.md`](docs/production/STATUS.md) | Production: jobs, steps, version pinning, batches |
+| [`docs/whiteboards/STATUS.md`](docs/whiteboards/STATUS.md) | Whiteboards: tldraw integration, app cards, licence key |
+| [`docs/backup/STATUS.md`](docs/backup/STATUS.md) | Backups: GFS rotation, manifests, verify, restore |
+| [`docs/admin/STATUS.md`](docs/admin/STATUS.md) | The Settings admin console and data management |
+| [`docs/i18n/STATUS.md`](docs/i18n/STATUS.md) | Localization: locales, conventions, adding strings |
+| [`docs/api.md`](docs/api.md) | The APS GraphQL client: queries, retry behaviour, debug logging |
 | [`docs/development.md`](docs/development.md) | Building from source, configuration, release pipeline, dependencies |
 | [`docs/debugging.md`](docs/debugging.md) | Logging, `-v`, and **reporting a bug** — what to capture and how to file it |
 | [`docs/testing.md`](docs/testing.md) | Test strategy and how to run / extend the suite |
-| [`docs/server-webui-plan.md`](docs/server-webui-plan.md) | Historical: the original design plan for the server + web UI |
 
 ## License
 

@@ -15,11 +15,11 @@ The server uses a single `log/slog` logger that writes to **two** places at once
 | Sink | Contents |
 |---|---|
 | The **console** (stdout) | The same lines you see in the terminal that launched the server. |
-| `~/.config/fusionlocalserver/server.log` | A persistent copy of every log line. Mode `0600`, appended (not truncated) across runs. |
+| `~/.config/fusionlocalserver/server.log` | A persistent copy of every log line. Mode `0600`, rotated by lumberjack: capped at 10 MB with up to 3 compressed `.gz` siblings kept alongside it (see `server/logging.go`). |
 
 On Linux and macOS the path is exactly `~/.config/fusionlocalserver/`. On Windows it's `%USERPROFILE%\.config\fusionlocalserver\` (the same shape — the app uses `os.UserHomeDir()` directly rather than the OS-specific config dir).
 
-The log file is local to your machine; nothing is sent anywhere automatically. You decide what (if anything) to share when you file a defect.
+The log file is local to your machine; nothing is sent anywhere automatically. You decide what (if anything) to share when you file a defect. The same rotated logs are also viewable in-app via **Settings → Logs**.
 
 ---
 
@@ -52,7 +52,7 @@ The logger never records secrets:
 - **`signedUrl` values are redacted** from GraphQL traces (replaced with `[redacted]`). A signed URL is itself a bearer credential for the derivative it points at, so its value never reaches the log even under `-v`.
 - **GraphQL response bodies** are logged verbatim under `-v`. They contain item names, project names, hub names, file sizes, and other metadata. If your project names themselves are confidential, redact those before sharing.
 
-There is no separate token file to worry about: per-user sessions live only in server memory, so there is nothing on disk to accidentally attach.
+Sessions (including refresh tokens) are persisted **encrypted** to `~/.config/fusionlocalserver/sessions.enc` (AES-256-GCM; key in `session.key`, mode 0600) — see `server/session_persist.go`. Neither file is a log; never attach `sessions.enc` or `session.key` to a bug report.
 
 ---
 
@@ -121,6 +121,10 @@ The GraphQL gateway rejected the request as too expensive. If this comes from a 
 
 The session's access token is stale, was revoked, or lacks the `data:read` / `user-profile:read` scope. The web UI turns a 401 from the API into a prompt to sign in again. If a fresh sign-in still produces 401, the APS app registration may be misconfigured — see [`authentication.md`](authentication.md).
 
+### Hub-isolation errors: `409 hub_not_selected` / `403 hub_mismatch`
+
+All local data is partitioned per hub, and every data route requires the session to be locked to one hub. A **409 with code `hub_not_selected`** means the session lost its hub lock (e.g. a server restart before re-selecting, or an expired lock) — the SPA reacts by returning to the hub gate, exactly like a 401 returns you to login. A **403 with code `hub_mismatch`** means a request carried a `hubId` different from the session's locked hub; the request is refused by design. Neither is a bug in itself — but if the SPA loops on them, that's worth filing.
+
 ### `GraphQL partial errors (kept data): …`
 
 A response came back with both useful data and field-level errors. The client kept the data and surfaced the errors via this log line. Typically harmless — common when one row in a list references a deactivated or deleted record. If a tab unexpectedly shows missing fields, the corresponding `GraphQL partial errors` line identifies which row.
@@ -134,7 +138,7 @@ When a folder's contents load, the app dispatches up to 50 small `componentVersi
 ## Privacy and security
 
 - `server.log` is written with mode `0600` (owner-only read/write).
-- Per-user sessions live only in server memory; there is no on-disk token file.
+- Per-user sessions are held in server memory and persisted only in encrypted form (`sessions.enc`, AES-256-GCM, key in `session.key` mode 0600); no plaintext token file exists on disk.
 - The `Authorization` header is never logged, and `signedUrl` values are redacted from traces.
 - Nothing is uploaded automatically. Logs stay on your machine until you choose to share them.
 

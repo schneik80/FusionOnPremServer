@@ -102,7 +102,10 @@ flowchart TD
 `requireAuth` resolves the `fls_session` cookie to a live session, ensures the
 access token is valid (refreshing if needed), and places the token in the
 request context. Handlers read it via the unchanged `s.token(ctx, …)` helper. A
-401 from any data call is what the SPA turns into a login redirect.
+401 from any data call is what the SPA turns into a login redirect. Data routes
+additionally require the session to be locked to a hub (`requireHub` — 409
+`hub_not_selected` if no hub is selected, 403 `hub_mismatch` if the request
+names a different hub; see [`hubs/STATUS.md`](hubs/STATUS.md)).
 
 ---
 
@@ -211,7 +214,11 @@ The server detects which to use automatically:
   finds no entry and is rejected, and APS also rejects a reused authorization code.
 - Verbose tracing (`-v`) logs API request/response bodies but never tokens —
   `Authorization` headers aren't traced, and `signedUrl` values are redacted.
-- Tokens live only in server memory; there is no on-disk token file.
+- Tokens never reach the browser or any plaintext file: they live in server
+  memory and are persisted only encrypted at rest (`sessions.enc`, AES-256-GCM,
+  key in `session.key` mode 0600 — see [Sessions and token refresh](#sessions-and-token-refresh)).
 
-For the remaining hardening items (TLS/`Secure` cookie, session persistence, APS
-callback registration), see [`SECURITY-TODO.md`](../SECURITY-TODO.md).
+TLS/`Secure` cookie (`-tls` on by default) and encrypted session persistence
+have both shipped; [`SECURITY-TODO.md`](../SECURITY-TODO.md) tracks the history
+and the remaining items (e.g. OS-keychain key storage, APS callback
+registration notes).

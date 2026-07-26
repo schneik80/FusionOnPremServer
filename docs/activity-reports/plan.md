@@ -1,3 +1,5 @@
+> **SUPERSEDED (historical).** The notifications-feed-backed hub/project/folder dashboard this plan describes was built and then **removed** — the feed is first-party-gated (returns HTTP 500 for this app's token). Only the per-design GraphQL activity report shipped. See [STATUS.md](STATUS.md).
+
 # Plan: Hub / Project / Folder / Design Activity Reports — built into `fusionlocalserver`
 
 ## Context

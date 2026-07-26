@@ -1,3 +1,5 @@
+> **HISTORICAL REFERENCE (dead approach).** This documents the Fusion Team notifications feed, which turned out to be first-party-gated: the endpoint returns HTTP 500 for third-party APS app tokens, and nothing in the product uses it. Kept only as a record of the investigation. See [STATUS.md](STATUS.md).
+
 # Fusion Team Notifications feed — engineering reference
 
 > Undocumented first-party APS endpoint the Fusion Team web client uses for its activity feed.

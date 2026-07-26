@@ -3,6 +3,25 @@
 Branch: `feature/activity-reports`. Primary commit: `cd1adf2`
 (*security: generic error envelopes, request-body caps, and security headers*).
 
+> **Status addendum (2026-07, pre-beta).** This is a point-in-time review;
+> the codebase has moved since. What changed:
+> - **M3 (non-`Secure` cookie over plain HTTP)** is mitigated in practice:
+>   `-tls` is now the default posture (`make run`), with a self-signed cert
+>   auto-generated and a logged warning on non-loopback plain HTTP.
+> - **"No application-level rate limiter"** is no longer fully true: chat,
+>   task, production, and whiteboard mutations are limited per session
+>   (`chat.Limiter`, wired in `server/server.go`). `/api/auth/*` and the
+>   remaining routes are still unlimited.
+> - The Prompt-4 test suites listed as "untracked" below
+>   (`server/fuzz_security_test.go`, `server/integration_security_test.go`,
+>   `web/test/api-security.test.ts`) have since been committed.
+> - Sessions now persist encrypted at rest (`sessions.enc`, AES-256-GCM),
+>   and all local data is partitioned per hub with a session hub lock —
+>   see [`docs/hubs/STATUS.md`](../hubs/STATUS.md).
+> - **Still open**: L1 (OAuth `code`/`state` in `-v` request logs), L2
+>   (`X-Forwarded-Proto` trusted unconditionally), L3 (CSRF rests on
+>   `SameSite=Lax` alone). Tracked in [`SECURITY-TODO.md`](../../SECURITY-TODO.md).
+
 A work breakdown of a security review performed across four prompts. Each
 section records **the prompt that actioned it**, **what was reviewed**, **what
 changed**, and — just as important — **what was deliberately *not* changed and

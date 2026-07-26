@@ -1,6 +1,16 @@
 # Permalinks — shareable URLs for navigable state
 
-## Context
+> **STATUS: largely shipped.** URL state is implemented. `web/src/state/navUrl.ts`
+> holds the pure serializers (`navToSearch` / `searchToNav` / `shouldPush`);
+> `web/src/state/nav.tsx` hydrates from `location.search` at startup, writes the
+> URL on nav changes (push vs replace via `shouldPush`), and handles `popstate` —
+> the URL sync is inlined in `nav.tsx` rather than a separate `useSyncNavToUrl.ts`.
+> Supported params: `app=browser|tasks|production` (production was added after
+> this plan), `hub`, `proj`, `f` (repeated), `sel`, and `dtab` (the Details tab).
+> **Not done:** `ptab` — the Project-panel tab is not URL-addressable.
+> The text below is the original plan, kept as history.
+
+## Context (as written, pre-implementation)
 
 Today the app has **no URL state**. Navigation lives entirely in an in-memory
 reducer (`web/src/state/nav.tsx`), and the only thing that survives a reload is
@@ -137,15 +147,15 @@ hub/project. Hydration must degrade gracefully:
 
 ## Phases
 
-**Phase 1 — core browser state (the bulk of the value).**
+**Phase 1 — core browser state (the bulk of the value).** ✅ *Shipped.*
 `app` + `hub` + `proj` + `f*` + `sel` serialized/hydrated; `itemLocation`
 backstop; push/replace rules; `popstate`; gate the last-hub restore. Ships
 refresh-stays-put, back/forward, and shareable document/folder links.
 
-**Phase 2 — tabs.**
+**Phase 2 — tabs.** ◐ *Partial: `dtab` (Details tab) shipped; `ptab` (Project-panel tab) is not URL-addressable.*
 Lift `ProjectPanel` and `DetailsPanel` tab state into nav; add `ptab`/`dtab`.
 
-**Phase 3 (optional) — polish.**
+**Phase 3 (optional) — polish.** ✗ *Not done.*
 Compact document URLs (drop `proj`/`f`, reconstruct from `sel`); a "Copy link"
 affordance in the breadcrumb/details header; `task=` param opening
 `TaskViewDialog`.

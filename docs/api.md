@@ -2,6 +2,8 @@
 
 fusionlocalserver queries the **APS Manufacturing Data Model GraphQL API v2** to retrieve hub, project, folder, and item data. All requests are authenticated with a Bearer token obtained through the OAuth PKCE flow. This `api` package is the GraphQL client used by the server; the diagrams below describe the client itself, independent of the handlers that call it.
 
+> **Scope.** This document covers the `api/` package — the client for APS's GraphQL and Data Management services — **not** the server's own JSON API (~113 routes under `/api/*`). For the HTTP surface, see the feature status docs: [hubs](hubs/STATUS.md), [chat](chat/STATUS.md), [tasks](tasks/STATUS.md), [production](production/STATUS.md), [whiteboards](whiteboards/STATUS.md), [backup](backup/STATUS.md), and [admin](admin/STATUS.md).
+
 ---
 
 ## GraphQL Endpoint
