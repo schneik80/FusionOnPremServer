@@ -24,7 +24,13 @@
     "saving": "Wird gespeichert…",
     "saved": "Gespeichert",
     "placeDocumentTitle": "Dokumentkarte platzieren",
-    "place": "Platzieren"
+    "place": "Platzieren",
+    "notSaving": "Speichern pausiert",
+    "conflict": "Jemand anderes hat dieses Whiteboard gespeichert, während es bei Ihnen geöffnet war. Das Speichern ist pausiert.",
+    "conflictReload": "Deren Version laden",
+    "conflictOverwrite": "Meine behalten",
+    "conflictBy": "{{name}} hat dieses Whiteboard gespeichert, während es bei Ihnen geöffnet war. Das Speichern ist pausiert.",
+    "peersHere": "Ebenfalls hier: {{names}}"
   },
   "assembly": {
     "expandTitle": "Baugruppe erweitern",
@@ -35,5 +41,13 @@
     "placedSkipped_other": "{{count}} Komponenten platziert; {{skipped}} ohne eigenes Dokument übersprungen.",
     "expandFailed": "Diese Baugruppe konnte nicht erweitert werden."
   },
-  "errorLabel": "Whiteboard"
+  "errorLabel": "Whiteboard",
+  "tldraw": {
+    "strokeLabel": "Strich",
+    "strokeSketch": "Skizze",
+    "fillTinted": "Getönt",
+    "fillHatched": "Schraffiert",
+    "fillFilled": "Gefüllt",
+    "fillLined": "Liniert"
+  }
 }

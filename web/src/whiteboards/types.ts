@@ -23,6 +23,10 @@ export interface Whiteboard {
   updatedAt: string
   updatedBy: WhiteboardUser
   snapshotBytes: number
+  // docRev is the document's save counter. The canvas sends the revision it
+  // loaded back with each save, so a board two people have open can't be
+  // silently overwritten by whoever saves last.
+  docRev: number
 }
 
 export interface WhiteboardCaps {

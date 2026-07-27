@@ -24,7 +24,13 @@
     "saving": "Enregistrement…",
     "saved": "Enregistré",
     "placeDocumentTitle": "Placer une carte de document",
-    "place": "Placer"
+    "place": "Placer",
+    "notSaving": "Enregistrement en pause",
+    "conflict": "Quelqu'un d'autre a enregistré ce tableau blanc pendant que vous l'aviez ouvert. L'enregistrement est en pause.",
+    "conflictReload": "Charger la leur",
+    "conflictOverwrite": "Garder la mienne",
+    "conflictBy": "{{name}} a enregistré ce tableau blanc pendant que vous l'aviez ouvert. L'enregistrement est en pause.",
+    "peersHere": "Également ici : {{names}}"
   },
   "assembly": {
     "expandTitle": "Développer un assemblage",
@@ -35,5 +41,13 @@
     "placedSkipped_other": "{{count}} composants placés ; {{skipped}} ignoré(s) sans document distinct.",
     "expandFailed": "Impossible de développer cet assemblage."
   },
-  "errorLabel": "tableau blanc"
+  "errorLabel": "tableau blanc",
+  "tldraw": {
+    "strokeLabel": "Trait",
+    "strokeSketch": "Croquis",
+    "fillTinted": "Teinté",
+    "fillHatched": "Hachuré",
+    "fillFilled": "Rempli",
+    "fillLined": "Ligné"
+  }
 }

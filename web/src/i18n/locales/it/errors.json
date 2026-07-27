@@ -6,5 +6,6 @@
   "upstream_failed": "Il servizio remoto ha segnalato un errore.",
   "service_unavailable": "Questa funzionalità non è al momento disponibile su questo server.",
   "server_error": "Il server ha riscontrato un errore imprevisto.",
-  "conflict": "La richiesta è in conflitto con lo stato attuale: ricaricare e riprovare."
+  "conflict": "La richiesta è in conflitto con lo stato attuale: ricaricare e riprovare.",
+  "whiteboard_stale": "Questa lavagna è cambiata da quando l'hai aperta."
 }

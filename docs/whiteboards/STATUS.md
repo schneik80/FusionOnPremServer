@@ -181,20 +181,82 @@ GET    /api/whiteboards      ?projectId              list + capabilities
 POST   /api/whiteboards      ?projectId              {hubId,projectName,name}
 PATCH  /api/whiteboards      ?projectId&boardId      rename
 DELETE /api/whiteboards      ?projectId&boardId      moderator or creator
-GET    /api/whiteboards/doc  ?projectId&boardId      the document, or null if unsaved
-PUT    /api/whiteboards/doc  ?projectId&boardId      replace the document (autosave)
+GET    /api/whiteboards/doc     ?projectId&boardId              the document, or null if unsaved
+PUT    /api/whiteboards/doc     ?projectId&boardId&baseRev[&force=1]   replace the document (autosave)
+GET    /api/whiteboards/events  ?projectId&boardId              awareness stream (SSE)
 ```
 
 The document endpoints carry their own much larger body cap (24 MiB) than the
 64 KiB used everywhere else, and pass the payload through opaquely — the store
 checks it is JSON and within the cap, and nothing parses tldraw's schema.
 
+### Revisions: no more silent clobbering
+
+`Board.DocRev` counts document saves. The GET advertises it as a weak `ETag`
+(`W/"7"`); the PUT carries it back as `baseRev`, and a save based on a revision
+the board has already moved past is refused with **409 `whiteboard_stale`**
+instead of overwriting whoever saved in between. `force=1` is the user's
+acknowledged "overwrite anyway" after being shown the conflict — never a retry
+path, because retrying a refused save is exactly what would discard the other
+person's work.
+
+The check lives in `Store.SaveSnapshot`, under the project lock that also
+serialises the write; a handler-side compare would leave a window between
+reading the revision and writing. `DocRev` rides the existing file version with
+`omitempty` rather than bumping it (the tasks schedule-fields precedent), so an
+older binary can still read the file. If an older build rewrites it the field
+drops to 0, which is safe: a client holding a higher revision then gets a clean
+conflict rather than a silent overwrite.
+
+The document PUT also has its own rate limiter (`whiteboardDocLim`) — it was
+previously the one write path in the app with none, and a 24 MiB unmetered body
+is a free way to thrash the disk.
+
+### Awareness stream
+
+`GET /api/whiteboards/events` is per **board**, with its own `sse.Hub`
+(`server/whiteboard_hub.go`) rather than an event type on chat's stream: a busy
+board sharing chat's 512-entry ring would evict chat's events and hand every
+project subscriber a spurious resync. It carries:
+
+- `doc.changed {rev, by}` — durable. A canvas that is behind learns immediately
+  instead of finding out when its own next save is refused.
+- `peers {peers:[…]}` — ephemeral (no SSE id, never ringed), republished when
+  the roster changes. Presence is only true right now; a replayed copy would
+  assert that someone is present who left.
+
+Identity and colour are stamped server-side from the session, so a cursor can't
+be labelled with a colleague's name and the same person reads the same colour
+in everyone's view. There is no per-frame visibility rule — a board has no ACL
+of its own, so the endpoint's `CapRead` check plus the 25 s keepalive
+revocation tick is the whole entitlement story.
+
+The generic ring/replay/reset machinery now lives in **`internal/sse`**, shared
+with chat. It makes no authorization decision: visibility rides through it as
+an opaque type parameter and the owning feature decides. Chat's `Hub` is a thin
+wrapper carrying `Entitled`.
+
 ## Known gaps / next
 
-- **No realtime collaboration.** Two people editing the same board will
-  last-write-wins each other's autosaves. tldraw offers a sync service; this
-  ships single-writer.
+- **No simultaneous editing yet.** Two people can now have a board open safely
+  — neither can overwrite the other silently, and each sees the other arrive
+  and save — but they still take turns: a conflict is resolved by loading
+  theirs or keeping yours, not by merging. Live co-editing (patch sync + live
+  cursors) is the next increment, and the pieces it needs are already in place:
+  a persisted revision, a per-board SSE room, and presence.
 - Documents are stored whole on every save; there is no incremental diffing.
+  This is what live co-editing replaces: clients would exchange tldraw
+  `RecordsDiff` patches against a server-held record map, which a Go server can
+  apply without understanding tldraw's schema (a diff is set/set/delete on a
+  map of opaque JSON records).
+- **`fls-card` measure writes are a latent hazard for that work.**
+  `cardshape.tsx` writes its measured `w/h` back to the document, and the
+  measurement depends on font rendering, so two clients on different displays
+  can disagree by a pixel or two. The tolerance is now ±3 px (`MEASURE_SLOP`)
+  and read-only viewers skip the write entirely, which stops the disagreement
+  from becoming a write-per-client. Under patch sync it would need a further
+  guard — suppressing the measure write briefly after a remote patch touches
+  that shape — or the two clients would ping-pong forever.
 - No board thumbnails in the list.
 - No cross-project "my whiteboards" screen (the store's self-describing project
   file supports adding one, as with tasks/production).
@@ -215,3 +277,24 @@ End-to-end (needs APS login): open a project → Whiteboards → create a board 
 draw → place a task, a job/batch and a document card → reload and confirm the
 board and its cards return → rename and delete a board → confirm a read-only
 project member gets a non-editable canvas.
+
+**Styling** — select a frame and confirm the style panel offers a Color row,
+that changing it repaints the frame's border and heading, and that it survives
+a reload (a board saved before frame colours were enabled must still open).
+Select a drawn shape and confirm the stroke row reads "Stroke" with a "Sketch"
+first option, and the Fill overflow reads Hatched / Filled / Lined. Switch
+language in Settings → Appearance and confirm tldraw's own menus follow the app
+rather than the browser.
+
+**Two people on one board** (two browser profiles, or a normal and a private
+window):
+
+1. Open the same board in both. Each header shows the other's avatar; closing
+   one window removes it from the other within a moment.
+2. Draw in A and wait for its autosave. B's banner says A saved and B's saving
+   pauses — B is not left to discover it later.
+3. In B choose "Load theirs": B's canvas becomes A's, saving resumes.
+4. Repeat, and in B choose "Keep mine": B's version wins, and now **A** is the
+   stale one and gets the banner on its next save.
+5. Confirm a read-only member sees both the peer list and the change banner but
+   never saves (watch the network tab for the absence of a PUT).

@@ -24,7 +24,13 @@
     "saving": "Saving…",
     "saved": "Saved",
     "placeDocumentTitle": "Place a document card",
-    "place": "Place"
+    "place": "Place",
+    "notSaving": "Not saving",
+    "conflict": "Someone else saved this whiteboard while you had it open. Saving is paused.",
+    "conflictReload": "Load theirs",
+    "conflictOverwrite": "Keep mine",
+    "conflictBy": "{{name}} saved this whiteboard while you had it open. Saving is paused.",
+    "peersHere": "Also here: {{names}}"
   },
   "assembly": {
     "expandTitle": "Expand an assembly",
@@ -35,5 +41,13 @@
     "placedSkipped_other": "Placed {{count}} components; skipped {{skipped}} with no separate document.",
     "expandFailed": "Could not expand this assembly."
   },
-  "errorLabel": "whiteboard"
+  "errorLabel": "whiteboard",
+  "tldraw": {
+    "strokeLabel": "Stroke",
+    "strokeSketch": "Sketch",
+    "fillTinted": "Tinted",
+    "fillHatched": "Hatched",
+    "fillFilled": "Filled",
+    "fillLined": "Lined"
+  }
 }

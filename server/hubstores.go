@@ -31,11 +31,17 @@ type storeSet struct {
 	slug    string
 	root    string // <configDir>/hubs/<slug>
 
-	chat        *chat.Store
-	chatHub     *chat.Hub // per-hub fan-out: events never cross hubs
-	tasks       *tasks.Store
-	production  *production.Store
-	whiteboards *whiteboards.Store
+	chat    *chat.Store
+	chatHub *chat.Hub // per-hub fan-out: events never cross hubs
+	// whiteboardHub is the board-level fan-out (who has a board open, and when
+	// its document changed). Its own hub rather than a chat event type: a busy
+	// board would otherwise share chat's ring and evict chat's events, handing
+	// every project subscriber a spurious resync. Per-hub for the same reason
+	// chatHub is — events must never cross hubs.
+	whiteboardHub *whiteboardHub
+	tasks         *tasks.Store
+	production    *production.Store
+	whiteboards   *whiteboards.Store
 	// notifications is the per-user inbox behind the app-chrome bell. Keyed
 	// by OIDC sub (not project), but rooted in the hub profile like every
 	// other store, so a user's inbox is per-hub — a mention in hub A is
@@ -163,6 +169,7 @@ func (h *hubStores) build(hubID, hubName, slug string) (*storeSet, error) {
 		root:          root,
 		chat:          cs,
 		chatHub:       chat.NewHub(h.authz, cs.EventEpoch),
+		whiteboardHub: newWhiteboardHub(),
 		tasks:         ts,
 		production:    ps,
 		whiteboards:   ws,
@@ -281,6 +288,9 @@ func (h *hubStores) closeAll() {
 	for _, set := range h.snapshotAll() {
 		if set.chatHub != nil {
 			set.chatHub.CloseAll()
+		}
+		if set.whiteboardHub != nil {
+			set.whiteboardHub.CloseAll()
 		}
 		if set.chat != nil {
 			set.chat.Close()

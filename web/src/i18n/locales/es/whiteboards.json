@@ -24,7 +24,13 @@
     "saving": "Guardando…",
     "saved": "Guardado",
     "placeDocumentTitle": "Colocar una tarjeta de documento",
-    "place": "Colocar"
+    "place": "Colocar",
+    "notSaving": "Guardado en pausa",
+    "conflict": "Otra persona guardó esta pizarra mientras la tenías abierta. El guardado está en pausa.",
+    "conflictReload": "Cargar la suya",
+    "conflictOverwrite": "Conservar la mía",
+    "conflictBy": "{{name}} guardó esta pizarra mientras la tenías abierta. El guardado está en pausa.",
+    "peersHere": "También aquí: {{names}}"
   },
   "assembly": {
     "expandTitle": "Expandir un ensamblaje",
@@ -35,5 +41,13 @@
     "placedSkipped_other": "Se colocaron {{count}} componentes; se omitieron {{skipped}} sin documento propio.",
     "expandFailed": "No se pudo expandir este ensamblaje."
   },
-  "errorLabel": "pizarra"
+  "errorLabel": "pizarra",
+  "tldraw": {
+    "strokeLabel": "Trazo",
+    "strokeSketch": "Boceto",
+    "fillTinted": "Sombreado",
+    "fillHatched": "Rayado",
+    "fillFilled": "Relleno",
+    "fillLined": "Con líneas"
+  }
 }

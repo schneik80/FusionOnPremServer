@@ -77,22 +77,22 @@ func TestSnapshotRoundTripAndDeleteRemovesDocument(t *testing.T) {
 
 	// A never-saved board reads back as nil, not an error: that's an empty
 	// canvas, not a failure.
-	doc, err := s.Document(testProject, b.ID)
-	if err != nil || doc != nil {
-		t.Fatalf("expected (nil, nil) for unsaved board, got (%v, %v)", doc, err)
+	doc, rev, err := s.Document(testProject, b.ID)
+	if err != nil || doc != nil || rev != 0 {
+		t.Fatalf("expected (nil, 0, nil) for unsaved board, got (%v, %d, %v)", doc, rev, err)
 	}
 
 	saved := []byte(`{"document":{"shapes":[{"id":"s1"}]}}`)
-	updated, err := s.SaveSnapshot(testProject, b.ID, saved, user())
+	updated, err := s.SaveSnapshot(testProject, b.ID, saved, user(), 0, false)
 	if err != nil {
 		t.Fatalf("SaveSnapshot: %v", err)
 	}
-	if updated.SnapshotBytes != int64(len(saved)) || updated.UpdatedBy.ID != user().ID {
+	if updated.SnapshotBytes != int64(len(saved)) || updated.UpdatedBy.ID != user().ID || updated.DocRev != 1 {
 		t.Fatalf("metadata not stamped: %+v", updated)
 	}
 
-	back, err := s.Document(testProject, b.ID)
-	if err != nil || string(back) != string(saved) {
+	back, rev, err := s.Document(testProject, b.ID)
+	if err != nil || string(back) != string(saved) || rev != 1 {
 		t.Fatalf("round trip mismatch: %q vs %q (err %v)", back, saved, err)
 	}
 
@@ -105,9 +105,9 @@ func TestSnapshotRoundTripAndDeleteRemovesDocument(t *testing.T) {
 
 	// A fresh store reads the same document from disk.
 	s2, _ := NewStore(dir)
-	back2, err := s2.Document(testProject, b.ID)
-	if err != nil || string(back2) != string(saved) {
-		t.Fatalf("document did not persist across reload: %q (err %v)", back2, err)
+	back2, rev2, err := s2.Document(testProject, b.ID)
+	if err != nil || string(back2) != string(saved) || rev2 != 1 {
+		t.Fatalf("document/revision did not persist across reload: %q rev %d (err %v)", back2, rev2, err)
 	}
 
 	docPath := filepath.Join(dir, sanitizeID(testProject), "doc-"+sanitizeID(b.ID)+".json")
@@ -120,7 +120,7 @@ func TestSnapshotRoundTripAndDeleteRemovesDocument(t *testing.T) {
 	if _, err := os.Stat(docPath); !os.IsNotExist(err) {
 		t.Fatalf("document file outlived its board")
 	}
-	if _, err := s.Document(testProject, b.ID); err == nil {
+	if _, _, err := s.Document(testProject, b.ID); err == nil {
 		t.Fatalf("expected not-found after delete")
 	}
 }
@@ -129,20 +129,20 @@ func TestSnapshotValidation(t *testing.T) {
 	s := newStore(t)
 	b := mustBoard(t, s, "Board")
 
-	if _, err := s.SaveSnapshot(testProject, b.ID, nil, user()); err == nil {
+	if _, err := s.SaveSnapshot(testProject, b.ID, nil, user(), 0, false); err == nil {
 		t.Fatalf("expected empty-document rejection")
 	}
-	if _, err := s.SaveSnapshot(testProject, b.ID, []byte("not json"), user()); err == nil {
+	if _, err := s.SaveSnapshot(testProject, b.ID, []byte("not json"), user(), 0, false); err == nil {
 		t.Fatalf("expected invalid-JSON rejection")
 	}
 	big := make([]byte, MaxSnapshotBytes+1)
 	for i := range big {
 		big[i] = 'a'
 	}
-	if _, err := s.SaveSnapshot(testProject, b.ID, big, user()); err == nil {
+	if _, err := s.SaveSnapshot(testProject, b.ID, big, user(), 0, false); err == nil {
 		t.Fatalf("expected oversize rejection")
 	}
-	if _, err := s.SaveSnapshot(testProject, "w999", []byte(`{}`), user()); err == nil {
+	if _, err := s.SaveSnapshot(testProject, "w999", []byte(`{}`), user(), 0, false); err == nil {
 		t.Fatalf("expected not-found for unknown board")
 	}
 }
@@ -178,7 +178,7 @@ func TestCorruptAndFutureVersion(t *testing.T) {
 func TestDeleteProject(t *testing.T) {
 	s := newStore(t)
 	b := mustBoard(t, s, "Doomed board")
-	if _, err := s.SaveSnapshot(testProject, b.ID, []byte(`{"shapes":[]}`), user()); err != nil {
+	if _, err := s.SaveSnapshot(testProject, b.ID, []byte(`{"shapes":[]}`), user(), 0, false); err != nil {
 		t.Fatalf("SaveSnapshot: %v", err)
 	}
 	if _, err := s.Create("urn:other:project", testHub, "Other Project", Draft{Name: "Survivor"}, user()); err != nil {

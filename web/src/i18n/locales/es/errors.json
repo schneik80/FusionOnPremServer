@@ -6,5 +6,6 @@
   "upstream_failed": "El servicio externo notificó un error.",
   "service_unavailable": "Esta función no está disponible en este servidor en este momento.",
   "server_error": "El servidor encontró un error inesperado.",
-  "conflict": "La solicitud entra en conflicto con el estado actual: recargue e inténtelo de nuevo."
+  "conflict": "La solicitud entra en conflicto con el estado actual: recargue e inténtelo de nuevo.",
+  "whiteboard_stale": "Esta pizarra ha cambiado desde que la abriste."
 }

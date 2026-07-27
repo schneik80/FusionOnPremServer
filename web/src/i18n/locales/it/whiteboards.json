@@ -24,7 +24,13 @@
     "saving": "Salvataggio…",
     "saved": "Salvato",
     "placeDocumentTitle": "Posiziona una scheda documento",
-    "place": "Posiziona"
+    "place": "Posiziona",
+    "notSaving": "Salvataggio in pausa",
+    "conflict": "Qualcun altro ha salvato questa lavagna mentre era aperta. Il salvataggio è in pausa.",
+    "conflictReload": "Carica la loro",
+    "conflictOverwrite": "Mantieni la mia",
+    "conflictBy": "{{name}} ha salvato questa lavagna mentre era aperta. Il salvataggio è in pausa.",
+    "peersHere": "Anche qui: {{names}}"
   },
   "assembly": {
     "expandTitle": "Espandi un assieme",
@@ -35,5 +41,13 @@
     "placedSkipped_other": "Posizionati {{count}} componenti; ignorati {{skipped}} senza documento separato.",
     "expandFailed": "Impossibile espandere questo assieme."
   },
-  "errorLabel": "lavagna"
+  "errorLabel": "lavagna",
+  "tldraw": {
+    "strokeLabel": "Tratto",
+    "strokeSketch": "Schizzo",
+    "fillTinted": "Sfumato",
+    "fillHatched": "Tratteggiato",
+    "fillFilled": "Pieno",
+    "fillLined": "Rigato"
+  }
 }

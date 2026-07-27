@@ -6,5 +6,6 @@
   "upstream_failed": "O serviço a montante devolveu um erro.",
   "service_unavailable": "Esta funcionalidade não está disponível neste servidor de momento.",
   "server_error": "O servidor encontrou um erro inesperado.",
-  "conflict": "O pedido entra em conflito com o estado atual — recarregue e tente novamente."
+  "conflict": "O pedido entra em conflito com o estado atual — recarregue e tente novamente.",
+  "whiteboard_stale": "Este quadro mudou desde que o abriu."
 }

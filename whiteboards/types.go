@@ -47,6 +47,12 @@ var (
 	// ErrInvalid is returned for requests that violate an invariant — empty
 	// names, cap overruns, oversized documents (→ 400).
 	ErrInvalid = errors.New("whiteboards: invalid request")
+
+	// ErrConflict is returned when a save is based on a revision the board has
+	// already moved past — someone else saved in between (→ 409). The caller
+	// must not retry blindly: a retry is exactly what would discard the other
+	// person's work, which is the bug this sentinel exists to prevent.
+	ErrConflict = errors.New("whiteboards: document changed since it was loaded")
 )
 
 // UserRef identifies a project member the way tasks/chat do: by OIDC sub, with
@@ -72,6 +78,18 @@ type Board struct {
 	UpdatedBy UserRef `json:"updatedBy"`
 	// SnapshotBytes is the stored document's size, for the list view.
 	SnapshotBytes int64 `json:"snapshotBytes"`
+	// DocRev counts document saves. A client sends back the revision it loaded
+	// and the save is refused if the board has moved on, so two people editing
+	// one board can no longer silently overwrite each other.
+	//
+	// It rides the EXISTING file version rather than bumping it: the field is
+	// omitempty and an absent value decodes to 0, which is the correct starting
+	// revision, so an older binary can still read the file (a version bump would
+	// make it refuse). The same trade the task schedule fields made. If an older
+	// build does rewrite the file it drops the field back to 0 — safe, because a
+	// client holding a higher revision then gets a clean conflict rather than a
+	// silent overwrite.
+	DocRev int64 `json:"docRev,omitempty"`
 }
 
 // ProjectBoard is a board annotated with its project, for cross-project

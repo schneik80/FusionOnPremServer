@@ -49,7 +49,7 @@ func seedLocalRefs(t *testing.T, set *storeSet, projectID, projectName string) {
 		t.Fatalf("seed board: %v", err)
 	}
 	if _, err := set.whiteboards.SaveSnapshot(projectID, board.ID,
-		[]byte(`{"shapes":[{"props":{"token":"`+lrToken+`"}}]}`), whiteboards.UserRef{ID: "u-1", Name: "Ada"}); err != nil {
+		[]byte(`{"shapes":[{"props":{"token":"`+lrToken+`"}}]}`), whiteboards.UserRef{ID: "u-1", Name: "Ada"}, 0, true); err != nil {
 		t.Fatalf("seed board doc: %v", err)
 	}
 	prodMe := production.UserRef{ID: "u-1", Name: "Ada"}
