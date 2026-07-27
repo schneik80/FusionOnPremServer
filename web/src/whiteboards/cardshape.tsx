@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { HTMLContainer, Rectangle2d, ShapeUtil, type Editor, type TLShape } from 'tldraw'
+import { HTMLContainer, Rectangle2d, ShapeUtil, useValue, type Editor, type TLShape } from 'tldraw'
 import { RefCard } from '../components/RefCard'
 
 // The whiteboard's own shape: a live app card pinned to the canvas. Its only
@@ -30,6 +30,10 @@ export type FlsCardShape = TLShape<typeof FLS_CARD_TYPE>
 export const CARD_W = 320
 export const CARD_H = 96
 
+// The mounted card DOM, by shape id. CardBody keeps this current; the shape
+// util's onClick below is the only reader.
+const cardNodes = new Map<string, HTMLElement>()
+
 export class FlsCardShapeUtil extends ShapeUtil<FlsCardShape> {
 	static override type = FLS_CARD_TYPE
 
@@ -55,6 +59,34 @@ export class FlsCardShapeUtil extends ShapeUtil<FlsCardShape> {
 		return <CardBody editor={this.editor} shape={shape} />
 	}
 
+	// A card's own click (navigate to the document, open the task dialog, …) can
+	// never reach it through the DOM: tldraw's canvas takes pointer capture on
+	// pointer down, so the browser retargets the mouse up and fires `click` at
+	// the canvas instead of at the card. The editor still tells a click from a
+	// drag — that is what this handler is — so take the click from there and
+	// replay it on whatever sits under the cursor. The behaviour stays inside
+	// the card component, which is what keeps every scheme RefCard renders
+	// (doc / task / job / batch, and whatever comes next) working here for free.
+	//
+	// Returning nothing lets tldraw carry on with its normal selection handling.
+	override onClick(shape: FlsCardShape) {
+		// The same gate as the card's pointer events (see CardBody): the first
+		// click selects, the second interacts. tldraw applies this click's
+		// selection *after* the handler runs, so what we read here is the state
+		// the click started from.
+		if (this.editor.getOnlySelectedShapeId() !== shape.id) return
+		const node = cardNodes.get(shape.id)
+		if (!node) return
+		const rect = this.editor.getContainer().getBoundingClientRect()
+		const p = this.editor.inputs.getCurrentScreenPoint()
+		// Aim at the exact element under the cursor so a control inside a card
+		// gets the click rather than the card as a whole; fall back to the card
+		// root when the hit test lands outside (zoomed-out cards are small).
+		const hit = document.elementFromPoint(rect.left + p.x, rect.top + p.y)
+		const target = hit && node.contains(hit) ? hit : node.firstElementChild
+		if (target instanceof HTMLElement) target.click()
+	}
+
 	override getIndicatorPath(shape: FlsCardShape) {
 		const path = new Path2D()
 		path.rect(0, 0, shape.props.w, shape.props.h)
@@ -73,7 +105,36 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 	// Pointer events are off until the shape is the only selection. Without that,
 	// the card's own click targets would swallow the drag that moves it; with it,
 	// one click selects and the next interacts (opening a dialog / navigating).
-	const interactive = editor.getOnlySelectedShapeId() === shape.id
+	//
+	// This MUST subscribe to the selection signal rather than read it during
+	// render. tldraw tracks the signals a shape reads inside ShapeUtil.component
+	// (see useStateTracking in its Shape component), but component() only
+	// *returns* <CardBody/> — the read below happens in CardBody's own render,
+	// outside that scope. Read plainly it therefore never re-runs on selection:
+	// CardBody re-renders only when the shape's props change (its memo compares
+	// shape content), so a card painted while unselected kept pointerEvents
+	// 'none' for good — no hover, no jump icon, no click through to the card. It
+	// looked fine while a board was being built, because placing a card churns
+	// its props (the measure/sync below) and that re-render happened to pick the
+	// new value up; on a reloaded board, where the sizes already match, nothing
+	// re-rendered and every card was inert.
+	const interactive = useValue(
+		'card is only selection',
+		() => editor.getOnlySelectedShapeId() === shape.id,
+		[editor, shape.id],
+	)
+
+	// Publish the card's DOM for the util's onClick (see FlsCardShapeUtil).
+	useLayoutEffect(() => {
+		const el = ref.current
+		if (!el) return
+		cardNodes.set(shape.id, el)
+		return () => {
+			// Only drop the entry if it is still ours — a remount registers the
+			// new node before the old one's cleanup runs.
+			if (cardNodes.get(shape.id) === el) cardNodes.delete(shape.id)
+		}
+	}, [shape.id])
 
 	useLayoutEffect(() => {
 		const el = ref.current
