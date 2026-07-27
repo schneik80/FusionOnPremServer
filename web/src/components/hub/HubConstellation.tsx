@@ -6,10 +6,39 @@ import { faArrowsToDot, faMagnifyingGlassMinus, faMagnifyingGlassPlus } from '@f
 import type { HubOverview, Item } from '../../api/types'
 import { ToolBtn } from '../canvas/ToolBtn'
 import { Hint } from '../dashboard/shell'
+import { useReducedMotion } from './useReducedMotion'
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 const MIN_VIEW_H = 360
 const GOLDEN = Math.PI * (3 - Math.sqrt(5))
+
+// A deterministic starfield for the ambient background (seeded so it never
+// reshuffles between renders). Coordinates are in the background svg's
+// 100×60 viewBox; each star twinkles between base and peak opacity.
+function mulberry32(a: number) {
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const STARS = (() => {
+  const r = mulberry32(0x5eed)
+  return Array.from({ length: 48 }, () => {
+    const base = +(0.1 + r() * 0.3).toFixed(2)
+    return {
+      x: +(r() * 100).toFixed(2),
+      y: +(r() * 60).toFixed(2),
+      r: +(0.15 + r() * 0.4).toFixed(2),
+      base,
+      peak: +Math.min(1, base + 0.45).toFixed(2),
+      dur: +(2.6 + r() * 3.6).toFixed(2),
+      begin: +(r() * 4).toFixed(2),
+    }
+  })
+})()
 
 // HubConstellation is the opt-in "Explore" mode: every accessible project as a
 // node in a pan/zoom star map, sized by how much LOCAL activity it has (tasks,
@@ -29,6 +58,7 @@ export default function HubConstellation({
 }) {
   const { t } = useTranslation('details')
   const theme = useTheme()
+  const reduced = useReducedMotion()
   const accent = theme.palette.primary.main
 
   // Per-project local-activity totals, keyed by whichever id the overview used.
@@ -156,6 +186,29 @@ export default function HubConstellation({
         userSelect: 'none',
       }}
     >
+      {/* Ambient starfield behind the nodes — fixed (does not pan/zoom), a
+          gentle twinkle for subtle depth. Decorative, so still under reduced
+          motion. */}
+      <svg
+        viewBox="0 0 100 60"
+        preserveAspectRatio="none"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+        aria-hidden
+      >
+        {STARS.map((s, i) => (
+          <circle key={i} cx={s.x} cy={s.y} r={s.r} fill={theme.palette.text.primary} opacity={s.base}>
+            {!reduced && (
+              <animate
+                attributeName="opacity"
+                values={`${s.base};${s.peak};${s.base}`}
+                dur={`${s.dur}s`}
+                begin={`${s.begin}s`}
+                repeatCount="indefinite"
+              />
+            )}
+          </circle>
+        ))}
+      </svg>
       <Box
         sx={{
           position: 'absolute',

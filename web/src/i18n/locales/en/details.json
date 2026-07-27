@@ -78,7 +78,16 @@
     "pipelineJobs_one": "{{count}} job",
     "pipelineJobs_other": "{{count}} jobs",
     "constellationEmpty": "No projects in this hub yet.",
-    "constellationHint": "Drag to pan · scroll to zoom · click a project to open it"
+    "constellationHint": "Drag to pan · scroll to zoom · click a project to open it",
+    "viewRiver": "River",
+    "riverSubtitle": "The hub's recent events, braided by type over time.",
+    "riverEmpty": "No recent events to weave yet.",
+    "riverTasks": "Tasks · gates",
+    "riverBatches": "Batches · jobs",
+    "riverMessages": "Messages",
+    "riverActivity": "Activity",
+    "playTour": "Play tour",
+    "stopTour": "Stop tour"
   },
   "details": {
     "selectDocument": "Select a document to view its details",

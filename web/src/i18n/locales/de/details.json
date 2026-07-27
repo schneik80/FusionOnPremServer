@@ -78,7 +78,16 @@
     "pipelineJobs_one": "{{count}} Auftrag",
     "pipelineJobs_other": "{{count}} Aufträge",
     "constellationEmpty": "Noch keine Projekte in diesem Hub.",
-    "constellationHint": "Ziehen zum Verschieben · Scrollen zum Zoomen · Projekt anklicken zum Öffnen"
+    "constellationHint": "Ziehen zum Verschieben · Scrollen zum Zoomen · Projekt anklicken zum Öffnen",
+    "viewRiver": "Verlauf",
+    "riverSubtitle": "Die jüngsten Ereignisse des Hubs, nach Typ über die Zeit verwoben.",
+    "riverEmpty": "Noch keine aktuellen Ereignisse zum Darstellen.",
+    "riverTasks": "Aufgaben · Meilensteine",
+    "riverBatches": "Chargen · Aufträge",
+    "riverMessages": "Nachrichten",
+    "riverActivity": "Aktivität",
+    "playTour": "Tour starten",
+    "stopTour": "Tour stoppen"
   },
   "details": {
     "selectDocument": "Wählen Sie ein Dokument, um dessen Details anzuzeigen",

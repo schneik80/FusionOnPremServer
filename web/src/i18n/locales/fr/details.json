@@ -78,7 +78,16 @@
     "pipelineJobs_one": "{{count}} travail",
     "pipelineJobs_other": "{{count}} travaux",
     "constellationEmpty": "Aucun projet dans ce hub pour l'instant.",
-    "constellationHint": "Glisser pour déplacer · défiler pour zoomer · cliquer sur un projet pour l'ouvrir"
+    "constellationHint": "Glisser pour déplacer · défiler pour zoomer · cliquer sur un projet pour l'ouvrir",
+    "viewRiver": "Flux",
+    "riverSubtitle": "Les événements récents du hub, tressés par type au fil du temps.",
+    "riverEmpty": "Aucun événement récent à tisser pour l'instant.",
+    "riverTasks": "Tâches · jalons",
+    "riverBatches": "Lots · travaux",
+    "riverMessages": "Messages",
+    "riverActivity": "Activité",
+    "playTour": "Lancer la visite",
+    "stopTour": "Arrêter la visite"
   },
   "details": {
     "selectDocument": "Sélectionnez un document pour afficher ses détails",
