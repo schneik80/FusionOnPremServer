@@ -29,6 +29,7 @@ import { HubBrowserDialog, type HubPick } from '../components/hubbrowser/HubBrow
 import { AttachTaskDialog } from '../tasks/AttachTaskDialog'
 import { ProductionRefDialog } from '../production/ProductionRefDialog'
 import { CARD_H, CARD_W, FLS_CARD_TYPE, FlsCardShapeUtil } from './cardshape'
+import { RemountingMinimap, useCanvasGeometry } from './canvasGeometry'
 import { useBoardEvents, type BoardPeer } from './useBoardEvents'
 import './whiteboard.css'
 
@@ -73,6 +74,11 @@ const STORE_SHAPE_UTILS = [
   FRAME_UTIL,
   FlsCardShapeUtil,
 ]
+
+// Only the minimap is replaced, and only so it can re-measure itself when the
+// canvas moves. Module scope: a new object per render would remount tldraw's
+// whole UI.
+const TLDRAW_COMPONENTS = { Minimap: RemountingMinimap }
 
 // tldraw ships no plain 'pt' — only pt-pt and pt-br — and our catalogues are
 // European Portuguese, so that one needs mapping. Everything else this app
@@ -180,11 +186,55 @@ export function WhiteboardCanvas({
   // cleanup whose closure predates the conflict, and it must not fire a save
   // the user hasn't resolved.
   const conflictRef = useRef(false)
+  // The canvas wrapper, watched for on-screen geometry changes (see
+  // canvasGeometry.tsx).
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+  // Set once a board's document has loaded, cleared when the view has actually
+  // been fitted to it. A ref because the attempt runs from callbacks, and
+  // because re-rendering on it would say nothing to the user.
+  const fitPending = useRef(false)
+
+  // Fit the view to the board's content, once, when it first opens. Without it
+  // a board opens at the origin at 100%, which for anything drawn away from
+  // 0,0 is a blank canvas — the work is there, just off screen.
+  //
+  // Three things must all be true before it can run, and they arrive in an
+  // order that isn't guaranteed: the editor has mounted, the document has
+  // loaded, and the canvas is actually on screen. That last one is not
+  // hypothetical here — a board mounts as soon as it is selected, even while
+  // its project tab is parked off-screen by the tab Slide, and fitting against
+  // a viewport that isn't where it will end up gives the wrong zoom. So each
+  // arrival calls this, and whichever is last does the work.
+  const tryFit = useCallback(() => {
+    if (!fitPending.current) return
+    const editor = editorRef.current
+    const rect = wrapRef.current?.getBoundingClientRect()
+    if (!editor || !rect || rect.width < 1 || rect.height < 1) return
+    fitPending.current = false
+    // An empty board has nothing to fit to; leave it at the default camera
+    // rather than zooming to an arbitrary bound.
+    if (editor.getCurrentPageShapeIds().size === 0) return
+    editor.zoomToFit()
+    // Fitting alone would magnify a board holding one small shape to tldraw's
+    // maximum zoom, which reads as "something is broken" rather than "here is
+    // your board". Zooming OUT to show everything is the point; zooming past
+    // life size is not, so cap it and keep the content centred.
+    const bounds = editor.getCurrentPageBounds()
+    if (bounds && editor.getZoomLevel() > 1) {
+      editor.zoomToBounds(bounds, { targetZoom: 1 })
+    }
+  }, [])
+
+  // Also re-anchors the minimap: it caches its screen rect from a
+  // ResizeObserver, which never sees the tab Slide's transform, and a stale
+  // rect makes every minimap click land far off (see canvasGeometry.tsx).
+  useCanvasGeometry(wrapRef, tryFit)
 
   // ---- load once per board ----
   useEffect(() => {
     let cancelled = false
     hydrated.current = false
+    fitPending.current = true
     setLoading(true)
     setLoadError(null)
     conflictRef.current = false
@@ -205,11 +255,12 @@ export function WhiteboardCanvas({
         if (cancelled) return
         setLoading(false)
         hydrated.current = true
+        tryFit()
       })
     return () => {
       cancelled = true
     }
-  }, [projectId, boardId, store])
+  }, [projectId, boardId, store, tryFit])
 
   const flush = useCallback(async () => {
     if (!hydrated.current || !canWrite) return
@@ -578,6 +629,7 @@ export function WhiteboardCanvas({
           otherwise a drop here also opened the upload dialog, and the drop it
           never saw left the upload overlay stuck over the whole window. */}
       <Box
+        ref={wrapRef}
         sx={{ flex: 1, minHeight: 0, position: 'relative' }}
         className="fls-tldraw"
         data-fls-drop-owner=""
@@ -603,10 +655,12 @@ export function WhiteboardCanvas({
             // the default frame util's place rather than colliding with it.
             shapeUtils={[FlsCardShapeUtil, FRAME_UTIL]}
             overrides={tldrawOverrides}
+            components={TLDRAW_COMPONENTS}
             onMount={(editor) => {
               editorRef.current = editor
               editor.user.updateUserPreferences({ colorScheme: mode, locale })
               editor.updateInstanceState({ isReadonly: !canWrite })
+              tryFit()
             }}
           />
         )}

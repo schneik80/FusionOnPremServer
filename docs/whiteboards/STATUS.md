@@ -212,6 +212,37 @@ The document PUT also has its own rate limiter (`whiteboardDocLim`) — it was
 previously the one write path in the app with none, and a 24 MiB unmetered body
 is a free way to thrash the disk.
 
+### The canvas moves without resizing — and what that broke
+
+Every project tab lives inside a MUI `<Slide>` that keeps panes mounted and
+moves them with `transform: translateX` (`ProjectPanel.tsx`), and a board mounts
+as soon as it is selected — including while its tab is parked off-screen. So the
+canvas routinely initialises somewhere other than where it ends up.
+
+tldraw's `MinimapManager` caches its `getBoundingClientRect()` and refreshes it
+from a **ResizeObserver**, which fires on size changes only. A transform changes
+the rect's `x` and nothing else, so the cached origin kept the off-screen value
+forever. The minimap maps a pointer to a page point with `clientX - cachedX`, so
+every click landed far away and the clamp then pinned the camera at one extreme
+and refused to pan sideways at all — the reported symptom, horizontal because
+the Slide travels on X.
+
+`web/src/whiteboards/canvasGeometry.tsx` watches the canvas wrapper's full
+rectangle — position included — using a ResizeObserver plus the events that
+accompany a move (window resize, scroll in the capture phase, and
+`transitionend`, which is how the Slide announces it has arrived; transition
+events bubble to the window, so one listener covers any ancestor). When the
+rectangle changes it remounts the minimap through
+`<Tldraw components={{ Minimap }}>`, which is the supported way to make the
+manager re-measure — there is no API to poke its cached rect.
+
+The same signal drives **zoom-to-fit on first open**. Three things must be true
+before the view can be fitted — the editor has mounted, the document has loaded,
+and the canvas is on screen — and they do not arrive in a fixed order, so each
+one attempts the fit and whichever is last performs it. The fit is capped at
+100%: zooming out to show a whole board is the point, magnifying a board holding
+one small shape to maximum zoom is not.
+
 ### Awareness stream
 
 `GET /api/whiteboards/events` is per **board**, with its own `sse.Hub`
@@ -277,6 +308,13 @@ End-to-end (needs APS login): open a project → Whiteboards → create a board 
 draw → place a task, a job/batch and a document card → reload and confirm the
 board and its cards return → rename and delete a board → confirm a read-only
 project member gets a non-editable canvas.
+
+**Opening a board** — a board with content opens fitted to it (zoomed out to
+show everything, never magnified past 100%); an empty board opens at the
+origin at 100%. Open a board while the Whiteboards tab is NOT the active one
+(select it, switch tabs, switch back) and confirm it is still fitted, then
+drag the minimap and confirm the view pans both left and right and follows the
+pointer — that combination is the regression this guards (see below).
 
 **Styling** — select a frame and confirm the style panel offers a Color row,
 that changing it repaints the frame's border and heading, and that it survives
