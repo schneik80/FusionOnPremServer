@@ -25,6 +25,26 @@ export interface GraphNode {
   name: string
   kind: string
   secondary?: string
+  // --- local (non-APS) references: a task, a chat channel, a whiteboard, a
+  // job or a batch that mentions this document. ---
+  // soft draws the edge dashed and mutes the node: a chat mention is a weaker
+  // relationship than an assembly occurrence, and the graph shouldn't imply
+  // otherwise by drawing them identically.
+  soft?: boolean
+  // count is how many references live inside that container (three cards on
+  // one board, forty messages in one channel), shown as a badge.
+  count?: number
+  // kindLabel overrides the raw kind string under the name, for kinds that
+  // need a translated label rather than a capitalized enum token.
+  kindLabel?: string
+  // detail is the tooltip's second line for a node that has no hub location to
+  // resolve (a chat excerpt, a project name, a step title). Local nodes use it
+  // instead of the APS location lookup, which they have no lineage id for.
+  detail?: string
+  // openable marks a node that answers a click without being a hub document —
+  // it opens the record's own dialog (the fls: card dialogs) instead of moving
+  // the browser.
+  openable?: boolean
 }
 
 // node geometry — width matches the permissions LayersViz boxes for consistency
@@ -32,6 +52,13 @@ const W = 100
 const H = 92
 const HGAP = 124
 const VGAP = 172
+// Relations wrap into rows of at most COLS. A document can be referenced from
+// a dozen places once local sources (chat, whiteboards, tasks, jobs, batches)
+// join the graph, and one unbounded row would either run thousands of pixels
+// wide or fit-to-view down to an unreadable 30%. Rows stack away from the
+// focus, so the first row — the structural parents — stays nearest it.
+const COLS = 8
+const ROWGAP = H + 44
 // The viewport grows to fill whatever vertical space its tab gives it (see
 // the flex:1 below); MIN_VIEW_H is just a floor so a very short panel still
 // shows a usable canvas (and scrolls) rather than collapsing.
@@ -44,6 +71,20 @@ function edgePath(sx: number, sy: number, ex: number, ey: number): string {
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+
+// slot places relation i of n in graph space: rows of COLS, each row centred on
+// the focus and pushed one ROWGAP further from it. Layout and edge geometry
+// both read from here so they can never drift apart.
+function slot(i: number, n: number, direction: 'down' | 'up'): { x: number; y: number } {
+  const row = Math.floor(i / COLS)
+  const col = i % COLS
+  const inRow = Math.min(COLS, n - row * COLS)
+  const depth = VGAP + row * ROWGAP
+  return {
+    x: inRow > 1 ? (col - (inRow - 1) / 2) * HGAP : 0,
+    y: direction === 'down' ? depth : -depth,
+  }
+}
 
 export default function RelationGraph({
   focus,
@@ -64,15 +105,12 @@ export default function RelationGraph({
   // (best-effort: a related doc in another project falls back to its kind icon).
   const projectAltId = useNav().project?.altId
 
-  // --- layout (depth-1: focus centred, relations fanned in one row) ---
+  // --- layout (depth-1: focus centred, relations fanned into rows) ---
   const placed = useMemo(() => {
-    const n = relations.length
-    const rels = relations.map((r, i) => ({
-      ...r,
-      isFocus: false,
-      x: n > 1 ? (i - (n - 1) / 2) * HGAP : 0,
-      y: direction === 'down' ? VGAP : -VGAP,
-    }))
+    const rels = relations.map((r, i) => {
+      const { x, y } = slot(i, relations.length, direction)
+      return { ...r, isFocus: false, x, y }
+    })
     // navId on the focus drives its thumbnail (drawings need the item id); it
     // stays non-navigable because canNav also checks !isFocus.
     return [{ key: '__focus__', name: focus.name, kind: focus.kind, cvId: focus.cvId, navId: focus.itemId, isFocus: true, x: 0, y: 0 }, ...rels]
@@ -98,15 +136,18 @@ export default function RelationGraph({
 
   const edges = useMemo(
     () =>
-      relations.map((_, i) => {
-        const rx = (relations.length > 1 ? (i - (relations.length - 1) / 2) * HGAP : 0) + ox
-        const ry = (direction === 'down' ? VGAP : -VGAP) + oy
+      relations.map((r, i) => {
+        const s = slot(i, relations.length, direction)
+        const rx = s.x + ox
+        const ry = s.y + oy
         const fx = 0 + ox
         const fy = 0 + oy
         // always draw from the upper endpoint down to the lower one
-        return direction === 'down'
-          ? edgePath(fx, fy + H / 2, rx, ry - H / 2)
-          : edgePath(rx, ry + H / 2, fx, fy - H / 2)
+        const d =
+          direction === 'down'
+            ? edgePath(fx, fy + H / 2, rx, ry - H / 2)
+            : edgePath(rx, ry + H / 2, fx, fy - H / 2)
+        return { d, soft: !!r.soft }
       }),
     [relations, direction, ox, oy],
   )
@@ -196,8 +237,16 @@ export default function RelationGraph({
         }}
       >
         <svg width={bounds.w} height={bounds.h} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-          {edges.map((d, i) => (
-            <path key={i} d={d} fill="none" stroke={edgeColor} strokeOpacity={0.6} strokeWidth={1.5} />
+          {edges.map((e, i) => (
+            <path
+              key={i}
+              d={e.d}
+              fill="none"
+              stroke={edgeColor}
+              strokeOpacity={e.soft ? 0.4 : 0.6}
+              strokeWidth={1.5}
+              strokeDasharray={e.soft ? '4 4' : undefined}
+            />
           ))}
         </svg>
         {placed.map((p) => (
@@ -247,7 +296,7 @@ function NodeBox({
   const { t } = useTranslation('details')
   const [imgFailed, setImgFailed] = useState(false)
   const [hovered, setHovered] = useState(false)
-  const canNav = !node.isFocus && !!node.navId
+  const canNav = !node.isFocus && (!!node.navId || !!node.openable)
   const thumbSrc = thumbnailSrc({ kind: node.kind, cvId: node.cvId, itemId: node.navId, projectAltId })
   const showThumb = !!thumbSrc && !imgFailed
 
@@ -266,6 +315,7 @@ function NodeBox({
         p: 0.75,
         border: node.isFocus ? 2 : 1,
         borderRadius: 1,
+        borderStyle: node.soft ? 'dashed' : 'solid',
         borderColor: node.isFocus ? accent : hovered && canNav ? alpha(accent, 0.6) : 'divider',
         bgcolor: hovered && canNav ? alpha(accent, 0.1) : 'background.paper',
         cursor: canNav ? 'pointer' : 'default',
@@ -302,16 +352,49 @@ function NodeBox({
         {node.name}
       </Typography>
       <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', textTransform: 'capitalize', lineHeight: 1 }}>
-        {node.isFocus ? t('relation.thisDocument') : node.kind}
+        {node.isFocus ? t('relation.thisDocument') : (node.kindLabel ?? node.kind)}
+        {node.count && node.count > 1 ? ` · ${t('relation.refCount', { count: node.count })}` : ''}
       </Typography>
     </Box>
   )
 
-  if (!canNav) return box
+  if (node.isFocus) return box
+  // A hub document resolves its project/folder path on hover; a local record
+  // (chat, whiteboard, task, job, batch) has no lineage id to resolve, and
+  // carries its context in `detail` instead.
+  const title = node.navId ? (
+    <NodeTooltip navId={node.navId} name={node.name} />
+  ) : (
+    <LocalNodeTooltip name={node.name} detail={node.detail} openable={!!node.openable} />
+  )
   return (
-    <Tooltip title={<NodeTooltip navId={node.navId!} name={node.name} />} placement="top" arrow>
+    <Tooltip title={title} placement="top" arrow>
       {box}
     </Tooltip>
+  )
+}
+
+// LocalNodeTooltip is the tooltip for a reference that lives in our own data.
+// It shows what the caller already resolved server-side — the project, the
+// channel excerpt, the step title — rather than making a lookup call.
+function LocalNodeTooltip({ name, detail, openable }: { name: string; detail?: string; openable: boolean }) {
+  const { t } = useTranslation('details')
+  return (
+    <Box sx={{ py: 0.25, maxWidth: 260 }}>
+      <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+        {name}
+      </Typography>
+      {detail ? (
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.85 }}>
+          {detail}
+        </Typography>
+      ) : null}
+      {openable ? (
+        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, opacity: 0.85 }}>
+          <FontAwesomeIcon icon={faUpRightFromSquare} style={{ fontSize: 9 }} /> {t('relation.clickToOpen')}
+        </Typography>
+      ) : null}
+    </Box>
   )
 }
 

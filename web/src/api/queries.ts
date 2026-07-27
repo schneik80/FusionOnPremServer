@@ -21,6 +21,8 @@ import type {
   GroupMember,
   HubOverview,
   Item,
+  LocalRefKind,
+  LocalRefs,
   Location,
   Meta,
   NamedProperty,
@@ -376,6 +378,25 @@ export const useDrawings = (
     queryKey: ['drawings', hubId, designItemId],
     queryFn: () => api.drawings(hubId!, designItemId!),
     enabled: enabled && !!hubId && !!designItemId,
+    staleTime: STALE,
+  })
+
+// useLocalRefs backs the Where-Used graph's local sources. The key carries the
+// selected sources so unchecking one doesn't re-fetch what is already cached,
+// and checking a new one fetches exactly the superset asked for.
+//
+// It is NOT persisted to localStorage: it reads chat, task, production and
+// whiteboard data — realtime, per-user records that must not linger on a
+// shared machine (see the dehydrate filter in main.tsx).
+export const useLocalRefs = (
+  itemId: string | undefined,
+  sources: LocalRefKind[],
+  enabled: boolean,
+): UseQueryResult<LocalRefs> =>
+  useQuery({
+    queryKey: ['localRefs', itemId, [...sources].sort().join(',')],
+    queryFn: () => api.localRefs(itemId!, sources),
+    enabled: enabled && !!itemId && sources.length > 0,
     staleTime: STALE,
   })
 

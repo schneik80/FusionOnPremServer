@@ -57,6 +57,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/items/where-used", protHub(s.handleWhereUsed))
 	mux.HandleFunc("GET /api/items/drawings", protHub(s.handleDrawings))
 	mux.HandleFunc("GET /api/items/bom", protHub(s.handleBOM))
+	// The local-store half of Where Used: our own records (tasks, chat,
+	// whiteboards, jobs, batches) that reference a document. One GetProjects
+	// call for the accessible-project scope, then local file scans.
+	mux.HandleFunc("GET /api/items/local-refs", protHub(s.handleLocalRefs))
 
 	// Permissions (project groups + roles; group members need hub-admin access).
 	mux.HandleFunc("GET /api/projects/groups", protHub(s.handleProjectGroups))

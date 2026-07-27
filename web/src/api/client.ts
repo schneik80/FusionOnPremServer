@@ -24,6 +24,8 @@ import type {
   GroupMember,
   HubOverview,
   Item,
+  LocalRefKind,
+  LocalRefs,
   Location,
   Meta,
   NamedProperty,
@@ -322,6 +324,13 @@ export const api = {
 
   drawings: (hubId: string, designItemId: string) =>
     request<DrawingRef[]>(`/api/items/drawings${qs({ hubId, designItemId })}`),
+
+  // localRefs is the local-store half of Where Used: our own records (tasks,
+  // chat, whiteboards, jobs, batches) that reference a document. sources is
+  // the checkbox selection — an unscanned source costs nothing, so the caller
+  // sends only what is switched on.
+  localRefs: (itemId: string, sources: LocalRefKind[]) =>
+    request<LocalRefs>(`/api/items/local-refs${qs({ itemId, sources: sources.join(',') })}`),
 
   bom: (cvId: string) => request<BOMRow[]>(`/api/items/bom${qs({ cvId })}`),
 

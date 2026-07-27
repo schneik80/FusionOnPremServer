@@ -46,5 +46,17 @@
     "wip": "In lavorazione",
     "version": "Versione",
     "released": "Rilasciato – Rev. {{revision}}"
+  },
+  "localRefKind": {
+    "task": "Attività",
+    "chat": "Chat",
+    "whiteboard": "Lavagna",
+    "job": "Lavoro",
+    "batch": "Lotto"
+  },
+  "localRefVia": {
+    "step": "Fase",
+    "fulfillment": "Fornito",
+    "reference": "Allegato"
   }
 }
