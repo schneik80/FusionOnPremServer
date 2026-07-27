@@ -23,6 +23,10 @@ reachable on the LAN  url=https://localhost:8080
 reachable on the LAN  url=https://192.168.1.50:8080
 ```
 
+New here? [**docs/getting-started.md**](docs/getting-started.md) walks the whole
+thing end to end — install, sign-in, hubs, every feature, and setting up your
+team.
+
 The first time, `-tls` generates and caches a self-signed certificate under `~/.config/fusionlocalserver/` (browsers warn once — accept it); pass `-tls-cert`/`-tls-key` to supply your own PEM pair. Open one of those URLs in a browser and click **Sign in with Autodesk**. Each visitor authenticates with their own Autodesk account; the server holds their tokens in a per-session store keyed by an `HttpOnly` cookie, and proxies their data calls under their own identity. Tokens never reach the browser's JavaScript.
 
 > ⚠️ **Don't disable TLS on a shared network.** Over plain HTTP the session cookie is not marked `Secure` (browsers drop `Secure` cookies over `http://`), so anyone able to sniff the wire could capture a cookie and hijack that user's session until it expires. `make run` keeps `-tls` on for this reason; only override it (`make run TLS=`) behind a TLS-terminating proxy or for loopback-only testing. A warning is logged when the server binds a non-loopback address over plain HTTP.
@@ -132,6 +136,7 @@ The whiteboards feature uses [tldraw](https://tldraw.dev), which requires a lice
 
 | Doc | What it covers |
 |---|---|
+| [`docs/getting-started.md`](docs/getting-started.md) | **Start here** — install → sign in → hub → every feature, end to end |
 | [`docs/web-ui.md`](docs/web-ui.md) | The full UI tour: sign-in, hub selection, the browser, project apps, settings |
 | [`docs/architecture.md`](docs/architecture.md) | C4 diagrams, package layout, request/session flow, stores, resilience |
 | [`docs/authentication.md`](docs/authentication.md) | Per-user OAuth (PKCE) login, sessions, cookies, token refresh |
