@@ -27,9 +27,17 @@ type NotificationDTO struct {
 	ChannelID   string        `json:"channelId,omitempty"`
 	ChannelName string        `json:"channelName,omitempty"`
 	MessageSeq  int64         `json:"messageSeq,omitempty"`
-	Read        bool          `json:"read"`
-	CreatedAt   string        `json:"createdAt"`
-	ReadAt      string        `json:"readAt,omitempty"`
+	// Count is how many things this row stands for — the unread message count
+	// on a derived chat row. Absent (0) on stored rows, which each represent
+	// exactly one event.
+	Count int `json:"count,omitempty"`
+	// Derived marks a row computed at read time from live state rather than
+	// stored in the inbox. It has no store id, so it cannot be marked read or
+	// dismissed; reading the underlying channel clears it.
+	Derived   bool   `json:"derived,omitempty"`
+	Read      bool   `json:"read"`
+	CreatedAt string `json:"createdAt"`
+	ReadAt    string `json:"readAt,omitempty"`
 }
 
 // NotificationListDTO is GET /api/notifications: the caller's inbox plus the

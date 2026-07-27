@@ -14,7 +14,9 @@
     "due_soon": "“{{subject}}” vence em breve",
     "overdue": "“{{subject}}” está atrasada",
     "production": "{{actor}} atualizou “{{subject}}”",
-    "production_noactor": "“{{subject}}” mudou"
+    "production_noactor": "“{{subject}}” mudou",
+    "chat_unread_one": "{{count}} nova mensagem em {{channel}}",
+    "chat_unread_other": "{{count}} novas mensagens em {{channel}}"
   },
   "unknownUser": "Alguém"
 }

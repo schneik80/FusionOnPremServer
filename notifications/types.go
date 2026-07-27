@@ -55,6 +55,11 @@ const (
 	KindDueSoon    = "due_soon"   // a task assigned to you is due within the window
 	KindOverdue    = "overdue"    // a task assigned to you is past its due date
 	KindProduction = "production" // a production job/batch you own changed
+	// KindChatUnread is DERIVED at inbox-read time from chat's read cursors,
+	// never stored: one row per channel with unread messages. It is not accepted
+	// by Add — validKind below deliberately excludes it — because a stored copy
+	// would go stale the moment the channel was read.
+	KindChatUnread = "chat_unread"
 )
 
 func validKind(k string) bool {

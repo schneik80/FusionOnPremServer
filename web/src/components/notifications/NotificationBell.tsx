@@ -3,6 +3,7 @@ import {
   faBell,
   faCheckDouble,
   faClock,
+  faComments,
   faDiagramProject,
   faListCheck,
   faTriangleExclamation,
@@ -40,6 +41,7 @@ const KIND_TAB: Record<NotifKind, string> = {
   due_soon: 'tasks',
   overdue: 'tasks',
   production: 'production',
+  chat_unread: 'chat',
 }
 
 const KIND_ICON: Record<NotifKind, IconDefinition> = {
@@ -48,6 +50,7 @@ const KIND_ICON: Record<NotifKind, IconDefinition> = {
   due_soon: faClock,
   overdue: faTriangleExclamation,
   production: faDiagramProject,
+  chat_unread: faComments,
 }
 
 // notifText composes the localized one-line summary from the kind plus the
@@ -74,6 +77,11 @@ function notifText(t: TFunction, n: Notification): string {
       return n.actor
         ? t('notifications:text.production', { actor, subject })
         : t('notifications:text.production_noactor', { subject })
+    case 'chat_unread':
+      return t('notifications:text.chat_unread', {
+        count: n.count ?? 0,
+        channel: n.channelName || subject,
+      })
     default:
       return subject
   }
@@ -105,7 +113,9 @@ export function NotificationBell() {
   const unread = q.data?.unread ?? 0
 
   const onRowClick = (n: Notification) => {
-    if (!n.read) markRead.mutate([n.id])
+    // A derived row has no store id to mark: it clears itself once the channel
+    // it points at has been read.
+    if (!n.read && !n.derived) markRead.mutate([n.id])
     const project = n.projectId ? projectById.get(n.projectId) : undefined
     if (project) {
       nav.navigate(project, [], null, KIND_TAB[n.kind])
@@ -192,7 +202,12 @@ export function NotificationBell() {
               <ListItem
                 key={n.id}
                 disablePadding
+                // A derived row has nothing to dismiss — it exists only while
+                // the channel it names has unread messages, and reading them is
+                // what removes it. Offering an X that did nothing would be worse
+                // than offering none.
                 secondaryAction={
+                  n.derived ? undefined : (
                   <Tooltip title={t('notifications:bell.dismiss')}>
                     <IconButton
                       edge="end"
@@ -207,6 +222,7 @@ export function NotificationBell() {
                       <FontAwesomeIcon icon={faXmark} style={{ fontSize: 12 }} />
                     </IconButton>
                   </Tooltip>
+                  )
                 }
               >
                 <ListItemButton
