@@ -335,6 +335,7 @@ function VersionTooltip({ v }: { v: VersionSummary }) {
           component="img"
           src={thumb!}
           alt=""
+          draggable={false} // a native image drag would fight the pan gesture
           onError={() => setImgFailed(true)}
           sx={{
             display: 'block',

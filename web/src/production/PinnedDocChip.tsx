@@ -115,6 +115,7 @@ export function PinnedDocChip({
             component="img"
             src={thumb!}
             alt=""
+            draggable={false} // a chip is a control, not a draggable image
             onError={() => setImgFailed(true)}
             sx={{ maxWidth: '100%', maxHeight: 34, objectFit: 'contain' }}
           />

@@ -238,25 +238,72 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
   targetRef.current = target
   useEffect(() => {
     let depth = 0
-    const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files')
+    // A drag that started inside the SPA is never a file upload. Dragging an
+    // element that the browser drags natively — a card's <img> thumbnail — puts
+    // 'Files' in dataTransfer.types (Chrome offers the image as a file promise),
+    // so moving a document card used to read as an incoming file drag and raise
+    // the drop overlay out of nowhere.
+    let internal = false
+    let idle: ReturnType<typeof setTimeout> | undefined
+
+    const stop = () => {
+      depth = 0
+      if (idle !== undefined) {
+        clearTimeout(idle)
+        idle = undefined
+      }
+      setDragActive(false)
+    }
+    // Recovery watchdog. dragover fires continuously while a drag is in flight,
+    // so a gap means the drag ended without us hearing the end of it: the drop
+    // landed in a subtree that stops propagation (tldraw's canvas does), or the
+    // drag was cancelled, or it left the window. The overlay is a full-window
+    // scrim with no controls, so a missed end would strand the UI.
+    const keepAlive = () => {
+      if (idle !== undefined) clearTimeout(idle)
+      idle = setTimeout(stop, 1200)
+    }
+    // Subtrees that handle their own drops (the whiteboard canvas) opt out of
+    // the app-wide upload path — see data-fls-drop-owner.
+    const ownsDrop = (e: DragEvent) =>
+      e.target instanceof Element && !!e.target.closest('[data-fls-drop-owner]')
+    const isFileDrag = (e: DragEvent) =>
+      !internal && Array.from(e.dataTransfer?.types ?? []).includes('Files')
+
+    const onDragStart = () => {
+      internal = true
+      stop()
+    }
+    const onDragEnd = () => {
+      internal = false
+      stop()
+    }
+    // Self-heal: dragend is fired at the source node, so a source that unmounts
+    // mid-drag takes the end of the drag with it and would leave every later
+    // file drop classified as internal. No pointer event is delivered while a
+    // drag is in flight, so the next pointerdown proves there isn't one.
+    const onPointerDown = () => {
+      internal = false
+    }
     const onDragEnter = (e: DragEvent) => {
-      if (!hasFiles(e) || !targetRef.current) return
+      if (!isFileDrag(e) || !targetRef.current || ownsDrop(e)) return
       depth += 1
+      keepAlive()
       setDragActive(true)
     }
     const onDragOver = (e: DragEvent) => {
-      if (!hasFiles(e) || !targetRef.current) return
+      if (!isFileDrag(e) || !targetRef.current || ownsDrop(e)) return
+      if (depth > 0) keepAlive()
       e.preventDefault() // required for the drop to be allowed at all
     }
     const onDragLeave = (e: DragEvent) => {
-      if (!hasFiles(e)) return
+      if (!isFileDrag(e)) return
       depth = Math.max(0, depth - 1)
-      if (depth === 0) setDragActive(false)
+      if (depth === 0) stop()
     }
     const onDrop = (e: DragEvent) => {
-      depth = 0
-      setDragActive(false)
-      if (!hasFiles(e) || !targetRef.current) return
+      stop()
+      if (!isFileDrag(e) || !targetRef.current || ownsDrop(e)) return
       e.preventDefault()
       const files = collectFiles(e.dataTransfer)
       if (files.length) {
@@ -264,11 +311,21 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         setDialogOpen(true)
       }
     }
+    // dragstart/dragend only fire for drags that begin in this document, and
+    // they are watched in the capture phase so a subtree that stops propagation
+    // can't hide the start (or, worse, the end) of an in-app drag from us.
+    window.addEventListener('dragstart', onDragStart, true)
+    window.addEventListener('dragend', onDragEnd, true)
+    window.addEventListener('pointerdown', onPointerDown, true)
     window.addEventListener('dragenter', onDragEnter)
     window.addEventListener('dragover', onDragOver)
     window.addEventListener('dragleave', onDragLeave)
     window.addEventListener('drop', onDrop)
     return () => {
+      if (idle !== undefined) clearTimeout(idle)
+      window.removeEventListener('dragstart', onDragStart, true)
+      window.removeEventListener('dragend', onDragEnd, true)
+      window.removeEventListener('pointerdown', onPointerDown, true)
       window.removeEventListener('dragenter', onDragEnter)
       window.removeEventListener('dragover', onDragOver)
       window.removeEventListener('dragleave', onDragLeave)

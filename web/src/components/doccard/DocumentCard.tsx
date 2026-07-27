@@ -144,6 +144,13 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
               component="img"
               src={thumb}
               alt=""
+              // The card is a control: the browser must not start a native
+              // image drag from it. That drag advertises the image as a file
+              // (Chrome puts 'Files' in dataTransfer.types), which reads as an
+              // incoming upload to the app-wide drop handler, and it fights
+              // whatever the card is embedded in — moving a card on a
+              // whiteboard, panning a graph.
+              draggable={false}
               onError={() => setThumbFailed(true)}
               sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
             />

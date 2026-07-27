@@ -116,6 +116,7 @@ export function ItemRow({
               component="img"
               src={thumbSrc}
               alt=""
+              draggable={false} // a row is a control, not a draggable image
               onError={() => setThumbFailed(true)}
               sx={{ width: 22, height: 22, objectFit: 'contain', borderRadius: 0.5, display: 'block' }}
             />

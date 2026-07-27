@@ -396,7 +396,16 @@ export function WhiteboardCanvas({
         </Stack>
       )}
 
-      <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }} className="fls-tldraw">
+      {/* data-fls-drop-owner: the canvas handles its own drops (tldraw turns a
+          dropped file into a shape and stops the event propagating), so the
+          app-wide upload drop handler in state/uploads.tsx stays out of it —
+          otherwise a drop here also opened the upload dialog, and the drop it
+          never saw left the upload overlay stuck over the whole window. */}
+      <Box
+        sx={{ flex: 1, minHeight: 0, position: 'relative' }}
+        className="fls-tldraw"
+        data-fls-drop-owner=""
+      >
         {loading && (
           <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', zIndex: 2 }}>
             <CircularProgress size={22} />

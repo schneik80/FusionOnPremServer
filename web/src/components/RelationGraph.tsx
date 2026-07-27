@@ -290,6 +290,7 @@ function NodeBox({
             component="img"
             src={thumbSrc!}
             alt=""
+            draggable={false} // a native image drag would fight the pan gesture
             onError={() => setImgFailed(true)}
             sx={{ maxWidth: '100%', maxHeight: 46, objectFit: 'contain', borderRadius: 0.5 }}
           />
