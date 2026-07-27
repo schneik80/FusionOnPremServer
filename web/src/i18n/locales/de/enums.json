@@ -46,5 +46,17 @@
     "wip": "In Arbeit",
     "version": "Version",
     "released": "Freigegeben – Rev. {{revision}}"
+  },
+  "localRefKind": {
+    "task": "Aufgabe",
+    "chat": "Chat",
+    "whiteboard": "Whiteboard",
+    "job": "Auftrag",
+    "batch": "Charge"
+  },
+  "localRefVia": {
+    "step": "Schritt",
+    "fulfillment": "Bereitgestellt",
+    "reference": "Angehängt"
   }
 }

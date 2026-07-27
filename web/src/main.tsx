@@ -60,7 +60,9 @@ createRoot(document.getElementById('root')!).render(
           // prodJob/prodJobs; 'whiteboard' covers the board list; 'admin'
           // covers adminStatus/adminLogTail — live server state, re-fetched
           // whenever the Settings console opens; 'notif' covers the bell's
-          // per-user inbox + unread count, which are realtime and per-user.)
+          // per-user inbox + unread count, which are realtime and per-user;
+          // 'localRefs' is the Where-Used graph's local sources, which read
+          // all of the above and inherit the same posture.)
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
             q.queryKey[0] !== 'authMe' &&
@@ -70,6 +72,7 @@ createRoot(document.getElementById('root')!).render(
             !String(q.queryKey[0]).startsWith('prod') &&
             !String(q.queryKey[0]).startsWith('whiteboard') &&
             !String(q.queryKey[0]).startsWith('notif') &&
+            !String(q.queryKey[0]).startsWith('localRefs') &&
             !String(q.queryKey[0]).startsWith('admin'),
         },
       }}

@@ -520,6 +520,58 @@ query GetDrawingSource($hubId: ID!, $itemId: ID!) {
 
 Returns `[]ComponentRef` of length 0 or 1 (typically 1 — most drawings have a single source design). Uses the tip drawing version; older drawing versions that pointed at different designs are not surfaced (rare edge case).
 
+### GET /api/items/local-refs — local where-used sources
+
+The Where Used tab draws two kinds of parent. The APS ones above (parent
+designs, drawings), and **our own records that reference the document**: a
+task's attached doc cards, a chat channel's messages, a whiteboard's app cards,
+a job's version-pinned plan documents, a batch's frozen plan / fulfilments /
+attached refs. Each is a checkbox on the tab, and an unchecked source is never
+scanned — the client sends `sources=task,chat,whiteboard,job,batch`.
+
+`handleLocalRefs` (`server/handlers_localrefs.go`) makes exactly **one upstream
+call** — `api.GetProjects`, for the accessible-project scope — and everything
+after it is a local file scan. There is no per-item or per-project fan-out, so
+turning every source on costs the same single APS call the tab already pays for
+`GetProjects` elsewhere.
+
+**Prefilter.** `internal/docref` is the shared reader for the `fls:doc?…`
+tokens the web app stores inline. Because a token carries the lineage urn
+percent-encoded, the raw urn is not a substring of the stored bytes; `Key`
+takes the urn's last colon-separated segment (base64url-ish, untouched by
+form-urlencoding) so a whole file can be rejected with `bytes.Contains` before
+anything is parsed. That is what makes the two heavy stores affordable:
+
+| Source | Storage | Scan |
+|---|---|---|
+| Tasks | one small `tasks.json` per project | prefilter, then `DocRefs` + description |
+| Jobs / batches | one `production.json` per project | prefilter, then `DocSnapshot.ItemID` + batch refs |
+| Chat | append-only JSONL, one log per channel | prefilter per log; survivors get a real replay (an edit that removed the token drops the message, a deleted message never counts) |
+| Whiteboards | one `doc-<id>.json` per board, up to 24 MiB | prefilter on raw bytes; only a surviving document is counted |
+
+**Authorization** is two-layer. The accessible-project set from `GetProjects`
+scopes every scan (the same requirement `handleHubOverview` documents — these
+scans read *everyone's* records). Private chat channels are then filtered
+again by their ACL, locally: a hit is kept only if the caller is on the member
+list. That is deliberately stricter than `CanAccessChannel`, which also admits
+project Managers/Administrators — honouring that would mean a roster fetch per
+project with a private hit. A moderator therefore sees a private channel's
+references from inside chat but not in the graph: under-reporting, never
+leaking.
+
+**Wiki pages are not a source.** They are markdown files stored in Fusion Team
+(`api/wiki.go`), not a local store, so finding references in them would mean a
+folder listing plus a download per page per project — the per-row fan-out the
+APS quota punishes. Indexing tokens at publish time is the way in if it's
+wanted later.
+
+Results are aggregated per container (one node per channel, not per message)
+with `count` carrying the references inside it, capped at 200 with
+`truncated: true` on the envelope — the tab says so rather than silently
+under-reporting. Task/job/batch hits carry the matching `fls:` token, so
+clicking the node opens the same dialog the card does; chat and whiteboard
+hits have no token scheme and are not navigable.
+
 ### GetItemLocation — Show in Location
 
 ```graphql

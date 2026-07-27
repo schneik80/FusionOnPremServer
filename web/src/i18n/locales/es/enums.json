@@ -46,5 +46,17 @@
     "wip": "En curso",
     "version": "Versión",
     "released": "Publicado – Rev. {{revision}}"
+  },
+  "localRefKind": {
+    "task": "Tarea",
+    "chat": "Chat",
+    "whiteboard": "Pizarra",
+    "job": "Trabajo",
+    "batch": "Lote"
+  },
+  "localRefVia": {
+    "step": "Paso",
+    "fulfillment": "Suministrado",
+    "reference": "Adjunto"
   }
 }

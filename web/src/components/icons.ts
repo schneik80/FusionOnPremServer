@@ -1,12 +1,16 @@
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import {
   faBuilding,
+  faChalkboard,
+  faComments,
   faCube,
   faCubes,
   faDiagramProject,
   faFile,
+  faFlask,
   faFolder,
   faGears,
+  faListCheck,
   faMicrochip,
   faPenRuler,
 } from '@fortawesome/free-solid-svg-icons'
@@ -33,6 +37,19 @@ export function iconForItem(item: Pick<Item, 'kind' | 'subtype'>): IconDefinitio
     case 'pcb':
     case 'ecad':
       return faMicrochip
+    // Local records, not hub documents: the Where-Used graph draws them beside
+    // parent designs, so they need glyphs too. Each matches the icon its own
+    // app and card already use.
+    case 'task':
+      return faListCheck
+    case 'chat':
+      return faComments
+    case 'whiteboard':
+      return faChalkboard
+    case 'job':
+      return faDiagramProject
+    case 'batch':
+      return faFlask
     default:
       return faFile
   }

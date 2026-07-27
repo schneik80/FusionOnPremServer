@@ -276,6 +276,41 @@ export interface DrawingRef {
   fusionWebUrl?: string
 }
 
+// LocalRefKind is a source of local (non-APS) where-used relationships: our
+// own records that reference a hub document. Wiki pages are absent by design —
+// they live in Fusion Team, not in a local store, so finding references in
+// them would cost an APS download per page (see handlers_localrefs.go).
+export type LocalRefKind = 'task' | 'chat' | 'whiteboard' | 'job' | 'batch'
+
+export const LOCAL_REF_KINDS: LocalRefKind[] = ['task', 'chat', 'whiteboard', 'job', 'batch']
+
+// LocalRef mirrors server.LocalRefDTO — one container of ours (a task, a chat
+// channel, a whiteboard, a job's plan, a batch) that references a document,
+// with count carrying how many references it holds.
+export interface LocalRef {
+  kind: LocalRefKind
+  key: string
+  name: string
+  projectId: string
+  projectName: string
+  // token is the fls: token for the referencing record when it has one
+  // (task/job/batch), so the graph node can open the same dialog its card
+  // does. Chat channels and whiteboards have no token scheme.
+  token?: string
+  count: number
+  detail?: string // free text from the user's own data — never translated
+  via?: string // production: step | fulfillment | reference
+  author?: string
+  at?: string
+  status?: string // task status or batch kind
+}
+
+export interface LocalRefs {
+  refs: LocalRef[]
+  truncated: boolean
+  cap: number
+}
+
 // ProjectGroup mirrors server.ProjectGroupDTO — a group with access to the
 // item's project, and its role.
 export interface ProjectGroup {

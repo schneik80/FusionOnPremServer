@@ -36,6 +36,7 @@ import {
   useDescendants,
   useDesignActivity,
   useDrawings,
+  useLocalRefs,
   useMeta,
   useRollupActivity,
   useItemDetails,
@@ -44,18 +45,20 @@ import {
   useUses,
   useWhereUsed,
 } from '../api/queries'
-import type { ComponentRef, Details, DrawingRef, Item, Measure } from '../api/types'
+import type { ComponentRef, Details, DrawingRef, Item, LocalRef, Measure } from '../api/types'
+import { LOCAL_REF_KINDS } from '../api/types'
 import { documentState, type DocumentState } from '../api/documentState'
 import { thumbnailSrc } from '../api/thumbnails'
 import { useNav } from '../state/nav'
 import { useGoToDocument } from '../state/goto'
 import { ItemIcon } from './entityIcons'
 import { TAB_SLIDE_TIMEOUT } from './motion'
-import { docStateLabel } from '../i18n/enums'
+import { batchKindLabel, docStateLabel, localRefKindLabel, localRefViaLabel, taskStatusLabel } from '../i18n/enums'
 import ActivityHeatmap from './ActivityHeatmap'
 import HistoryGraph from './HistoryGraph'
 import PermissionsExplorer from './PermissionsExplorer'
 import RelationGraph, { type GraphNode } from './RelationGraph'
+import { RefTokenDialog } from './RefTokenDialog'
 import { ViewerTab } from './viewers/ViewerTab'
 
 // The Details metadata is now always shown (in the header, beside the
@@ -831,19 +834,89 @@ function UsesTab({ item, hubId, cvId, active }: { item: Item; hubId: string | nu
   )
 }
 
-// WhereUsedTab shows the parent designs (and optionally drawings) that use this
-// document; clicking a node jumps to that document's Where Used tab.
+// WHERE_USED_SOURCES are the parent kinds the graph can draw, in checkbox
+// order. 'drawing' is the APS one (a second GraphQL call); the rest are local
+// records — one request covering every checked local source, so unchecking one
+// genuinely removes work rather than just hiding rows.
+const WHERE_USED_SOURCES = ['drawing', ...LOCAL_REF_KINDS] as const
+type WhereUsedSource = (typeof WHERE_USED_SOURCES)[number]
+
+// Catalog keys for the checkbox labels (plural — they name a whole source).
+// The kind line under an individual node uses the singular enum token instead.
+const SOURCE_LABEL: Record<WhereUsedSource, string> = {
+  drawing: 'details.source.drawing',
+  task: 'details.source.task',
+  chat: 'details.source.chat',
+  whiteboard: 'details.source.whiteboard',
+  job: 'details.source.job',
+  batch: 'details.source.batch',
+}
+
+// localRefsToNodes maps our own records onto graph nodes. They're marked soft:
+// a chat mention or a whiteboard card is a weaker relationship than a parent
+// assembly's occurrence, and the graph says so with a dashed edge rather than
+// letting the two read as equivalent.
+function localRefsToNodes(refs: LocalRef[], t: TFunction): GraphNode[] {
+  return refs.map((r) => {
+    const context = [
+      r.projectName,
+      r.via ? localRefViaLabel(t, r.via) : undefined,
+      r.status ? enumStatusLabel(t, r.kind, r.status) : undefined,
+      r.author,
+      r.detail,
+    ]
+      .filter(Boolean)
+      .join(' · ')
+    return {
+      key: r.key,
+      name: r.name,
+      kind: r.kind,
+      kindLabel: localRefKindLabel(t, r.kind),
+      soft: true,
+      count: r.count,
+      openable: !!r.token,
+      detail: context,
+    }
+  })
+}
+
+// enumStatusLabel renders the one status field a local ref carries, which
+// means something different per kind (a task's workflow status, a batch's
+// prove/production kind).
+function enumStatusLabel(t: TFunction, kind: string, status: string): string {
+  if (kind === 'task') return taskStatusLabel(t, status)
+  if (kind === 'batch') return batchKindLabel(t, status)
+  return status
+}
+
+// WhereUsedTab shows everything that references this document: the parent
+// designs that use it, optionally its drawings, and — the local half — our own
+// tasks, chat channels, whiteboards, job plans and batch runs that mention it.
+// Each source has a checkbox; clicking a node jumps to a document's Where Used
+// tab, or opens a local record's own dialog.
+//
+// Wiki pages are not a source. They're markdown files in Fusion Team rather
+// than a local store, so scanning them would cost an APS download per page —
+// the per-row fan-out this app never does (see handlers_localrefs.go).
 function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string | null; cvId?: string; active: boolean }) {
   const { t } = useTranslation('details')
   const goTo = useGoToDocument()
-  const [showDrawings, setShowDrawings] = useState(true)
+  const [off, setOff] = useState<WhereUsedSource[]>([])
+  const [openToken, setOpenToken] = useState<string | null>(null)
+  const on = (s: WhereUsedSource) => !off.includes(s)
+  const toggle = (s: WhereUsedSource) =>
+    setOff((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
+
+  const localSources = LOCAL_REF_KINDS.filter(on)
   const wuQ = useWhereUsed(cvId, active)
-  const dwgQ = useDrawings(hubId, item.id, active && showDrawings)
+  const dwgQ = useDrawings(hubId, item.id, active && on('drawing'))
+  const localQ = useLocalRefs(item.id, localSources, active)
+
   if (wuQ.isLoading) return <TabSpinner />
   if (wuQ.error) return <TabError error={wuQ.error as Error} />
 
   const parents = componentRefsToNodes(wuQ.data ?? [])
-  const drawings: GraphNode[] = showDrawings
+  const drawings: GraphNode[] = on('drawing')
     ? (dwgQ.data ?? []).map((d) => ({
         key: 'dwg:' + d.drawingItemId,
         navId: d.drawingItemId,
@@ -852,32 +925,76 @@ function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string
         secondary: d.modifiedBy || undefined,
       }))
     : []
-  const relations = [...parents, ...drawings]
+  const localRefs = localSources.length > 0 ? (localQ.data?.refs ?? []) : []
+  const locals = localRefsToNodes(localRefs, t)
+  const relations = [...parents, ...drawings, ...locals]
+  const tokenByKey = new Map(localRefs.filter((r) => r.token).map((r) => [r.key, r.token!]))
+
   return (
     <Stack spacing={1} sx={{ height: '100%' }}>
-      <FormControlLabel
-        sx={{ m: 0 }}
-        control={<Checkbox size="small" checked={showDrawings} onChange={(e) => setShowDrawings(e.target.checked)} />}
-        label={<Typography variant="body2">{t('details.showDrawings')}</Typography>}
-      />
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 1.5 }}>
+        {WHERE_USED_SOURCES.map((s) => (
+          <FormControlLabel
+            key={s}
+            sx={{ m: 0 }}
+            control={<Checkbox size="small" checked={on(s)} onChange={() => toggle(s)} />}
+            label={<Typography variant="body2">{t(SOURCE_LABEL[s])}</Typography>}
+          />
+        ))}
+        {localQ.isFetching ? <CircularProgress size={14} /> : null}
+      </Box>
       {relations.length === 0 ? (
-        <TabEmpty text={t('details.notUsedByAnyDesign')} />
+        // With local sources switched on the tab is no longer only about
+        // parent designs, so the empty state must not claim it is.
+        <TabEmpty
+          text={
+            localSources.length > 0 || on('drawing')
+              ? t('details.noReferences')
+              : t('details.notUsedByAnyDesign')
+          }
+        />
       ) : (
         <RelationGraph
           focus={{ name: item.name, kind: item.kind, cvId, itemId: item.id }}
           relations={relations}
           direction="up"
-          onNavigate={(n) => goTo({ itemId: n.navId!, name: n.name, kind: n.kind, componentVersionId: n.cvId }, { tab: 'whereUsed' })}
+          onNavigate={(n) => {
+            const token = tokenByKey.get(n.key)
+            if (token) {
+              setOpenToken(token)
+              return
+            }
+            goTo({ itemId: n.navId!, name: n.name, kind: n.kind, componentVersionId: n.cvId }, { tab: 'whereUsed' })
+          }}
         />
       )}
+      {openToken ? <RefTokenDialog token={openToken} onClose={() => setOpenToken(null)} /> : null}
       <RelationStats
         text={
           <>
             <Trans t={t} i18nKey="details.whereUsedParents" count={parents.length} components={{ b: <b /> }} />
-            {showDrawings && drawings.length > 0 ? (
+            {on('drawing') && drawings.length > 0 ? (
               <>
                 {' · '}
                 {t('details.whereUsedDrawings', { count: drawings.length })}
+              </>
+            ) : null}
+            {locals.length > 0 ? (
+              <>
+                {' · '}
+                {t('details.whereUsedLocal', { count: locals.length })}
+              </>
+            ) : null}
+            {localQ.data?.truncated ? (
+              <>
+                {' · '}
+                {t('details.whereUsedTruncated', { count: localQ.data.cap })}
+              </>
+            ) : null}
+            {localQ.error ? (
+              <>
+                {' · '}
+                {t('details.whereUsedLocalUnavailable')}
               </>
             ) : null}
             {' · '}

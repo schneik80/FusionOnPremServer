@@ -17,6 +17,12 @@ export const batchKindLabel = (t: TFunction, k: string) => lookup(t, 'batchKind'
 export const batchStatusLabel = (t: TFunction, s: string) => lookup(t, 'batchStatus', s)
 export const roleLabel = (t: TFunction, r: string) => lookup(t, 'role', r.toUpperCase())
 
+// localRefKindLabel names a local where-used source ("task", "chat", …) and
+// localRefViaLabel how a production reference was made ("step",
+// "fulfillment", "reference") — both server tokens, both rendered here.
+export const localRefKindLabel = (t: TFunction, k: string) => lookup(t, 'localRefKind', k)
+export const localRefViaLabel = (t: TFunction, v: string) => lookup(t, 'localRefVia', v)
+
 // typeTagLabel localizes the short item-kind tag ("asm", "dwg", …). Most
 // locales keep the English abbreviations; the indirection exists so any
 // locale that wants native tags can supply them.
