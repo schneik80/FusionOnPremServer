@@ -49,7 +49,7 @@ createRoot(document.getElementById('root')!).render(
         persister,
         maxAge: DAY,
         // Bump when query shapes change to invalidate stale persisted caches.
-        buster: 'fls-13',
+        buster: 'fls-14',
         dehydrateOptions: {
           // Persist only successful, non-volatile queries. Auth state must stay
           // fresh (and persisting it could briefly show a prior user's state);
@@ -59,7 +59,8 @@ createRoot(document.getElementById('root')!).render(
           // ('task' covers task/tasks/tasksMine; 'prod' covers
           // prodJob/prodJobs; 'whiteboard' covers the board list; 'admin'
           // covers adminStatus/adminLogTail — live server state, re-fetched
-          // whenever the Settings console opens.)
+          // whenever the Settings console opens; 'notif' covers the bell's
+          // per-user inbox + unread count, which are realtime and per-user.)
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
             q.queryKey[0] !== 'authMe' &&
@@ -68,6 +69,7 @@ createRoot(document.getElementById('root')!).render(
             !String(q.queryKey[0]).startsWith('task') &&
             !String(q.queryKey[0]).startsWith('prod') &&
             !String(q.queryKey[0]).startsWith('whiteboard') &&
+            !String(q.queryKey[0]).startsWith('notif') &&
             !String(q.queryKey[0]).startsWith('admin'),
         },
       }}

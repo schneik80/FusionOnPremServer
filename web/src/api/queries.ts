@@ -53,6 +53,7 @@ import type {
   StepPatch,
 } from '../production/types'
 import type { WhiteboardDraft, WhiteboardList, WhiteboardPatch } from '../whiteboards/types'
+import type { NotificationList } from '../notifications/types'
 import {
   appendPendingMessage,
   applyUnread,
@@ -1057,4 +1058,59 @@ export function useWikiRename(hubId: string | null, dmProjectId: string | null |
       void qc.invalidateQueries({ queryKey: ['wikiPages', hubId, dmProjectId] })
     },
   })
+}
+
+// ---- notifications (app-chrome bell) ----
+
+// useNotifications polls the caller's per-user inbox. Keyed 'notifs' so it is
+// excluded from localStorage persistence (per-user realtime; see the
+// dehydrate filter in main.tsx). The poll is gated on `enabled` — only while
+// the app chrome is mounted and the tab is active — and refreshes on a slow
+// cadence since the inbox is not latency-critical.
+export const useNotifications = (enabled: boolean): UseQueryResult<NotificationList> =>
+  useQuery({
+    queryKey: ['notifs'],
+    queryFn: () => api.notifications(),
+    enabled,
+    staleTime: 15_000,
+    refetchInterval: enabled ? 45_000 : false,
+  })
+
+// useNotificationActions bundles the bell's writes: mark-read (a set of ids),
+// mark-all-read, and dismiss. Each patches the ['notifs'] cache from the
+// server's fresh unread count so the badge updates without a refetch.
+export function useNotificationActions() {
+  const qc = useQueryClient()
+  const patch = (fn: (list: NotificationList) => NotificationList) => {
+    qc.setQueryData<NotificationList>(['notifs'], (prev) => (prev ? fn(prev) : prev))
+  }
+  const markRead = useMutation({
+    mutationFn: (ids: string[]) => api.notifMarkRead(ids),
+    onSuccess: (res, ids) => {
+      const set = new Set(ids)
+      patch((list) => ({
+        unread: res.unread,
+        notifications: list.notifications.map((n) => (set.has(n.id) ? { ...n, read: true } : n)),
+      }))
+    },
+  })
+  const markAllRead = useMutation({
+    mutationFn: () => api.notifMarkAllRead(),
+    onSuccess: (res) => {
+      patch((list) => ({
+        unread: res.unread,
+        notifications: list.notifications.map((n) => ({ ...n, read: true })),
+      }))
+    },
+  })
+  const dismiss = useMutation({
+    mutationFn: (id: string) => api.notifDismiss(id),
+    onSuccess: (res, id) => {
+      patch((list) => ({
+        unread: res.unread,
+        notifications: list.notifications.filter((n) => n.id !== id),
+      }))
+    },
+  })
+  return { markRead, markAllRead, dismiss }
 }

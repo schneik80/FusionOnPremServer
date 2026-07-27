@@ -81,5 +81,9 @@
   },
   "typing_one": "{{name}} sta scrivendo…",
   "typing_other": "{{count}} persone stanno scrivendo…",
-  "typingTwo": "{{a}} e {{b}} stanno scrivendo…"
+  "typingTwo": "{{a}} e {{b}} stanno scrivendo…",
+  "mention": {
+    "unknown": "qualcuno",
+    "at": "@{{name}}"
+  }
 }

@@ -6,17 +6,48 @@ import {
   faSquarePlus,
 } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material'
-import { useState } from 'react'
+import {
+  Box,
+  IconButton,
+  MenuItem,
+  MenuList,
+  Paper,
+  Popper,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { encodeDocRef, docRefFromItem } from '../components/doccard/docref'
 import { encodeTaskRef, taskRefFromTask } from '../components/taskcard/taskref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
 import { ProductionRefDialog } from '../production/ProductionRefDialog'
+import { useChatMembers } from '../api/queries'
+import { encodeMention } from '../notifications/mentions'
 import { useNav } from '../state/nav'
 import { AttachTaskDialog } from '../tasks/AttachTaskDialog'
 import { QuickTaskDialog } from '../tasks/QuickTaskDialog'
 import type { Task } from '../tasks/types'
+import type { ChatMember } from './types'
+
+// activeMention finds an in-progress "@query" immediately before the caret: an
+// '@' at line start or after whitespace, followed by non-whitespace up to the
+// caret. Returns the query and the '@' index so a pick can splice it out.
+function activeMention(value: string, caret: number): { query: string; start: number } | null {
+  for (let i = caret - 1; i >= 0; i--) {
+    const ch = value[i]
+    if (ch === '@') {
+      const before = i === 0 ? ' ' : value[i - 1]
+      if (!/\s/.test(before)) return null
+      const query = value.slice(i + 1, caret)
+      if (/\s/.test(query)) return null
+      return { query, start: i }
+    }
+    if (/\s/.test(ch)) return null
+  }
+  return null
+}
 
 // MessageComposer is the send box for a channel or thread. Enter sends,
 // Shift+Enter inserts a newline. Read-only roles see a disabled box with an
@@ -49,6 +80,54 @@ export function MessageComposer({
   const [taskCreateOpen, setTaskCreateOpen] = useState(false)
   const [prodPickerOpen, setProdPickerOpen] = useState(false)
 
+  // @mention autocomplete: a live "@query" before the caret opens a member
+  // picker; choosing a member splices an fls:user token into the draft (which
+  // the message list unfurls to a highlighted @Name and the server parses to
+  // address the mention notification). Only where there's a project roster.
+  const projectId = nav.project?.id ?? null
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const caretRef = useRef(0)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const anchorRef = useRef<HTMLDivElement | null>(null)
+  const members = useChatMembers(projectId, mention !== null)
+  const matches = useMemo(() => {
+    if (!mention) return []
+    const q = mention.query.toLowerCase()
+    return (members.data ?? [])
+      .filter(
+        (m) =>
+          !q ||
+          m.name?.toLowerCase().includes(q) ||
+          (m.email?.toLowerCase().includes(q) ?? false),
+      )
+      .slice(0, 8)
+  }, [members.data, mention])
+  useEffect(() => setMentionIndex(0), [mention?.query])
+
+  const syncMention = (value: string, caret: number) => {
+    caretRef.current = caret
+    setMention(projectId ? activeMention(value, caret) : null)
+  }
+
+  const pickMention = (m: ChatMember) => {
+    if (!mention) return
+    const token = encodeMention({ userId: m.userId, name: m.name || m.email || '' })
+    const before = text.slice(0, mention.start)
+    const after = text.slice(caretRef.current)
+    const tail = after.startsWith(' ') ? after : ' ' + after
+    setText(before + token + tail)
+    setMention(null)
+    requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (el) {
+        const pos = (before + token + ' ').length
+        el.focus()
+        el.setSelectionRange(pos, pos)
+      }
+    })
+  }
+
   // appendToken drops a card token into the draft, spacing it off whatever
   // is already there so the unfurl regex can find it.
   const appendToken = (token: string) =>
@@ -68,7 +147,7 @@ export function MessageComposer({
   }
 
   const box = (
-    <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.5, p: 1, pt: 0.5 }}>
+    <Box ref={anchorRef} sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.5, p: 1, pt: 0.5 }}>
       {nav.hubId && (
         <Tooltip title={t('composer.attachDoc')}>
           <span>
@@ -137,11 +216,41 @@ export function MessageComposer({
         placeholder={placeholder}
         value={text}
         disabled={disabled}
+        inputRef={inputRef}
         onChange={(e) => {
           setText(e.target.value)
+          syncMention(e.target.value, e.target.selectionStart ?? e.target.value.length)
           if (e.target.value.trim()) onTyping?.()
         }}
+        onSelect={() => {
+          const el = inputRef.current
+          if (el) syncMention(el.value, el.selectionStart ?? el.value.length)
+        }}
         onKeyDown={(e) => {
+          // While the mention picker is open, the arrow/enter/tab keys drive
+          // it instead of the composer.
+          if (matches.length > 0) {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              setMentionIndex((i) => (i + 1) % matches.length)
+              return
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              setMentionIndex((i) => (i - 1 + matches.length) % matches.length)
+              return
+            }
+            if (e.key === 'Enter' || e.key === 'Tab') {
+              e.preventDefault()
+              pickMention(matches[mentionIndex])
+              return
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              setMention(null)
+              return
+            }
+          }
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             void send()
@@ -174,6 +283,33 @@ export function MessageComposer({
       ) : (
         box
       )}
+      <Popper
+        open={matches.length > 0}
+        anchorEl={anchorRef.current}
+        placement="top-start"
+        style={{ zIndex: 1300, width: anchorRef.current?.clientWidth }}
+      >
+        <Paper elevation={4} sx={{ maxHeight: 220, overflowY: 'auto', mb: 0.5 }}>
+          <MenuList dense disablePadding>
+            {matches.map((m, i) => (
+              <MenuItem
+                key={m.userId}
+                selected={i === mentionIndex}
+                // onMouseDown (not onClick) so the pick fires before the
+                // textarea's blur can close the popper and drop the caret.
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  pickMention(m)
+                }}
+              >
+                <Typography variant="body2" noWrap>
+                  {m.name || m.email || m.userId}
+                </Typography>
+              </MenuItem>
+            ))}
+          </MenuList>
+        </Paper>
+      </Popper>
       {nav.hubId && (
         <HubBrowserDialog
           open={pickerOpen}

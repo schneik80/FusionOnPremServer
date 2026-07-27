@@ -130,6 +130,7 @@ type Server struct {
 	taskOpLim       *chat.Limiter
 	prodOpLim       *chat.Limiter
 	whiteboardOpLim *chat.Limiter
+	notifOpLim      *chat.Limiter
 
 	// uploads tracks background file-upload jobs (per-session; see uploads.go).
 	uploads *uploadManager
@@ -220,6 +221,10 @@ func Run(opts Options) error {
 	s.taskOpLim = chat.NewLimiter(2, 10)
 	s.prodOpLim = chat.NewLimiter(2, 10)
 	s.whiteboardOpLim = chat.NewLimiter(2, 10)
+	// Notification mark-read/dismiss: user clicks in the bell, so the same
+	// generous 2/s burst 10 as the other app op limiters. Reads (the polled
+	// list) are unmetered here — react-query paces them.
+	s.notifOpLim = chat.NewLimiter(2, 10)
 
 	// Per-hub store sets, rooted under <config>/hubs/<slug>/ and built
 	// lazily when a session locks to a hub. Nil (all local-data endpoints

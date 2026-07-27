@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/schneik80/fusionlocalserver/chat"
+	"github.com/schneik80/fusionlocalserver/notifications"
 	"github.com/schneik80/fusionlocalserver/tasks"
 )
 
@@ -41,6 +42,10 @@ type taskCtx struct {
 
 	store *tasks.Store
 	hubID string
+	// notif is the session hub's per-user notification store, so assigning a
+	// task can drop an inbox entry for the new assignee. Resolved from the
+	// same set as store.
+	notif *notifications.Store
 }
 
 // taskSession gates a task request that has no project scope (/mine). The
@@ -71,7 +76,31 @@ func (s *Server) taskSession(w http.ResponseWriter, r *http.Request) (taskCtx, b
 		sessID: sess.ID,
 		store:  set.tasks,
 		hubID:  set.hubID,
+		notif:  set.notifications,
 	}, true
+}
+
+// emitTaskAssigned drops an "assigned to you" inbox entry for a task's
+// assignee. Best-effort and after the write — never fails the task mutation.
+// You are never notified for assigning a task to yourself.
+func (s *Server) emitTaskAssigned(c taskCtx, t tasks.Task, hubID, projectName string) {
+	if c.notif == nil || t.Assignee == nil {
+		return
+	}
+	target := t.Assignee.ID
+	if target == "" || target == c.id.UserID {
+		return
+	}
+	if _, _, err := c.notif.Add(target, notifications.Notification{
+		Kind:        notifications.KindAssigned,
+		HubID:       hubID,
+		ProjectID:   c.projectID,
+		ProjectName: projectName,
+		Actor:       &notifications.UserRef{ID: c.id.UserID, Name: c.name, Email: c.id.Email},
+		Subject:     t.Title,
+	}); err != nil {
+		s.logger.Error("notifications: assignment emit failed", "target", target, "err", err)
+	}
 }
 
 // taskReq gates a project-scoped task request: store available, session +
@@ -284,6 +313,8 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 		s.taskError(w, r, err)
 		return
 	}
+	// A task created already assigned notifies its assignee.
+	s.emitTaskAssigned(c, t, in.HubID, in.ProjectName)
 	writeJSON(w, http.StatusCreated, taskDTO(t, c.projectID, in.HubID, in.ProjectName))
 }
 
@@ -334,6 +365,13 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "assignee id is required")
 		return
 	}
+	// Capture the prior assignee so a genuine change (not an unrelated edit)
+	// is what triggers the assignment notification below. A read failure just
+	// means no prev to diff against — the emit falls back to "notify if set".
+	var prevAssignee string
+	if pre, gerr := c.store.Get(c.projectID, taskID); gerr == nil && pre.Assignee != nil {
+		prevAssignee = pre.Assignee.ID
+	}
 	t, err := c.store.Update(c.projectID, taskID, tasks.Patch{
 		Title:         in.Title,
 		Description:   in.Description,
@@ -361,6 +399,11 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.taskError(w, r, err)
 		return
+	}
+	// Notify the assignee only when the assignment actually changed — an
+	// unrelated field edit must not re-ping them.
+	if t.Assignee != nil && t.Assignee.ID != prevAssignee {
+		s.emitTaskAssigned(c, t, hubID, projectName)
 	}
 	writeJSON(w, http.StatusOK, taskDTO(t, c.projectID, hubID, projectName))
 }

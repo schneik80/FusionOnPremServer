@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { DocumentCard } from '../components/doccard/DocumentCard'
 import { ProductionCard } from '../components/productioncard/ProductionCard'
 import { splitRefTokens } from '../components/reftokens'
+import { splitMentions } from '../notifications/mentions'
 import { TaskCard } from '../components/taskcard/TaskCard'
 import { REACTION_EMOJI, type ChatCaps, type ChatMessage } from './types'
 import { fmtChatTime } from './fmt'
@@ -72,14 +73,52 @@ export function MessageList({
   )
 }
 
+// MentionText renders a plain text run, highlighting any @mention tokens
+// (fls:user) as inline "@Name" chips. Mentions sit in the text runs that
+// survive splitRefTokens (which only splits card tokens), so cards and
+// mentions compose without either eating the other's tokens.
+function MentionText({ text }: { text: string }) {
+  const parts = useMemo(() => splitMentions(text), [text])
+  if (parts.length === 1 && 'text' in parts[0]) return <>{text}</>
+  return (
+    <>
+      {parts.map((p, i) =>
+        'mention' in p ? (
+          <MentionChip key={i} name={p.mention.name} />
+        ) : (
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </>
+  )
+}
+
+function MentionChip({ name }: { name: string }) {
+  const { t } = useTranslation('chat')
+  return (
+    <Box
+      component="span"
+      sx={{
+        color: 'primary.main',
+        fontWeight: 600,
+        bgcolor: 'action.selected',
+        borderRadius: 0.5,
+        px: 0.25,
+      }}
+    >
+      {t('mention.at', { name: name || t('mention.unknown') })}
+    </Box>
+  )
+}
+
 // ChatBody renders a message body, unfurling any fls:doc tokens into
-// DocumentCards and fls:task tokens into TaskCards. Everything else stays
+// DocumentCards, fls:task into TaskCards, and fls:job/fls:batch into
+// ProductionCards; @mention tokens highlight inline. Everything else stays
 // plain text (React-escaped — the chat deliberately renders no
 // HTML/markdown; a card is a React component, not injected markup, so the
 // XSS posture is unchanged).
 function ChatBody({ body }: { body: string }) {
   const parts = useMemo(() => splitRefTokens(body), [body])
-  if (parts.length === 1 && 'text' in parts[0]) return <>{body}</>
   return (
     <>
       {parts.map((p, i) =>
@@ -92,7 +131,7 @@ function ChatBody({ body }: { body: string }) {
         ) : 'job' in p ? (
           <ProductionCard key={i} jobRef={p.job} />
         ) : (
-          <span key={i}>{p.text}</span>
+          <MentionText key={i} text={p.text} />
         ),
       )}
     </>

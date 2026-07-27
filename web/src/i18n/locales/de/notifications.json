@@ -1,0 +1,20 @@
+{
+  "bell": {
+    "aria": "Benachrichtigungen",
+    "title": "Benachrichtigungen",
+    "empty": "Alles erledigt",
+    "markAllRead": "Alle als gelesen markieren",
+    "dismiss": "Entfernen"
+  },
+  "text": {
+    "mention": "{{actor}} hat dich in {{channel}} erwähnt",
+    "mention_nochannel": "{{actor}} hat dich erwähnt",
+    "assigned": "{{actor}} hat dir „{{subject}}“ zugewiesen",
+    "assigned_noactor": "Dir wurde „{{subject}}“ zugewiesen",
+    "due_soon": "„{{subject}}“ ist bald fällig",
+    "overdue": "„{{subject}}“ ist überfällig",
+    "production": "{{actor}} hat „{{subject}}“ aktualisiert",
+    "production_noactor": "„{{subject}}“ wurde geändert"
+  },
+  "unknownUser": "Jemand"
+}

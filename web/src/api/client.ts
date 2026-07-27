@@ -48,6 +48,7 @@ import type {
   ChatUnreadList,
 } from '../chat/types'
 import type { MyTasks, Task, TaskDraft, TaskList, TaskPatch, TaskShiftResult } from '../tasks/types'
+import type { NotifCount, NotificationList } from '../notifications/types'
 import type {
   BatchDraft,
   BatchPatch,
@@ -777,6 +778,22 @@ export const api = {
   // returns the refreshed list.
   dismissUploads: (id?: string) =>
     request<UploadJob[]>(`/api/uploads/dismiss${qs({ id })}`, { method: 'POST' }),
+
+  // Notifications: the app-chrome bell's per-user, per-hub inbox. The server
+  // is the sole author; these read, mark read, and dismiss.
+  notifications: () => request<NotificationList>('/api/notifications'),
+
+  notifMarkRead: (ids: string[]) =>
+    request<NotifCount>('/api/notifications/read', {
+      method: 'PATCH',
+      body: JSON.stringify({ ids }),
+    }),
+
+  notifMarkAllRead: () =>
+    request<NotifCount>('/api/notifications/readall', { method: 'POST' }),
+
+  notifDismiss: (id: string) =>
+    request<NotifCount>(`/api/notifications${qs({ id })}`, { method: 'DELETE' }),
 
   pins: (hubId: string) => request<Pin[]>(`/api/pins${qs({ hubId })}`),
 

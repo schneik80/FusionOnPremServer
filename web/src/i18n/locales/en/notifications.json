@@ -1,0 +1,20 @@
+{
+  "bell": {
+    "aria": "Notifications",
+    "title": "Notifications",
+    "empty": "You’re all caught up",
+    "markAllRead": "Mark all as read",
+    "dismiss": "Dismiss"
+  },
+  "text": {
+    "mention": "{{actor}} mentioned you in {{channel}}",
+    "mention_nochannel": "{{actor}} mentioned you",
+    "assigned": "{{actor}} assigned you “{{subject}}”",
+    "assigned_noactor": "You were assigned “{{subject}}”",
+    "due_soon": "“{{subject}}” is due soon",
+    "overdue": "“{{subject}}” is overdue",
+    "production": "{{actor}} updated “{{subject}}”",
+    "production_noactor": "“{{subject}}” changed"
+  },
+  "unknownUser": "Someone"
+}

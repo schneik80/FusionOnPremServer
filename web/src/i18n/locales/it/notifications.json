@@ -1,0 +1,20 @@
+{
+  "bell": {
+    "aria": "Notifiche",
+    "title": "Notifiche",
+    "empty": "Sei aggiornato",
+    "markAllRead": "Segna tutte come lette",
+    "dismiss": "Ignora"
+  },
+  "text": {
+    "mention": "{{actor}} ti ha menzionato in {{channel}}",
+    "mention_nochannel": "{{actor}} ti ha menzionato",
+    "assigned": "{{actor}} ti ha assegnato «{{subject}}»",
+    "assigned_noactor": "Ti è stato assegnato «{{subject}}»",
+    "due_soon": "«{{subject}}» è in scadenza",
+    "overdue": "«{{subject}}» è scaduta",
+    "production": "{{actor}} ha aggiornato «{{subject}}»",
+    "production_noactor": "«{{subject}}» è cambiato"
+  },
+  "unknownUser": "Qualcuno"
+}

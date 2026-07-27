@@ -14,6 +14,7 @@ import (
 	"github.com/schneik80/fusionlocalserver/internal/atomicfile"
 	"github.com/schneik80/fusionlocalserver/internal/hubslug"
 	"github.com/schneik80/fusionlocalserver/internal/schemameta"
+	"github.com/schneik80/fusionlocalserver/notifications"
 	"github.com/schneik80/fusionlocalserver/production"
 	"github.com/schneik80/fusionlocalserver/tasks"
 	"github.com/schneik80/fusionlocalserver/whiteboards"
@@ -35,6 +36,12 @@ type storeSet struct {
 	tasks       *tasks.Store
 	production  *production.Store
 	whiteboards *whiteboards.Store
+	// notifications is the per-user inbox behind the app-chrome bell. Keyed
+	// by OIDC sub (not project), but rooted in the hub profile like every
+	// other store, so a user's inbox is per-hub — a mention in hub A is
+	// invisible while the session is locked to hub B (the hub-isolation
+	// invariant holds for notifications too).
+	notifications *notifications.Store
 }
 
 // hubJSONFile identifies a profile directory: which hub the slug belongs to.
@@ -144,16 +151,22 @@ func (h *hubStores) build(hubID, hubName, slug string) (*storeSet, error) {
 		cs.Close()
 		return nil, fmt.Errorf("whiteboards store: %w", err)
 	}
+	ns, err := notifications.NewStore(filepath.Join(root, "notifications"))
+	if err != nil {
+		cs.Close()
+		return nil, fmt.Errorf("notifications store: %w", err)
+	}
 	return &storeSet{
-		hubID:       hubID,
-		hubName:     hubName,
-		slug:        slug,
-		root:        root,
-		chat:        cs,
-		chatHub:     chat.NewHub(h.authz, cs.EventEpoch),
-		tasks:       ts,
-		production:  ps,
-		whiteboards: ws,
+		hubID:         hubID,
+		hubName:       hubName,
+		slug:          slug,
+		root:          root,
+		chat:          cs,
+		chatHub:       chat.NewHub(h.authz, cs.EventEpoch),
+		tasks:         ts,
+		production:    ps,
+		whiteboards:   ws,
+		notifications: ns,
 	}, nil
 }
 

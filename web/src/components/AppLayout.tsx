@@ -27,6 +27,7 @@ import { TasksScreen } from '../tasks/TasksScreen'
 import { BreadcrumbBar } from './BreadcrumbBar'
 import { BrowserStage } from './BrowserStage'
 import { NavRail } from './NavRail'
+import { NotificationBell } from './notifications/NotificationBell'
 import { PinsDialog } from './PinsDialog'
 import { SettingsDialog, type SettingsToolId } from './settings/SettingsDialog'
 import { UploadDialog } from './UploadDialog'
@@ -111,6 +112,7 @@ export function AppLayout() {
             </Typography>
           )}
           <Box sx={{ flex: 1 }} />
+          <NotificationBell />
           <Tooltip title={mode === 'dark' ? t('appLayout.switchToLight') : t('appLayout.switchToDark')}>
             <IconButton aria-label={t('appLayout.toggleTheme')} onClick={toggle} sx={{ color: 'text.secondary' }}>
               <FontAwesomeIcon icon={mode === 'dark' ? faSun : faMoon} style={{ fontSize: 16 }} />

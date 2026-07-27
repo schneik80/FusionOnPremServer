@@ -10,6 +10,7 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/api"
 	"github.com/schneik80/fusionlocalserver/chat"
+	"github.com/schneik80/fusionlocalserver/notifications"
 )
 
 // Chat endpoints (docs/chat/PLAN.md, phase 1). Every handler front-doors
@@ -37,6 +38,10 @@ type chatCtx struct {
 	store *chat.Store
 	hub   *chat.Hub
 	hubID string
+	// notif is the session hub's per-user notification store, so a posted
+	// @mention can drop an inbox entry for the mentioned user without a
+	// second store lookup. Resolved from the same set as store.
+	notif *notifications.Store
 }
 
 // chatReq gates a chat request: hub store set resolved, session + token
@@ -67,6 +72,7 @@ func (s *Server) chatReq(w http.ResponseWriter, r *http.Request) (chatCtx, bool)
 		store:     set.chat,
 		hub:       set.chatHub,
 		hubID:     set.hubID,
+		notif:     set.notifications,
 	}, true
 }
 
@@ -551,6 +557,9 @@ func (s *Server) handleChatMessageCreate(w http.ResponseWriter, r *http.Request)
 			ChatMessageEventDTO{ChannelID: ch.ID, Message: messageDTO(msg)}, ch)
 		s.chatPublish(c, "channel.activity",
 			ChatActivityEventDTO{ChannelID: ch.ID, LastMessageSeq: msg.Seq}, ch)
+		// Turn any @mentions in the new message into inbox entries. Best-effort
+		// and after the write — never fails the post.
+		s.emitChatMentions(c, ch, msg)
 	}
 	writeJSON(w, status, messageDTO(msg))
 }

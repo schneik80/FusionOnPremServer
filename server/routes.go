@@ -180,6 +180,14 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/production/batchrefs", protHub(s.handleProdBatchRefAdd))
 	mux.HandleFunc("DELETE /api/production/batchrefs", protHub(s.handleProdBatchRefDelete))
 
+	// Notifications (the app-chrome bell: the caller's own per-user, per-hub
+	// inbox — mentions, assignments, due dates, production changes). The
+	// server is the sole author; clients read, mark read, and dismiss.
+	mux.HandleFunc("GET /api/notifications", protHub(s.handleNotifList))
+	mux.HandleFunc("PATCH /api/notifications/read", protHub(s.handleNotifMarkRead))
+	mux.HandleFunc("POST /api/notifications/readall", protHub(s.handleNotifMarkAllRead))
+	mux.HandleFunc("DELETE /api/notifications", protHub(s.handleNotifDismiss))
+
 	// Pins.
 	mux.HandleFunc("GET /api/pins", protHub(s.handlePinsList))
 	mux.HandleFunc("POST /api/pins", protHub(s.handlePinsAdd))

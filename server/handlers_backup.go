@@ -15,6 +15,7 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/backup"
 	"github.com/schneik80/fusionlocalserver/chat"
+	"github.com/schneik80/fusionlocalserver/notifications"
 	"github.com/schneik80/fusionlocalserver/pins"
 	"github.com/schneik80/fusionlocalserver/production"
 	"github.com/schneik80/fusionlocalserver/tasks"
@@ -113,6 +114,9 @@ func (s *Server) backupEngineFor(set *storeSet) (*backup.Engine, error) {
 	}
 	if set.whiteboards != nil {
 		srcs = append(srcs, backup.StoreSource("whiteboards", set.whiteboards.Snapshot))
+	}
+	if set.notifications != nil {
+		srcs = append(srcs, backup.StoreSource("notifications", set.notifications.Snapshot))
 	}
 	srcs = append(srcs, backup.PinsSource(set.root), backup.ConfigSource(s.hubs.configDir))
 	// Hub/HubSlug come from the storeSet, which carries the authoritative
@@ -460,6 +464,12 @@ func expectedSchemaVersion(store, rel string) (int, bool) {
 		if base == "whiteboards.json" {
 			return whiteboards.CurrentVersion(), true
 		}
+	case "notifications":
+		// One <userkey>.json per user (no fixed basename), so any .json under
+		// notifications/ is a versioned inbox file.
+		if strings.HasSuffix(base, ".json") {
+			return notifications.CurrentVersion(), true
+		}
 	case "pins":
 		if strings.HasPrefix(base, "pins-") && strings.HasSuffix(base, ".json") {
 			return pins.CurrentVersion(), true
@@ -609,6 +619,9 @@ func (s *Server) handleAdminBackupRestore(w http.ResponseWriter, r *http.Request
 	}
 	if set.whiteboards != nil {
 		set.whiteboards.Reset()
+	}
+	if set.notifications != nil {
+		set.notifications.Reset()
 	}
 
 	s.logger.Info("backup: restore complete — restarting listener", "path", req.Path)

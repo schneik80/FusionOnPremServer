@@ -9,6 +9,7 @@ import (
 
 	"github.com/schneik80/fusionlocalserver/api"
 	"github.com/schneik80/fusionlocalserver/chat"
+	"github.com/schneik80/fusionlocalserver/notifications"
 	"github.com/schneik80/fusionlocalserver/production"
 )
 
@@ -40,6 +41,9 @@ type prodCtx struct {
 
 	store *production.Store
 	hubID string
+	// notif is the session hub's per-user notification store, so a batch
+	// change can drop an inbox entry for the job's owner.
+	notif *notifications.Store
 }
 
 // prodSession gates a production request with no project scope (/mine). The
@@ -70,7 +74,41 @@ func (s *Server) prodSession(w http.ResponseWriter, r *http.Request) (prodCtx, b
 		sessID: sess.ID,
 		store:  set.production,
 		hubID:  set.hubID,
+		notif:  set.notifications,
 	}, true
+}
+
+// emitProdBatchChange notifies a job's owner that one of its batches changed
+// (created, or advanced through the run timeline). Best-effort and after the
+// write; the actor is never notified about their own action. No APS call —
+// the job owner is captured locally in Job.CreatedBy.
+func (s *Server) emitProdBatchChange(c prodCtx, jobID string, b production.Batch) {
+	if c.notif == nil {
+		return
+	}
+	job, err := c.store.GetJob(c.projectID, jobID)
+	if err != nil {
+		return
+	}
+	owner := job.CreatedBy.ID
+	if owner == "" || owner == c.id.UserID {
+		return
+	}
+	hubID, projectName, _ := c.store.ProjectInfo(c.projectID)
+	subject := job.Name
+	if b.Name != "" {
+		subject = job.Name + " · " + b.Name
+	}
+	if _, _, err := c.notif.Add(owner, notifications.Notification{
+		Kind:        notifications.KindProduction,
+		HubID:       hubID,
+		ProjectID:   c.projectID,
+		ProjectName: projectName,
+		Actor:       &notifications.UserRef{ID: c.id.UserID, Name: c.name, Email: c.id.Email},
+		Subject:     subject,
+	}); err != nil {
+		s.logger.Error("notifications: production emit failed", "owner", owner, "err", err)
+	}
 }
 
 // prodReq gates a project-scoped production request.
@@ -715,6 +753,8 @@ func (s *Server) handleProdBatchCreate(w http.ResponseWriter, r *http.Request) {
 		s.prodError(w, r, err)
 		return
 	}
+	// A new run on someone else's job notifies its owner.
+	s.emitProdBatchChange(c, jobID, b)
 	s.prodBatchResult(w, b, http.StatusCreated)
 }
 
@@ -776,6 +816,11 @@ func (s *Server) handleProdBatchUpdate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.prodError(w, r, err)
 		return
+	}
+	// A batch advancing through the run timeline (a status change) notifies
+	// the job's owner; renaming or rescheduling it does not.
+	if in.Status != nil {
+		s.emitProdBatchChange(c, jobID, b)
 	}
 	s.prodBatchResult(w, b, http.StatusOK)
 }
