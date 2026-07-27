@@ -21,16 +21,15 @@
     "jobBatchButton": "Job / batch",
     "documentButton": "Document",
     "assemblyButton": "Assembly",
-    "saving": "Saving…",
-    "saved": "Saved",
     "placeDocumentTitle": "Place a document card",
     "place": "Place",
-    "notSaving": "Not saving",
-    "conflict": "Someone else saved this whiteboard while you had it open. Saving is paused.",
-    "conflictReload": "Load theirs",
-    "conflictOverwrite": "Keep mine",
-    "conflictBy": "{{name}} saved this whiteboard while you had it open. Saving is paused.",
-    "peersHere": "Also here: {{names}}"
+    "peersHere": "Also here: {{names}}",
+    "synced": "Synced",
+    "syncing": "Syncing…",
+    "connecting": "Connecting…",
+    "syncError": "Sync error",
+    "offlineShort": "Offline",
+    "offline": "Disconnected — your changes are saved here and will sync when the connection returns."
   },
   "assembly": {
     "expandTitle": "Expand an assembly",

@@ -267,27 +267,86 @@ with chat. It makes no authorization decision: visibility rides through it as
 an opaque type parameter and the owning feature decides. Chat's `Hub` is a thin
 wrapper carrying `Entitled`.
 
+## Live editing
+
+Two people can draw on one board at the same time. Instead of each canvas
+writing its whole document over whatever it last saw, every change is a tldraw
+`RecordsDiff` applied to one authoritative record map in a defined order and
+re-broadcast to the others.
+
+That works without the server understanding tldraw because a document is
+`{"store": {"<recordId>": {…}}, "schema": {…}}` — so a diff is set / set /
+delete on a map of **opaque JSON**. The wire form folds `added` and `updated`
+into one `put` and drops the `from` half of each update: applying a diff only
+ever writes the new value.
+
+```
+POST /api/whiteboards/patch ?projectId&boardId
+     {clientId, seq, baseRev, put:{id:record}, remove:[id]}
+  → 200 {rev, rejected:[id]}
+  → 409 whiteboard_resync   (a base revision this board never had)
+```
+
+**Rooms** (`whiteboards/{patch,room,rooms}.go`). A board's room is created on
+first use, holds the record map while anyone is on it, and is evicted after
+`RoomIdleTTL`. Persistence is debounced (`RoomSaveQuiet`) with a ceiling
+(`RoomSaveMax`) so a continuously-drawn board still checkpoints, and it goes
+through the store's single document writer, so the atomic write, the size cap
+and the metadata stamp all still apply. `MaxLiveRooms` bounds memory — a room
+holds a whole document resident.
+
+While a room is live it, not the file, owns the revision: `saveSnapshotAtRev`
+writes the room's revision through rather than incrementing it, and a
+whole-document PUT is applied *into* the room — otherwise the next patch would
+land on a record map still holding the old document, which the room would then
+write back over the new one.
+
+**Conflict policy is last-write-wins per record**, with three exceptions, each
+for a failure that is otherwise invisible:
+
+- **Tombstones.** A put for a record deleted at a revision the sender had not
+  seen is refused and named in `rejected`, which the client then removes
+  locally. Without it: A deletes a shape, B drags it, and the shape returns
+  from the dead.
+- **Binding cascade.** Removing a `shape:` also removes the `binding:` records
+  referencing it, and the cascade is broadcast. This is the one place the
+  server decodes a record (two id fields); a dangling binding fails tldraw's
+  validation on the peers and forces a full resync.
+- **`page:` / `document:` records require the current revision.** Rare,
+  user-initiated, and catastrophic to race.
+
+**Ordering is the client's half**, and lives in a pure module
+(`web/src/whiteboards/sync/protocol.ts`) precisely so it can be tested without
+a browser: drop frames at or below the applied revision (patch *application* is
+idempotent, out-of-order application is not), **resync on a gap rather than
+applying ahead**, and skip your own echo — while still advancing the cursor for
+it, since an echo can arrive before the response that produced it.
+
+Two people dragging the same shape will see it settle on the last writer. That
+is inherent to last-write-wins, and tldraw's own sync behaves the same way.
+
 ## Known gaps / next
 
-- **No simultaneous editing yet.** Two people can now have a board open safely
-  — neither can overwrite the other silently, and each sees the other arrive
-  and save — but they still take turns: a conflict is resolved by loading
-  theirs or keeping yours, not by merging. Live co-editing (patch sync + live
-  cursors) is the next increment, and the pieces it needs are already in place:
-  a persisted revision, a per-board SSE room, and presence.
-- Documents are stored whole on every save; there is no incremental diffing.
-  This is what live co-editing replaces: clients would exchange tldraw
-  `RecordsDiff` patches against a server-held record map, which a Go server can
-  apply without understanding tldraw's schema (a diff is set/set/delete on a
-  map of opaque JSON records).
-- **`fls-card` measure writes are a latent hazard for that work.**
-  `cardshape.tsx` writes its measured `w/h` back to the document, and the
-  measurement depends on font rendering, so two clients on different displays
-  can disagree by a pixel or two. The tolerance is now ±3 px (`MEASURE_SLOP`)
-  and read-only viewers skip the write entirely, which stops the disagreement
-  from becoming a write-per-client. Under patch sync it would need a further
-  guard — suppressing the measure write briefly after a remote patch touches
-  that shape — or the two clients would ping-pong forever.
+- **No live cursors yet.** Presence exists (the peer list) but pointer
+  positions are not shared. `TLInstancePresence` on ephemeral frames is the
+  next increment; identity and colour are already stamped server-side.
+- **Pasted images are base64 data URLs inside the document** — `createTLStore`
+  defaults to `inlineBase64AssetStore` and we do not override it. Under patch
+  sync one paste is megabytes on the wire, in the ring, and in every
+  subscriber's buffer. `MaxPatchBytes` / `MaxRecordBytes` bound the damage; the
+  real fix is a `TLAssetStore` uploading to a local endpoint so records carry a
+  URL. This is the biggest remaining scalability problem.
+- **`fls-card` measure writes.** `cardshape.tsx` writes its measured `w/h` back
+  to the document and the measurement depends on font rendering, so two clients
+  on different displays can disagree by a pixel or two. The tolerance is ±3 px
+  (`MEASURE_SLOP`) and read-only viewers skip the write entirely, which stops
+  the disagreement from becoming a write-per-client. If a ping-pong is ever
+  observed, the next guard is suppressing the measure write briefly after a
+  remote patch touches that shape.
+- The whole-document `PUT` remains as the import/overwrite path. The canvas
+  never calls it: falling back to it on a bad connection would reinstate
+  exactly the silent clobber patches replaced. Offline edits queue in the
+  browser and drain on reconnect instead.
 - No board thumbnails in the list.
 - No cross-project "my whiteboards" screen (the store's self-describing project
   file supports adding one, as with tasks/production).
@@ -329,10 +388,19 @@ window):
 
 1. Open the same board in both. Each header shows the other's avatar; closing
    one window removes it from the other within a moment.
-2. Draw in A and wait for its autosave. B's banner says A saved and B's saving
-   pauses — B is not left to discover it later.
-3. In B choose "Load theirs": B's canvas becomes A's, saving resumes.
-4. Repeat, and in B choose "Keep mine": B's version wins, and now **A** is the
-   stale one and gets the banner on its next save.
-5. Confirm a read-only member sees both the peer list and the change banner but
-   never saves (watch the network tab for the absence of a PUT).
+2. Draw in A — the strokes appear in B within a moment, and vice versa.
+3. Drag the same shape from both at once: it should jitter and settle, not
+   oscillate forever.
+4. Delete a shape in A while B is dragging it. It stays deleted; no zombie
+   reappears in either window.
+5. Delete a shape that has a bound arrow: the arrow goes too, in both windows.
+6. Open a board holding 40 cards in both windows and watch the network tab —
+   the patch rate must settle to zero rather than ticking forever (the
+   measure-ping-pong check).
+7. A read-only member receives every edit and sends nothing — no POST to
+   /api/whiteboards/patch appears in their network tab.
+8. Stop the server: the offline banner appears and editing continues. Restart
+   it: the queued work drains and both windows converge.
+9. Restore a backup while a board is open in another window — the restored
+   content wins, and the live room does not write its pre-restore state back
+   over it.

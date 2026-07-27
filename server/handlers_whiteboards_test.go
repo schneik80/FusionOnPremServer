@@ -41,14 +41,15 @@ func newWhiteboardTestServer(t *testing.T) *Server {
 
 	authz := chat.NewAuthorizer()
 	return &Server{
-		logger:           quietLogger(),
-		clientID:         "test-client",
-		sessions:         NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger()),
-		pending:          NewPendingStore(pendingTTL),
-		hubs:             testHubStores(t, authz),
-		chatAuthz:        authz,
-		whiteboardOpLim:  chat.NewLimiter(1e6, 1e6),
-		whiteboardDocLim: chat.NewLimiter(1e6, 1e6),
+		logger:             quietLogger(),
+		clientID:           "test-client",
+		sessions:           NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger()),
+		pending:            NewPendingStore(pendingTTL),
+		hubs:               testHubStores(t, authz),
+		chatAuthz:          authz,
+		whiteboardOpLim:    chat.NewLimiter(1e6, 1e6),
+		whiteboardDocLim:   chat.NewLimiter(1e6, 1e6),
+		whiteboardPatchLim: chat.NewLimiter(1e6, 1e6),
 	}
 }
 

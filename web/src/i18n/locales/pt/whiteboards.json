@@ -21,16 +21,15 @@
     "jobBatchButton": "Trabalho / lote",
     "documentButton": "Documento",
     "assemblyButton": "Montagem",
-    "saving": "A guardar…",
-    "saved": "Guardado",
     "placeDocumentTitle": "Colocar um cartão de documento",
     "place": "Colocar",
-    "notSaving": "Gravação em pausa",
-    "conflict": "Outra pessoa gravou este quadro enquanto o tinha aberto. A gravação está em pausa.",
-    "conflictReload": "Carregar a deles",
-    "conflictOverwrite": "Manter a minha",
-    "conflictBy": "{{name}} gravou este quadro enquanto o tinha aberto. A gravação está em pausa.",
-    "peersHere": "Também aqui: {{names}}"
+    "peersHere": "Também aqui: {{names}}",
+    "synced": "Sincronizado",
+    "syncing": "A sincronizar…",
+    "connecting": "A ligar…",
+    "syncError": "Erro de sincronização",
+    "offlineShort": "Sem ligação",
+    "offline": "Desligado — as suas alterações ficam aqui e serão sincronizadas quando a ligação voltar."
   },
   "assembly": {
     "expandTitle": "Expandir uma montagem",

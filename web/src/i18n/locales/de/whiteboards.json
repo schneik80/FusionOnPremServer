@@ -21,16 +21,15 @@
     "jobBatchButton": "Auftrag / Charge",
     "documentButton": "Dokument",
     "assemblyButton": "Baugruppe",
-    "saving": "Wird gespeichert…",
-    "saved": "Gespeichert",
     "placeDocumentTitle": "Dokumentkarte platzieren",
     "place": "Platzieren",
-    "notSaving": "Speichern pausiert",
-    "conflict": "Jemand anderes hat dieses Whiteboard gespeichert, während es bei Ihnen geöffnet war. Das Speichern ist pausiert.",
-    "conflictReload": "Deren Version laden",
-    "conflictOverwrite": "Meine behalten",
-    "conflictBy": "{{name}} hat dieses Whiteboard gespeichert, während es bei Ihnen geöffnet war. Das Speichern ist pausiert.",
-    "peersHere": "Ebenfalls hier: {{names}}"
+    "peersHere": "Ebenfalls hier: {{names}}",
+    "synced": "Synchronisiert",
+    "syncing": "Synchronisiert…",
+    "connecting": "Verbinden…",
+    "syncError": "Synchronisierungsfehler",
+    "offlineShort": "Offline",
+    "offline": "Getrennt — Ihre Änderungen bleiben hier erhalten und werden synchronisiert, sobald die Verbindung zurück ist."
   },
   "assembly": {
     "expandTitle": "Baugruppe erweitern",

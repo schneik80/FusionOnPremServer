@@ -134,7 +134,11 @@ type Server struct {
 	// more often than a person renames a board — so it cannot share the op
 	// limiter's human-paced budget, but a 24 MiB body must not be unmetered.
 	whiteboardDocLim *chat.Limiter
-	notifOpLim       *chat.Limiter
+	// whiteboardPatchLim meters live edits. Drawing is bursty by nature, so the
+	// budget is generous and keyed per session AND board — two open boards must
+	// not starve each other.
+	whiteboardPatchLim *chat.Limiter
+	notifOpLim         *chat.Limiter
 
 	// uploads tracks background file-upload jobs (per-session; see uploads.go).
 	uploads *uploadManager
@@ -229,6 +233,9 @@ func Run(opts Options) error {
 	// with a burst of 20 covers several boards open at once and a flush on
 	// unmount, while still bounding a runaway client.
 	s.whiteboardDocLim = chat.NewLimiter(2, 20)
+	// A patch is debounced client-side to ~10/s at worst; 20/s with a burst of
+	// 40 absorbs a fast drag and a paste without ever pacing normal drawing.
+	s.whiteboardPatchLim = chat.NewLimiter(20, 40)
 	// Notification mark-read/dismiss: user clicks in the bell, so the same
 	// generous 2/s burst 10 as the other app op limiters. Reads (the polled
 	// list) are unmetered here — react-query paces them.

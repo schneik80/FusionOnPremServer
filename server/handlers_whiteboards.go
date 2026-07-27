@@ -312,7 +312,15 @@ func (s *Server) handleWhiteboardDocGet(w http.ResponseWriter, r *http.Request) 
 	if !s.whiteboardCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	doc, rev, err := c.store.Document(c.projectID, boardID)
+	// Through the room when one is live, so a client joining a board people are
+	// already editing gets what is on their screens rather than the last
+	// debounced write — which would leave it applying patches to a document
+	// that is seconds behind.
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	doc, rev, err := set.whiteboardRooms.Snapshot(c.projectID, boardID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
@@ -377,9 +385,16 @@ func (s *Server) handleWhiteboardDocPut(w http.ResponseWriter, r *http.Request) 
 		s.whiteboardError(w, r, err)
 		return
 	}
-	// Tell whoever else has this board open, so they learn now rather than when
-	// their own next save is refused.
+	// If the board is being edited live, the room — not the file — is the
+	// authority, so a whole-document write has to land there too. Otherwise the
+	// next patch would be applied to a record map that still held the old
+	// document, and the room would quietly write it back over this one.
 	if set, ok := storesFromCtx(r.Context()); ok {
+		if rev, live, rerr := set.whiteboardRooms.Replace(c.projectID, boardID, doc, s.whiteboardUser(c)); rerr == nil && live {
+			b.DocRev = rev
+		}
+		// Tell whoever else has this board open. For a live board this is their
+		// cue to re-read: a wholesale replacement is not expressible as a patch.
 		s.publishDocChanged(set, c, boardID, b.DocRev)
 	}
 	s.whiteboardResult(w, r, c, b, http.StatusOK)

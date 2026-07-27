@@ -21,16 +21,15 @@
     "jobBatchButton": "Ordre / lot",
     "documentButton": "Document",
     "assemblyButton": "Assemblage",
-    "saving": "Enregistrement…",
-    "saved": "Enregistré",
     "placeDocumentTitle": "Placer une carte de document",
     "place": "Placer",
-    "notSaving": "Enregistrement en pause",
-    "conflict": "Quelqu'un d'autre a enregistré ce tableau blanc pendant que vous l'aviez ouvert. L'enregistrement est en pause.",
-    "conflictReload": "Charger la leur",
-    "conflictOverwrite": "Garder la mienne",
-    "conflictBy": "{{name}} a enregistré ce tableau blanc pendant que vous l'aviez ouvert. L'enregistrement est en pause.",
-    "peersHere": "Également ici : {{names}}"
+    "peersHere": "Également ici : {{names}}",
+    "synced": "Synchronisé",
+    "syncing": "Synchronisation…",
+    "connecting": "Connexion…",
+    "syncError": "Erreur de synchronisation",
+    "offlineShort": "Hors ligne",
+    "offline": "Déconnecté — vos modifications sont conservées ici et seront synchronisées au retour de la connexion."
   },
   "assembly": {
     "expandTitle": "Développer un assemblage",

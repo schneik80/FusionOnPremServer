@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Alert, Box, Button, CircularProgress, Snackbar, Stack, Tooltip, Typography } from '@mui/material'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   FrameShapeUtil,
   Tldraw,
@@ -11,14 +12,13 @@ import {
   createTLStore,
   defaultBindingUtils,
   defaultShapeUtils,
-  getSnapshot,
   loadSnapshot,
   type Editor,
   type TLShapeId,
 } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { getAssetUrlsByMetaUrl } from '@tldraw/assets/urls'
-import { ApiError, api } from '../api/client'
+import { api } from '../api/client'
 import { useAuthMe } from '../api/queries'
 import { firstGrapheme } from '../fmt/graphemes'
 import { useColorMode } from '../state/colorMode'
@@ -31,6 +31,7 @@ import { ProductionRefDialog } from '../production/ProductionRefDialog'
 import { CARD_H, CARD_W, FLS_CARD_TYPE, FlsCardShapeUtil } from './cardshape'
 import { RemountingMinimap, useCanvasGeometry } from './canvasGeometry'
 import { useBoardEvents, type BoardPeer } from './useBoardEvents'
+import { useBoardSync } from './useBoardSync'
 import './whiteboard.css'
 
 // tldraw loads its fonts, icons and translations from cdn.tldraw.com by
@@ -85,10 +86,6 @@ const TLDRAW_COMPONENTS = { Minimap: RemountingMinimap }
 // speaks, tldraw speaks under the same code.
 const TLDRAW_LOCALE: Record<string, string> = { pt: 'pt-pt' }
 const tldrawLocale = (appLocale: string) => TLDRAW_LOCALE[appLocale] ?? appLocale
-
-// How long the canvas sits idle before persisting. Long enough that a stroke or
-// a drag isn't a request each, short enough that a closed tab loses little.
-const SAVE_DEBOUNCE_MS = 1500
 
 type Pending = 'task' | 'production' | 'document' | 'assembly' | null
 
@@ -152,7 +149,6 @@ export function WhiteboardCanvas({
   )
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   const [pending, setPending] = useState<Pending>(null)
   // The assembly flow makes two APS calls (details → occurrences), so it shows a
   // busy state on its button; `notice` surfaces the after-the-fact summary
@@ -160,32 +156,12 @@ export function WhiteboardCanvas({
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
-  // conflict holds the stale-save state: someone else saved this board while it
-  // was open. Autosaving stops until the user picks reload or overwrite —
-  // retrying is exactly what would discard their work.
-  const [conflict, setConflict] = useState(false)
-  // Who saved over us, for the banner. Empty when the conflict surfaced from a
-  // refused save rather than from the awareness stream.
-  const [conflictBy, setConflictBy] = useState('')
+  // The revision the document was loaded at, handed to the sync hook as its
+  // starting point. State rather than a ref: the hook must re-anchor when it
+  // changes, which only happens on load.
+  const [loadedRev, setLoadedRev] = useState(0)
 
   const editorRef = useRef<Editor | null>(null)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Suppresses the change burst that loading a document naturally produces —
-  // without it, opening a board would immediately save it straight back.
-  const hydrated = useRef(false)
-  // The revision this canvas is working from: what it loaded, then what each
-  // save returned. Sent with every save so the server can refuse one built on a
-  // revision the board has already moved past. A ref, not state: the autosave
-  // closure must read the current value, and a re-render per save would be
-  // noise.
-  const docRev = useRef(0)
-  // Set once the user chooses "overwrite" — the next save (and only the next)
-  // goes through unconditionally.
-  const forceNext = useRef(false)
-  // Mirrors `conflict` for the save closures: the unmount flush runs from a
-  // cleanup whose closure predates the conflict, and it must not fire a save
-  // the user hasn't resolved.
-  const conflictRef = useRef(false)
   // The canvas wrapper, watched for on-screen geometry changes (see
   // canvasGeometry.tsx).
   const wrapRef = useRef<HTMLDivElement | null>(null)
@@ -233,17 +209,14 @@ export function WhiteboardCanvas({
   // ---- load once per board ----
   useEffect(() => {
     let cancelled = false
-    hydrated.current = false
     fitPending.current = true
     setLoading(true)
     setLoadError(null)
-    conflictRef.current = false
-    setConflict(false)
     api
       .whiteboardDoc(projectId, boardId)
       .then(({ doc, rev }) => {
         if (cancelled) return
-        docRev.current = rev
+        setLoadedRev(rev)
         // We store only the document scope, so restore it as such — session
         // state (camera, selection) stays per-user and is never persisted.
         if (doc) loadSnapshot(store, { document: doc as never })
@@ -254,7 +227,6 @@ export function WhiteboardCanvas({
       .finally(() => {
         if (cancelled) return
         setLoading(false)
-        hydrated.current = true
         tryFit()
       })
     return () => {
@@ -262,65 +234,22 @@ export function WhiteboardCanvas({
     }
   }, [projectId, boardId, store, tryFit])
 
-  const flush = useCallback(async () => {
-    if (!hydrated.current || !canWrite) return
-    const force = forceNext.current
-    if (conflictRef.current && !force) return // waiting on the user's choice
-    const { document } = getSnapshot(store)
-    setSaving(true)
-    try {
-      const saved = await api.whiteboardDocSave(projectId, boardId, document, docRev.current, force)
-      docRev.current = saved.docRev
-      forceNext.current = false
-      conflictRef.current = false
-      setConflict(false)
-    } catch (e) {
-      // A stale save is the one failure that must NOT be shrugged off: someone
-      // else has saved this board, and the next autosave tick would overwrite
-      // them. Stop saving and hand the choice to the user.
-      if (e instanceof ApiError && e.code === 'whiteboard_stale') {
-        forceNext.current = false
-        conflictRef.current = true
-        setConflict(true)
-        return
-      }
-      // Everything else stays best-effort: the next change reschedules, and the
-      // editor still holds the user's work. A toast on every blip would be
-      // noisier than useful.
-    } finally {
-      setSaving(false)
-    }
-  }, [store, projectId, boardId, canWrite])
-
-  // ---- autosave the document scope ----
-  useEffect(() => {
-    if (!canWrite || conflict) return
-    const unlisten = store.listen(
-      () => {
-        if (!hydrated.current) return
-        if (saveTimer.current) clearTimeout(saveTimer.current)
-        saveTimer.current = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS)
-      },
-      // Only real document edits: 'session' covers camera/selection, which are
-      // per-user view state and must not dirty a shared board.
-      { scope: 'document', source: 'user' },
-    )
-    return () => {
-      unlisten()
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-    }
-  }, [store, flush, canWrite, conflict])
-
-  // Persist on unmount (switching boards, leaving the tab) so the last edits
-  // inside the debounce window aren't lost.
-  useEffect(() => {
-    return () => {
-      if (saveTimer.current) {
-        clearTimeout(saveTimer.current)
-        void flush()
-      }
-    }
-  }, [flush])
+  // Live editing replaces the old autosave entirely. The canvas no longer
+  // writes whole documents on a timer; it sends what changed, the server
+  // orders it, and everyone on the board receives it. Persistence is the
+  // server's job now — the room behind the board writes on its own debounce.
+  //
+  // The whole-document PUT has not gone away, but nothing here calls it: it is
+  // the import/overwrite path, and a client falling back to it on a bad
+  // connection would reinstate exactly the silent clobber this replaced.
+  const { sync, onFrame, setLive, onReplaced } = useBoardSync({
+    store,
+    projectId,
+    boardId,
+    canWrite,
+    ready: !loading && !loadError,
+    initialRev: loadedRev,
+  })
 
   // Follow the app's light/dark mode and language rather than tldraw's own
   // defaults — left to itself it takes the colour scheme from the OS and the
@@ -332,52 +261,14 @@ export function WhiteboardCanvas({
 
   // ---- awareness ----
 
-  // Someone else saved. If this canvas is behind, stop autosaving now and say
-  // so, rather than letting the next debounce tick discover it as a refusal —
-  // same choice offered either way, just offered sooner.
-  //
-  // A save of our own arrives here too (the server broadcasts to the whole
-  // room, sender included); by then flush() has already advanced docRev to
-  // that revision, so the comparison quietly ignores it.
-  const onRemoteSave = useCallback((rev: number, by?: BoardPeer) => {
-    if (rev <= docRev.current) return
-    conflictRef.current = true
-    setConflict(true)
-    setConflictBy(by?.name ?? '')
-  }, [])
-
-  const { peers } = useBoardEvents(projectId, boardId, onRemoteSave)
+  const { peers } = useBoardEvents(projectId, boardId, {
+    onPatch: onFrame,
+    onReplaced,
+    onLive: setLive,
+  })
   // Everyone on the board except this session's own user — the header shows
   // "who else", and seeing yourself in it is just noise.
   const others = peers.filter((p) => !me?.id || p.userId !== me.id)
-
-  // ---- resolving a conflict ----
-
-  // Take the server's version: re-fetch the document and its revision, and
-  // replace what is on the canvas. This canvas's unsaved edits are lost, which
-  // is why it is a deliberate click and not something the app does on its own.
-  const reloadFromServer = useCallback(async () => {
-    try {
-      const { doc, rev } = await api.whiteboardDoc(projectId, boardId)
-      hydrated.current = false
-      docRev.current = rev
-      loadSnapshot(store, { document: (doc ?? { store: {}, schema: {} }) as never })
-      conflictRef.current = false
-      setConflict(false)
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : t('canvas.loadFailed'))
-    } finally {
-      hydrated.current = true
-    }
-  }, [projectId, boardId, store, t])
-
-  // Keep this canvas and overwrite what the server holds. The other save is
-  // discarded — acknowledged, not silent, which is the whole difference from
-  // the behaviour this replaces.
-  const overwriteServer = useCallback(() => {
-    forceNext.current = true
-    void flush()
-  }, [flush])
 
   // Drop a card at the centre of the current viewport.
   const placeCard = (token: string) => {
@@ -595,31 +486,17 @@ export function WhiteboardCanvas({
           <Box sx={{ flex: 1 }} />
           <BoardPeers peers={others} />
           <Typography variant="caption" color="text.disabled" sx={{ transition: 'opacity .2s' }}>
-            {conflict ? t('canvas.notSaving') : saving ? t('canvas.saving') : t('canvas.saved')}
+            {syncLabel(t, sync)}
           </Typography>
         </Stack>
       )}
 
-      {/* Someone else saved this board while it was open. Autosaving has
-          stopped: the two choices are theirs or yours, and the app must not
-          pick for them. Reload discards this canvas's unsaved edits; overwrite
-          discards the other save. Nothing happens until they choose. */}
-      {conflict && (
-        <Alert
-          severity="warning"
-          sx={{ borderRadius: 0, py: 0.25 }}
-          action={
-            <Stack direction="row" spacing={1}>
-              <Button size="small" color="inherit" onClick={reloadFromServer}>
-                {t('canvas.conflictReload')}
-              </Button>
-              <Button size="small" color="inherit" onClick={overwriteServer}>
-                {t('canvas.conflictOverwrite')}
-              </Button>
-            </Stack>
-          }
-        >
-          {conflictBy ? t('canvas.conflictBy', { name: conflictBy }) : t('canvas.conflict')}
+      {/* Offline is not "your work is lost" — the editor still holds it and the
+          queue drains on reconnect — but it must be visible, because until it
+          clears nobody else can see what is being drawn. */}
+      {sync.status === 'offline' && (
+        <Alert severity="warning" sx={{ borderRadius: 0, py: 0.25 }}>
+          {t('canvas.offline')}
         </Alert>
       )}
 
@@ -768,4 +645,15 @@ function BoardPeers({ peers }: { peers: BoardPeer[] }) {
       </Stack>
     </Tooltip>
   )
+}
+
+// syncLabel says where this canvas stands with the server, in the place the
+// old save indicator used to be. "Synced" is the resting state, so it reads as
+// reassurance rather than activity.
+function syncLabel(t: TFunction, sync: { status: string; pending: boolean }): string {
+  if (sync.status === 'error') return t('canvas.syncError')
+  if (sync.status === 'offline') return t('canvas.offlineShort')
+  if (sync.pending) return t('canvas.syncing')
+  if (sync.status === 'connecting') return t('canvas.connecting')
+  return t('canvas.synced')
 }

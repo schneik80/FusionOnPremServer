@@ -19,6 +19,10 @@ import (
 // by the file allow-list. Project dirs whose metadata is unreadable or
 // unrecognizable are skipped; an error from visit aborts.
 func (s *Store) Snapshot(visit func(rel string, data []byte, schemaVersion int) error) error {
+	// Write out anything being edited right now, so a backup captures what is
+	// on screen rather than a state up to RoomSaveMax stale. Before the walk
+	// and outside any project lock — flushing takes those locks itself.
+	s.liveRooms().FlushAll()
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
