@@ -1,5 +1,5 @@
 import { Box } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
+import { useTheme, type Theme } from '@mui/material/styles'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { HubOverview } from '../../api/types'
@@ -187,14 +187,14 @@ export default function HubRiver({
   )
 }
 
-function taskColorFor(theme: ReturnType<typeof useTheme>, status: string): string {
+function taskColorFor(theme: Theme, status: string): string {
   if (status === 'inprogress') return theme.palette.info.main
   if (status === 'blocked') return theme.palette.warning.main
   if (status === 'done') return theme.palette.success.main
   return theme.palette.text.secondary
 }
 
-function batchColorFor(theme: ReturnType<typeof useTheme>, status: string): string {
+function batchColorFor(theme: Theme, status: string): string {
   if (status === 'running') return theme.palette.info.main
   if (status === 'complete') return theme.palette.success.main
   return theme.palette.text.secondary
