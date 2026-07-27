@@ -282,10 +282,16 @@ function taskRow(t: Task): GanttRow {
   }
 }
 
+// scheduledSplit partitions tasks for the Gantt view. Scheduled tasks (done
+// or not) render on the chart; the backlog rail lists only unscheduled tasks
+// that are still open — a done task with no dates has nothing left to plan.
 export function scheduledSplit(tasks: Task[]): { scheduled: Task[]; backlog: Task[] } {
   const scheduled: Task[] = []
   const backlog: Task[] = []
-  for (const t of tasks) (isScheduled(t) ? scheduled : backlog).push(t)
+  for (const t of tasks) {
+    if (isScheduled(t)) scheduled.push(t)
+    else if (t.status !== 'done') backlog.push(t)
+  }
   return { scheduled, backlog }
 }
 

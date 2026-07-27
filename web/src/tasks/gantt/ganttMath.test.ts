@@ -171,6 +171,14 @@ describe('rowModel', () => {
     expect(scheduled.map((t) => t.id)).toEqual([a.id])
     expect(backlog.map((t) => t.id)).toEqual([b.id])
   })
+  it('keeps done tasks off the backlog but leaves scheduled done tasks on the chart', () => {
+    const doneUnscheduled = mkTask({ status: 'done' })
+    const doneScheduled = mkTask({ startDate: '2026-07-06', endDate: '2026-07-10', status: 'done' })
+    const openUnscheduled = mkTask({})
+    const { scheduled, backlog } = scheduledSplit([doneUnscheduled, doneScheduled, openUnscheduled])
+    expect(scheduled.map((t) => t.id)).toEqual([doneScheduled.id])
+    expect(backlog.map((t) => t.id)).toEqual([openUnscheduled.id])
+  })
   it('orders rows by start date and nests stage children under the stage bar', () => {
     const late = mkTask({ startDate: '2026-07-20', endDate: '2026-07-24' })
     const s1 = mkTask({ startDate: '2026-07-08', endDate: '2026-07-10', stage: 'Design' })
