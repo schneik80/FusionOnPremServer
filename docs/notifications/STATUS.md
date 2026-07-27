@@ -20,12 +20,37 @@ a mention in hub A is invisible while the session is locked to hub B.
 | `due_soon` | A task assigned to the caller is due within `dueSoonDays` (2). | The assignee (derived at read time). |
 | `overdue` | A task assigned to the caller is past its due date. | The assignee (derived at read time). |
 | `production` | A batch is created, or its status advances the run timeline. | The job's owner (`Job.CreatedBy`). |
+| `chat_unread` | A channel the caller participates in has messages past their read cursor. | The caller (derived at read time; never stored). |
 
-**Chat activity beyond mentions stays out of the inbox** — general channel
-traffic is surfaced by the existing per-channel unread pills, not the bell.
+**Chat unreads used to live on a badge beside the Chat tab.** Two places
+competing to tell you the same thing is what made it worth moving: the bell is
+now the one inbox. The per-channel bolding *inside* the Chat app stays — that
+is in-app context, not a notification.
 
 You are never notified about your own action (self-mention, self-assign,
 changing your own job).
+
+### Why `chat_unread` is derived and never stored
+
+A stored row would be wrong the instant the channel was read, so it would need
+a hook on the read cursor to delete it, and any drift between the two would
+leave a row pointing at nothing. Deriving it from the cursors on every inbox
+fetch removes the problem rather than managing it: reading the channel makes
+the row disappear because the count is recomputed, and there is no write-path
+fan-out to every member of a busy channel.
+
+Derived rows carry `derived: true` and a synthetic `chat:<project>:<channel>`
+id. They are not in the store, so they cannot be marked read or dismissed — the
+bell hides the dismiss button on them, because offering an X that did nothing
+would be worse than offering none.
+
+**Scope** (`chat.Store.MyUnreads`). The scan makes no APS call, so it cannot
+ask which projects the caller may see. It reports only channels the caller
+demonstrably participates in: one they hold a read cursor for (a cursor exists
+only because they opened it, which required access at the time), or a private
+channel whose member list names them. A public channel in a project they have
+never opened stays invisible — which is also what you want, or the bell would
+sprout a row for every channel in the hub.
 
 ### Two emission modes
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -43,7 +44,9 @@ type notifCtx struct {
 	email   string
 	store   *notifications.Store
 	tasks   *tasks.Store
-	sessID  string
+	// chat backs the derived unread rows — see chatUnreadRows.
+	chat   *chat.Store
+	sessID string
 }
 
 func decodeNotifBody(w http.ResponseWriter, r *http.Request, v any) bool {
@@ -89,6 +92,7 @@ func (s *Server) notifSession(w http.ResponseWriter, r *http.Request) (notifCtx,
 		email:   sess.Profile.Email,
 		store:   set.notifications,
 		tasks:   set.tasks,
+		chat:    set.chat,
 		sessID:  sess.ID,
 	}, true
 }
@@ -120,10 +124,26 @@ func (s *Server) handleNotifList(w http.ResponseWriter, r *http.Request) {
 		s.notifError(w, r, err)
 		return
 	}
-	out := NotificationListDTO{Notifications: make([]NotificationDTO, 0, len(list)), Unread: unread}
+	// Chat rows are DERIVED here rather than stored, which is what keeps them
+	// honest: they are recomputed from the read cursors on every fetch, so
+	// opening a channel makes its row disappear by itself — there is no stored
+	// row to go stale, and no emission on chat's write path fanning out to
+	// every member of a busy channel.
+	chatRows := s.chatUnreadRows(c)
+	out := NotificationListDTO{
+		Notifications: make([]NotificationDTO, 0, len(list)+len(chatRows)),
+		Unread:        unread + len(chatRows),
+	}
+	// Newest first overall: chat rows carry the timestamp of their newest
+	// unread message, so they interleave with stored rows rather than being
+	// pinned to the top.
+	out.Notifications = append(out.Notifications, chatRows...)
 	for _, n := range list {
 		out.Notifications = append(out.Notifications, notificationDTO(n))
 	}
+	sort.SliceStable(out.Notifications, func(i, j int) bool {
+		return out.Notifications[i].CreatedAt > out.Notifications[j].CreatedAt
+	})
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -328,4 +348,51 @@ func refMatchesUser(refID, refEmail, userID, email string) bool {
 		return true
 	}
 	return refEmail != "" && email != "" && strings.EqualFold(refEmail, email)
+}
+
+// chatUnreadRows renders the caller's unread channels as inbox rows.
+//
+// They are derived, not stored, so they have no id to mark read or dismiss:
+// the way to clear one is to read the channel, which is what the row is asking
+// you to do anyway. The client renders them with a synthetic id so React can
+// key them and a click can navigate.
+//
+// Best-effort: a scan failure yields no chat rows rather than failing the
+// inbox the user already has.
+func (s *Server) chatUnreadRows(c notifCtx) []NotificationDTO {
+	if c.chat == nil || c.userKey == "" {
+		return nil
+	}
+	unreads, err := c.chat.MyUnreads(c.userKey)
+	if err != nil {
+		s.logger.Debug("notifications: chat unread scan failed", "err", err)
+		return nil
+	}
+	out := make([]NotificationDTO, 0, len(unreads))
+	for _, u := range unreads {
+		out = append(out, NotificationDTO{
+			// Derived rows carry no store id. The prefix marks them as such —
+			// mark-read and dismiss reject anything they do not recognise, so
+			// a client sending one back gets a clean 404 rather than a
+			// mysterious no-op.
+			ID:          derivedChatID(u.ProjectID, u.ChannelID),
+			Kind:        notifications.KindChatUnread,
+			ProjectID:   u.ProjectID,
+			Subject:     u.ChannelName,
+			ChannelID:   u.ChannelID,
+			ChannelName: u.ChannelName,
+			MessageSeq:  u.LatestSeq,
+			Count:       u.UnreadCount,
+			Derived:     true,
+			Read:        false,
+			CreatedAt:   fmtTime(u.LatestAt),
+		})
+	}
+	return out
+}
+
+// derivedChatID is a stable client-side key for a derived row. It is not a
+// store id and will never resolve to one.
+func derivedChatID(projectID, channelID string) string {
+	return "chat:" + projectID + ":" + channelID
 }

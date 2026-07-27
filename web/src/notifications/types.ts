@@ -7,7 +7,11 @@
 // rendered verbatim and never translated.
 
 // NotifKind is a stable enum token (rendered through i18n enums → notifKind).
-export type NotifKind = 'mention' | 'assigned' | 'due_soon' | 'overdue' | 'production'
+// 'chat_unread' is DERIVED server-side at inbox-read time from chat's read
+// cursors rather than stored: one row per channel with unread messages. It has
+// no store id, so it cannot be marked read or dismissed — reading the channel
+// is what clears it.
+export type NotifKind = 'mention' | 'assigned' | 'due_soon' | 'overdue' | 'production' | 'chat_unread'
 
 export interface NotifUser {
   id: string
@@ -27,6 +31,8 @@ export interface Notification {
   channelId?: string // mention context
   channelName?: string // mention context
   messageSeq?: number // mention context
+  count?: number // derived rows: how many things this row stands for
+  derived?: boolean // computed at read time; no store id, cannot be dismissed
   read: boolean
   createdAt: string
   readAt?: string
