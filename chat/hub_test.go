@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
+	"github.com/schneik80/fusionlocalserver/internal/sse"
 )
 
 // fakeAuthorizer returns an Authorizer whose roster fetch is an in-memory
@@ -94,7 +95,7 @@ func TestHub_ReplayGapAndEpochRules(t *testing.T) {
 
 func TestHub_RingOverflowForcesReset(t *testing.T) {
 	h := newTestHub()
-	for i := 0; i < ringCap+50; i++ {
+	for i := 0; i < sse.DefaultConfig().RingCap+50; i++ {
 		if err := h.Publish("p", Event{Type: "e", V: 1, Data: i}, Vis{}); err != nil {
 			t.Fatal(err)
 		}
@@ -108,7 +109,7 @@ func TestHub_RingOverflowForcesReset(t *testing.T) {
 		t.Fatalf("overflowed ring: replay=%d reset=%v, want reset", len(replay), reset)
 	}
 	// A cursor still inside the ring replays fine.
-	_, replay, reset, _ = h.Subscribe("p", eventID(7, int64(ringCap+40)))
+	_, replay, reset, _ = h.Subscribe("p", sse.EventID(7, int64(sse.DefaultConfig().RingCap+40)))
 	if reset || len(replay) != 10 {
 		t.Fatalf("in-ring cursor: replay=%d reset=%v, want 10/false", len(replay), reset)
 	}
@@ -120,9 +121,9 @@ func TestHub_EntitledVisibility(t *testing.T) {
 	private := Channel{ID: "c2", Name: "secret", IsPrivate: true,
 		Members: []ChannelMember{{UserID: "u-member"}}}
 
-	pub := Frame{vis: Vis{}}
-	priv := Frame{vis: Vis{Private: true, Channel: private}}
-	privExtra := Frame{vis: Vis{Private: true, Channel: private, ExtraUserIDs: []string{"u-editor"}}}
+	pub := Frame{Vis: Vis{}}
+	priv := Frame{Vis: Vis{Private: true, Channel: private}}
+	privExtra := Frame{Vis: Vis{Private: true, Channel: private, ExtraUserIDs: []string{"u-editor"}}}
 
 	cases := []struct {
 		name string
@@ -182,8 +183,8 @@ func TestHub_EphemeralFramesAreIDlessAndNeverReplayed(t *testing.T) {
 func TestHub_UserOnlyVisibility(t *testing.T) {
 	h := newTestHub()
 	ctx := context.Background()
-	f := Frame{vis: Vis{UserOnly: true, ExtraUserIDs: []string{"u-member"}}}
-	emailF := Frame{vis: Vis{UserOnly: true, ExtraUserIDs: []string{"m@x.io"}}}
+	f := Frame{Vis: Vis{UserOnly: true, ExtraUserIDs: []string{"u-member"}}}
+	emailF := Frame{Vis: Vis{UserOnly: true, ExtraUserIDs: []string{"m@x.io"}}}
 
 	cases := []struct {
 		name string
@@ -215,7 +216,7 @@ func TestHub_SlowSubscriberDisconnected(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Never drain: the buffer fills, then the next publish must evict.
-	for i := 0; i < subBuf+1; i++ {
+	for i := 0; i < sse.DefaultConfig().SubBuf+1; i++ {
 		if err := h.Publish("p", Event{Type: "e", V: 1, Data: i}, Vis{}); err != nil {
 			t.Fatal(err)
 		}

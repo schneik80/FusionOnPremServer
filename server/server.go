@@ -130,7 +130,11 @@ type Server struct {
 	taskOpLim       *chat.Limiter
 	prodOpLim       *chat.Limiter
 	whiteboardOpLim *chat.Limiter
-	notifOpLim      *chat.Limiter
+	// whiteboardDocLim meters the document PUT, which an open canvas issues far
+	// more often than a person renames a board — so it cannot share the op
+	// limiter's human-paced budget, but a 24 MiB body must not be unmetered.
+	whiteboardDocLim *chat.Limiter
+	notifOpLim       *chat.Limiter
 
 	// uploads tracks background file-upload jobs (per-session; see uploads.go).
 	uploads *uploadManager
@@ -221,6 +225,10 @@ func Run(opts Options) error {
 	s.taskOpLim = chat.NewLimiter(2, 10)
 	s.prodOpLim = chat.NewLimiter(2, 10)
 	s.whiteboardOpLim = chat.NewLimiter(2, 10)
+	// Autosave fires at most once per 1.5s idle window per open board, so 2/s
+	// with a burst of 20 covers several boards open at once and a flush on
+	// unmount, while still bounding a runaway client.
+	s.whiteboardDocLim = chat.NewLimiter(2, 20)
 	// Notification mark-read/dismiss: user clicks in the bell, so the same
 	// generous 2/s burst 10 as the other app op limiters. Reads (the polled
 	// list) are unmetered here — react-query paces them.

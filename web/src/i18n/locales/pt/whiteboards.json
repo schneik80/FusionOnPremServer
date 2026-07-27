@@ -24,7 +24,13 @@
     "saving": "A guardar…",
     "saved": "Guardado",
     "placeDocumentTitle": "Colocar um cartão de documento",
-    "place": "Colocar"
+    "place": "Colocar",
+    "notSaving": "Gravação em pausa",
+    "conflict": "Outra pessoa gravou este quadro enquanto o tinha aberto. A gravação está em pausa.",
+    "conflictReload": "Carregar a deles",
+    "conflictOverwrite": "Manter a minha",
+    "conflictBy": "{{name}} gravou este quadro enquanto o tinha aberto. A gravação está em pausa.",
+    "peersHere": "Também aqui: {{names}}"
   },
   "assembly": {
     "expandTitle": "Expandir uma montagem",
@@ -35,5 +41,13 @@
     "placedSkipped_other": "{{count}} componentes colocados; {{skipped}} ignorados por não terem documento separado.",
     "expandFailed": "Não foi possível expandir esta montagem."
   },
-  "errorLabel": "quadro branco"
+  "errorLabel": "quadro branco",
+  "tldraw": {
+    "strokeLabel": "Traço",
+    "strokeSketch": "Esboço",
+    "fillTinted": "Sombreado",
+    "fillHatched": "Hachurado",
+    "fillFilled": "Preenchido",
+    "fillLined": "Com linhas"
+  }
 }

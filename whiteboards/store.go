@@ -131,29 +131,34 @@ func (s *Store) ProjectInfo(projectID string) (hubID, projectName string, err er
 	return ps.file.HubID, ps.file.ProjectName, nil
 }
 
-// Document returns a board's stored tldraw document. A board that has never
-// been saved returns nil with no error — the client then starts an empty
-// canvas, which is the correct initial state rather than an error case.
-// (Named Document rather than Snapshot so the backup engine's Snapshot(visit)
-// method can carry the store-uniform name.)
-func (s *Store) Document(projectID, boardID string) ([]byte, error) {
+// Document returns a board's stored tldraw document and the revision it is at.
+// A board that has never been saved returns nil with no error — the client then
+// starts an empty canvas, which is the correct initial state rather than an
+// error case. (Named Document rather than Snapshot so the backup engine's
+// Snapshot(visit) method can carry the store-uniform name.)
+//
+// The document and its revision are read under one lock hold: a caller that
+// fetched them separately could load one save's bytes and the next save's
+// revision, and would then believe its stale document was current.
+func (s *Store) Document(projectID, boardID string) ([]byte, int64, error) {
 	ps, err := s.project(projectID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	if findBoard(ps.file, boardID) == nil {
-		return nil, fmt.Errorf("%w: whiteboard %q", ErrNotFound, boardID)
+	b := findBoard(ps.file, boardID)
+	if b == nil {
+		return nil, 0, fmt.Errorf("%w: whiteboard %q", ErrNotFound, boardID)
 	}
 	data, err := os.ReadFile(s.snapshotPath(projectID, boardID))
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
+		return nil, b.DocRev, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("whiteboards: reading document: %w", err)
+		return nil, 0, fmt.Errorf("whiteboards: reading document: %w", err)
 	}
-	return data, nil
+	return data, b.DocRev, nil
 }
 
 // ---- mutations ----
@@ -261,7 +266,18 @@ func (s *Store) Delete(projectID, boardID string) error {
 // updated-by/at. The document is written atomically (temp + rename) like every
 // other file here, so an autosave interrupted mid-write can never truncate the
 // user's board.
-func (s *Store) SaveSnapshot(projectID, boardID string, doc []byte, by UserRef) (Board, error) {
+//
+// baseRev is the revision the caller loaded. It must still be the board's
+// current revision or the save is refused with ErrConflict — without that check
+// two people on one board each PUT their whole local document and the later
+// save discards the earlier one's work entirely. force skips the check, for the
+// user who has been shown the conflict and chose to overwrite anyway; it is a
+// deliberate, acknowledged act, never a retry path.
+//
+// The check happens here rather than in the handler because only here is it
+// under the project lock that also serialises the write — a handler-side
+// compare would leave a window between reading the revision and writing.
+func (s *Store) SaveSnapshot(projectID, boardID string, doc []byte, by UserRef, baseRev int64, force bool) (Board, error) {
 	if len(doc) == 0 {
 		return Board{}, fmt.Errorf("%w: empty document", ErrInvalid)
 	}
@@ -281,6 +297,10 @@ func (s *Store) SaveSnapshot(projectID, boardID string, doc []byte, by UserRef) 
 	if b == nil {
 		return Board{}, fmt.Errorf("%w: whiteboard %q", ErrNotFound, boardID)
 	}
+	if !force && baseRev != b.DocRev {
+		return Board{}, fmt.Errorf("%w: board is at revision %d, save was based on %d",
+			ErrConflict, b.DocRev, baseRev)
+	}
 	if err := s.writeSnapshot(projectID, boardID, doc); err != nil {
 		return Board{}, err
 	}
@@ -288,6 +308,7 @@ func (s *Store) SaveSnapshot(projectID, boardID string, doc []byte, by UserRef) 
 	b.UpdatedAt = time.Now().UTC()
 	b.UpdatedBy = by
 	b.SnapshotBytes = int64(len(doc))
+	b.DocRev++
 	if err := s.saveFile(projectID, ps.file); err != nil {
 		ps.file = prev
 		return Board{}, err

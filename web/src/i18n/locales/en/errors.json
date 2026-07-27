@@ -6,5 +6,6 @@
   "upstream_failed": "The upstream service reported an error.",
   "service_unavailable": "This feature is unavailable on this server right now.",
   "server_error": "The server hit an unexpected error.",
-  "conflict": "The request conflicts with the current state — reload and try again."
+  "conflict": "The request conflicts with the current state — reload and try again.",
+  "whiteboard_stale": "This whiteboard changed since you opened it."
 }

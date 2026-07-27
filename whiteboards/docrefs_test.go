@@ -24,7 +24,7 @@ func board(t *testing.T, st *Store, projectID, name string, n int) Board {
 		shapes[i] = `{"type":"fls-card","props":{"w":320,"h":96,"token":"` + docToken + `"}}`
 	}
 	doc := `{"store":{"shapes":[` + strings.Join(shapes, ",") + `]}}`
-	if _, err := st.SaveSnapshot(projectID, b.ID, []byte(doc), UserRef{ID: "u", Name: "U"}); err != nil {
+	if _, err := st.SaveSnapshot(projectID, b.ID, []byte(doc), UserRef{ID: "u", Name: "U"}, 0, true); err != nil {
 		t.Fatal(err)
 	}
 	return b
@@ -48,7 +48,7 @@ func TestFindDocRefs_CountsCardsPerBoard(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := st.SaveSnapshot("p1", other.ID,
-		[]byte(`{"token":"fls:doc?itemId=urn%3Aadsk%3Adm.lineage%3Aelse"}`), UserRef{ID: "u"}); err != nil {
+		[]byte(`{"token":"fls:doc?itemId=urn%3Aadsk%3Adm.lineage%3Aelse"}`), UserRef{ID: "u"}, 0, true); err != nil {
 		t.Fatal(err)
 	}
 

@@ -173,6 +173,39 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
   return res.text()
 }
 
+// requestWithEtag is the sibling of request<T> for endpoints whose response
+// carries a revision in an ETag header. Used by the whiteboard document, whose
+// body must stay a verbatim tldraw snapshot — wrapping it in an envelope just
+// to carry a number would mean the client had to unwrap it before handing it
+// to loadSnapshot, and the server had to build it.
+async function requestWithEtag<T>(path: string, init?: RequestInit): Promise<{ data: T; etag: string | null }> {
+  const res = await fetch(path, { credentials: 'same-origin', ...init })
+  if (!res.ok) {
+    let msg = `request failed (HTTP ${res.status})`
+    let code: string | undefined
+    try {
+      const body = (await res.json()) as { error?: string; code?: string }
+      if (body?.error) msg = body.error
+      if (body?.code) code = body.code
+    } catch {
+      /* non-JSON error body — keep the generic message */
+    }
+    if (res.status === 401) redirectToLogin()
+    if (res.status === 409 && code === 'hub_not_selected') resetForHubGate()
+    throw new ApiError(res.status, msg, code)
+  }
+  return { data: (await res.json()) as T, etag: res.headers.get('ETag') }
+}
+
+// parseRev reads the revision out of a weak ETag (`W/"7"`). An absent or
+// unreadable tag means revision 0 — the value a never-saved board carries, and
+// the only safe default: the first save then either succeeds or is refused,
+// never silently overwrites.
+function parseRev(etag: string | null): number {
+  const n = Number(etag?.replace(/^W\//, '').replace(/"/g, ''))
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
 const qs = (params: Record<string, string | undefined>): string => {
   const sp = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
@@ -698,15 +731,36 @@ export const api = {
     }),
 
   // The document is opaque tldraw JSON: fetched whole when a board opens,
-  // replaced whole by the debounced autosave. null = never saved (empty canvas).
-  whiteboardDoc: (projectId: string, boardId: string) =>
-    request<unknown | null>(`/api/whiteboards/doc${qs({ projectId, boardId })}`),
+  // replaced whole by the debounced autosave. doc null = never saved (empty
+  // canvas). rev is the document's save counter, which every save must carry
+  // back so a board two people have open can't be silently overwritten.
+  whiteboardDoc: async (projectId: string, boardId: string) => {
+    const { data, etag } = await requestWithEtag<unknown | null>(
+      `/api/whiteboards/doc${qs({ projectId, boardId })}`,
+    )
+    return { doc: data, rev: parseRev(etag) }
+  },
 
-  whiteboardDocSave: (projectId: string, boardId: string, doc: unknown) =>
-    request<Whiteboard>(`/api/whiteboards/doc${qs({ projectId, boardId })}`, {
-      method: 'PUT',
-      body: JSON.stringify(doc),
-    }),
+  // baseRev is the revision this client loaded (or last wrote). force is the
+  // user's acknowledged overwrite after being shown a conflict — never a retry:
+  // retrying a refused save is precisely what would discard the other person's
+  // work. A stale save throws ApiError with code 'whiteboard_stale'.
+  whiteboardDocSave: (
+    projectId: string,
+    boardId: string,
+    doc: unknown,
+    baseRev: number,
+    force?: boolean,
+  ) =>
+    request<Whiteboard>(
+      `/api/whiteboards/doc${qs({
+        projectId,
+        boardId,
+        baseRev: String(baseRev),
+        force: force ? '1' : undefined,
+      })}`,
+      { method: 'PUT', body: JSON.stringify(doc) },
+    ),
 
   // Wiki: published markdown pages in a project's root "Wiki" folder. hubId is
   // the GraphQL hub id (the server resolves it to the DM hub id); dmProjectId is

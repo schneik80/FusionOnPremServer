@@ -26,6 +26,10 @@ type WhiteboardDTO struct {
 	UpdatedAt     string            `json:"updatedAt"`
 	UpdatedBy     WhiteboardUserDTO `json:"updatedBy"`
 	SnapshotBytes int64             `json:"snapshotBytes"`
+	// DocRev is the document's save counter. The canvas sends the revision it
+	// loaded back with each save so a stale save is refused rather than
+	// silently overwriting whoever saved in between.
+	DocRev int64 `json:"docRev"`
 }
 
 // WhiteboardCapsDTO tells the SPA what the caller may do, so it can present a
@@ -58,5 +62,6 @@ func whiteboardDTO(b whiteboards.Board, projectID, hubID, projectName string) Wh
 		UpdatedAt:     fmtTime(b.UpdatedAt),
 		UpdatedBy:     whiteboardUserDTO(b.UpdatedBy),
 		SnapshotBytes: b.SnapshotBytes,
+		DocRev:        b.DocRev,
 	}
 }

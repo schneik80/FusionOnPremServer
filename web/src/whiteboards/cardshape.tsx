@@ -30,6 +30,11 @@ export type FlsCardShape = TLShape<typeof FLS_CARD_TYPE>
 export const CARD_W = 320
 export const CARD_H = 96
 
+// How far the measured size may sit from the stored one before it is written
+// back. Wide enough to absorb the difference between two machines' font
+// rendering, narrow enough that a real content change still resizes the card.
+const MEASURE_SLOP = 3
+
 // The mounted card DOM, by shape id. CardBody keeps this current; the shape
 // util's onClick below is the only reader.
 const cardNodes = new Map<string, HTMLElement>()
@@ -140,11 +145,26 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 		const el = ref.current
 		if (!el) return
 		const sync = () => {
+			// A read-only viewer must not write to a shared document at all, even
+			// locally: the measurement is this browser's opinion, and persisting it
+			// is a write they are not entitled to make.
+			if (editor.getInstanceState().isReadonly) return
 			const w = Math.min(CARD_W, Math.ceil(el.offsetWidth))
 			const h = Math.ceil(el.offsetHeight)
 			if (!w || !h) return
-			// Within a pixel is a match — don't churn the store on rounding.
-			if (Math.abs(w - shape.props.w) <= 1 && Math.abs(h - shape.props.h) <= 1) return
+			// Close enough is a match — don't churn the store on rounding.
+			//
+			// The tolerance is MEASURE_SLOP rather than a pixel because the measured
+			// size depends on font rendering, which differs by platform and device
+			// pixel ratio: two people opening the same board on different displays
+			// measure e.g. 318 and 320, and with a one-pixel guard each would write
+			// its own value, see the other's, and re-measure — a ping-pong between
+			// clients that no single client can detect on its own.
+			if (
+				Math.abs(w - shape.props.w) <= MEASURE_SLOP &&
+				Math.abs(h - shape.props.h) <= MEASURE_SLOP
+			)
+				return
 			// Shrink from the centre, not the top-left, so a card stays put over
 			// its intended spot — otherwise a whole placed tree drifts up-left as
 			// its cards measure smaller than the 320x96 they were created at.

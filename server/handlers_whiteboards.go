@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/whiteboards"
@@ -30,6 +31,11 @@ const (
 	// can't be bypassed.
 	whiteboardMaxDoc = whiteboards.MaxSnapshotBytes
 )
+
+// codeWhiteboardStale is the machine code for a save based on a revision the
+// board has already moved past. The client stops autosaving and offers reload
+// or overwrite; it must never retry, which would discard the other save.
+const codeWhiteboardStale = "whiteboard_stale"
 
 // whiteboardCtx carries the caller plus the SESSION HUB's whiteboard store
 // (from the requireHub choke point — never from any wire hub id).
@@ -103,6 +109,12 @@ func (s *Server) whiteboardError(w http.ResponseWriter, r *http.Request, err err
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, whiteboards.ErrInvalid):
 		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, whiteboards.ErrConflict):
+		// The message names revisions, which mean nothing to a user; the code is
+		// what the client renders (web/src/i18n/apiError.ts), and what tells it
+		// to stop autosaving rather than retry.
+		writeErrorCode(w, http.StatusConflict, codeWhiteboardStale,
+			"this whiteboard changed since you opened it")
 	case errors.Is(err, whiteboards.ErrFutureVersion):
 		s.logger.Error("whiteboards: refusing data from a newer version", "err", err)
 		writeError(w, http.StatusServiceUnavailable, "whiteboard data on this server was written by a newer version")
@@ -281,6 +293,11 @@ func (s *Server) handleWhiteboardDelete(w http.ResponseWriter, r *http.Request) 
 
 // handleWhiteboardDocGet streams a board's stored tldraw document. An unsaved
 // board answers "null" — an empty canvas, which the client opens fresh.
+//
+// The body stays a verbatim tldraw snapshot, so the revision rides in an ETag
+// header rather than wrapping the document in an envelope: the client hands the
+// body straight to loadSnapshot, and the server keeps its promise never to
+// reinterpret a document.
 func (s *Server) handleWhiteboardDocGet(w http.ResponseWriter, r *http.Request) {
 	c, ok := s.whiteboardReq(w, r)
 	if !ok {
@@ -295,12 +312,13 @@ func (s *Server) handleWhiteboardDocGet(w http.ResponseWriter, r *http.Request) 
 	if !s.whiteboardCan(ctx, w, r, c, chat.CapRead) {
 		return
 	}
-	doc, err := c.store.Document(c.projectID, boardID)
+	doc, rev, err := c.store.Document(c.projectID, boardID)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("ETag", whiteboardETag(rev))
 	if doc == nil {
 		w.Write([]byte("null"))
 		return
@@ -308,9 +326,24 @@ func (s *Server) handleWhiteboardDocGet(w http.ResponseWriter, r *http.Request) 
 	w.Write(doc) // stored verbatim; the server never reinterprets a document
 }
 
+// whiteboardETag formats a document revision as an entity tag. Weak, because it
+// tags the revision rather than the exact bytes — two saves that happened to
+// produce identical documents are still distinct revisions, which is what the
+// conflict check needs.
+func whiteboardETag(rev int64) string { return `W/"` + strconv.FormatInt(rev, 10) + `"` }
+
 // handleWhiteboardDocPut stores a board's tldraw document (the canvas
 // autosaves). The body is passed through opaquely — the store validates it is
 // JSON and within the size cap, but nothing here parses tldraw's schema.
+//
+// baseRev is the revision the client loaded (the ETag from the GET). A save
+// based on a revision the board has moved past is refused with 409 — the guard
+// against two people on one board overwriting each other. force=1 is the user's
+// acknowledged "overwrite anyway" after being shown that conflict.
+//
+// Unlike the metadata routes this one is rate limited on its own budget: an
+// autosaving canvas legitimately saves far more often than a person renames a
+// board, but a 24 MiB body left unmetered is a free way to thrash the disk.
 func (s *Server) handleWhiteboardDocPut(w http.ResponseWriter, r *http.Request) {
 	c, ok := s.whiteboardReq(w, r)
 	if !ok {
@@ -320,9 +353,18 @@ func (s *Server) handleWhiteboardDocPut(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
+	baseRev, ok := reqRevParam(w, r, "baseRev")
+	if !ok {
+		return
+	}
+	force := r.URL.Query().Get("force") == "1"
 	ctx, cancel := s.reqCtx(r)
 	defer cancel()
 	if !s.whiteboardCan(ctx, w, r, c, chat.CapPost) {
+		return
+	}
+	if !s.whiteboardDocLim.Allow(c.sessID) {
+		writeError(w, http.StatusTooManyRequests, "too many whiteboard saves; slow down")
 		return
 	}
 	doc, err := io.ReadAll(http.MaxBytesReader(w, r.Body, whiteboardMaxDoc))
@@ -330,10 +372,31 @@ func (s *Server) handleWhiteboardDocPut(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusRequestEntityTooLarge, "whiteboard document is too large")
 		return
 	}
-	b, err := c.store.SaveSnapshot(c.projectID, boardID, doc, s.whiteboardUser(c))
+	b, err := c.store.SaveSnapshot(c.projectID, boardID, doc, s.whiteboardUser(c), baseRev, force)
 	if err != nil {
 		s.whiteboardError(w, r, err)
 		return
 	}
+	// Tell whoever else has this board open, so they learn now rather than when
+	// their own next save is refused.
+	if set, ok := storesFromCtx(r.Context()); ok {
+		s.publishDocChanged(set, c, boardID, b.DocRev)
+	}
 	s.whiteboardResult(w, r, c, b, http.StatusOK)
+}
+
+// reqRevParam reads a required non-negative integer query parameter. A save
+// with no revision is rejected rather than treated as unconditional: silently
+// saving without the guard is the very bug this endpoint now prevents.
+func reqRevParam(w http.ResponseWriter, r *http.Request, name string) (int64, bool) {
+	raw, ok := reqParam(w, r, name)
+	if !ok {
+		return 0, false
+	}
+	v, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || v < 0 {
+		writeError(w, http.StatusBadRequest, "invalid "+name)
+		return 0, false
+	}
+	return v, true
 }
