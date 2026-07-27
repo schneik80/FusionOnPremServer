@@ -3,17 +3,15 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   List,
   ListItemButton,
-  Paper,
   Stack,
   Typography,
 } from '@mui/material'
-import { alpha, useTheme } from '@mui/material/styles'
+import { useTheme } from '@mui/material/styles'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUsers } from '@fortawesome/free-solid-svg-icons'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useQueries } from '@tanstack/react-query'
@@ -22,7 +20,6 @@ import { api } from '../api/client'
 import {
   useFolderContents,
   useProjectContents,
-  useProjects,
   usePermissionsPath,
   usePins,
   useRollupActivity,
@@ -31,190 +28,18 @@ import type { Item, PermMember, Pin, ProjectGroup } from '../api/types'
 import { roleLabel } from '../i18n/enums'
 import { useGoToDocument } from '../state/goto'
 import { useNav } from '../state/nav'
-import { usePinToggle } from '../state/pins'
 import ActivityHeatmap from './ActivityHeatmap'
+import { DashboardShell, DONUT_PALETTE, Hint, WidgetCard } from './dashboard/shell'
 import { ItemIcon } from './entityIcons'
 
-// The hub- and project-level landing panes that fill the right slot of the
-// browser when no document is selected. The project pane carries real widgets
-// (type breakdown, people & groups, recently-modified); the hub pane is still a
-// lightweight placeholder. Both share a frame matching the DetailsPanel chrome
-// so the slide swap between dashboard and document details is seamless.
-
-// ── shared shell ───────────────────────────────────────────────────
-interface Stat {
-  label: string
-  value: ReactNode
-}
-
-function DashboardShell({
-  title,
-  subtitle,
-  stats,
-  children,
-  fill,
-}: {
-  title: string
-  subtitle?: string
-  stats?: Stat[]
-  children?: ReactNode
-  // When true the content area is a full-height flex column and the children
-  // wrapper grows, so a widget marked to fill can consume the pane's leftover
-  // vertical space (the project activity chart). Off by default: the hub
-  // dashboard just flows and scrolls.
-  fill?: boolean
-}) {
-  return (
-    <Paper
-      square
-      variant="outlined"
-      sx={{
-        flex: 1,
-        minWidth: 320,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        borderTop: 0,
-        borderBottom: 0,
-        borderRight: 0,
-        overflow: 'hidden',
-      }}
-    >
-      <Box
-        sx={{
-          flex: 1,
-          overflowY: 'auto',
-          p: 2,
-          ...(fill ? { display: 'flex', flexDirection: 'column', minHeight: 0 } : {}),
-        }}
-      >
-        <Typography variant="h6" noWrap title={title} sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-          {title}
-        </Typography>
-        {subtitle && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            {subtitle}
-          </Typography>
-        )}
-        {stats && stats.length > 0 && (
-          <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 1.5, mt: 1.5 }}>
-            {stats.map((s) => (
-              <StatCard key={s.label} label={s.label} value={s.value} />
-            ))}
-          </Stack>
-        )}
-        {children && (
-          <Box
-            sx={{
-              mt: 1.5,
-              ...(fill ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}),
-            }}
-          >
-            {children}
-          </Box>
-        )}
-      </Box>
-    </Paper>
-  )
-}
-
-function StatCard({ label, value }: Stat) {
-  const theme = useTheme()
-  return (
-    <Box
-      sx={{
-        minWidth: 110,
-        px: 2,
-        py: 1.25,
-        borderRadius: 1.5,
-        border: 1,
-        borderColor: 'divider',
-        bgcolor: alpha(theme.palette.primary.main, 0.08),
-      }}
-    >
-      <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
-        {value}
-      </Typography>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
-      >
-        {label}
-      </Typography>
-    </Box>
-  )
-}
-
-function WidgetCard({
-  title,
-  span,
-  fill,
-  children,
-}: {
-  title: string
-  span?: boolean
-  // When true the card grows to fill its flex parent and its content area
-  // becomes a flex column, so a chart inside can fill the card's height.
-  fill?: boolean
-  children: ReactNode
-}) {
-  return (
-    <Box
-      sx={{
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 1.5,
-        p: 1.5,
-        gridColumn: span ? '1 / -1' : undefined,
-        ...(fill ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}),
-      }}
-    >
-      <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1, lineHeight: 1.4 }}>
-        {title}
-      </Typography>
-      {fill ? (
-        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</Box>
-      ) : (
-        children
-      )}
-    </Box>
-  )
-}
-
-function Hint({ children }: { children: ReactNode }) {
-  return (
-    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-      {children}
-    </Typography>
-  )
-}
-
-const spinner = <CircularProgress size={18} />
-
-// ── hub dashboard (placeholder) ────────────────────────────────────
-export function HubDashboard() {
-  const { t } = useTranslation('details')
-  const nav = useNav()
-  const projectsQ = useProjects(nav.hubId)
-  const { pinnedIds } = usePinToggle()
-  return (
-    <DashboardShell
-      title={nav.hubName ?? t('dashboards.hub')}
-      subtitle={t('dashboards.hubSubtitle')}
-      stats={[
-        { label: t('dashboards.statProjects'), value: projectsQ.isLoading ? spinner : (projectsQ.data?.length ?? 0) },
-        { label: t('dashboards.statPinned'), value: pinnedIds.size },
-      ]}
-    >
-      <Box sx={{ border: 1, borderStyle: 'dashed', borderColor: 'divider', borderRadius: 1.5, p: 4, textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          {t('dashboards.hubWidgetsComingSoon')}
-        </Typography>
-      </Box>
-    </DashboardShell>
-  )
-}
+// The project-level landing pane that fills the right slot of the browser when
+// no document is selected: real widgets (type breakdown, people & groups, pins,
+// activity), framed to match the DetailsPanel chrome so the slide swap between
+// dashboard and document details is seamless. The shared shell primitives live
+// in ./dashboard/shell so the hub dashboard reuses them; the hub landing pane
+// itself now lives in ./hub/HubDashboard (Overview + Explore modes) and is
+// re-exported here so BrowserStage's import path is unchanged.
+export { HubDashboard } from './hub/HubDashboard'
 
 // ── project dashboard ──────────────────────────────────────────────
 // `active` follows the same contract as the other project tabs (see
@@ -411,8 +236,6 @@ const ACTIVITY_CAP = 50
 // one GraphQL call against a per-minute quota, so this bounds what opening a
 // large folder costs; the rest resolve as their rows scroll into view.
 const CLASSIFY_CAP = 24
-
-const DONUT_PALETTE = ['#0696d7', '#36b37e', '#ff8b00', '#6554c0', '#ff5630', '#00b8d9', '#8993a4', '#e91e63']
 
 function extOf(name: string): string {
   const m = /\.([a-z0-9]+)$/i.exec(name)
