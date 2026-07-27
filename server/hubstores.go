@@ -39,9 +39,14 @@ type storeSet struct {
 	// every project subscriber a spurious resync. Per-hub for the same reason
 	// chatHub is — events must never cross hubs.
 	whiteboardHub *whiteboardHub
-	tasks         *tasks.Store
-	production    *production.Store
-	whiteboards   *whiteboards.Store
+	// whiteboardRooms holds the boards being edited right now: the authoritative
+	// record map per open board, and the debounced writer behind it.
+	whiteboardRooms *whiteboards.Rooms
+	// whiteboardStop ends this hub's room janitor at shutdown.
+	whiteboardStop chan struct{}
+	tasks          *tasks.Store
+	production     *production.Store
+	whiteboards    *whiteboards.Store
 	// notifications is the per-user inbox behind the app-chrome bell. Keyed
 	// by OIDC sub (not project), but rooted in the hub profile like every
 	// other store, so a user's inbox is per-hub — a mention in hub A is
@@ -162,18 +167,25 @@ func (h *hubStores) build(hubID, hubName, slug string) (*storeSet, error) {
 		cs.Close()
 		return nil, fmt.Errorf("notifications store: %w", err)
 	}
+	// The live-editing registry, plus the one janitor goroutine that persists
+	// and evicts its rooms — one per hub, not one per board.
+	rooms := whiteboards.NewRooms(ws)
+	stop := make(chan struct{})
+	rooms.StartSweeper(time.Second, stop)
 	return &storeSet{
-		hubID:         hubID,
-		hubName:       hubName,
-		slug:          slug,
-		root:          root,
-		chat:          cs,
-		chatHub:       chat.NewHub(h.authz, cs.EventEpoch),
-		whiteboardHub: newWhiteboardHub(),
-		tasks:         ts,
-		production:    ps,
-		whiteboards:   ws,
-		notifications: ns,
+		hubID:           hubID,
+		hubName:         hubName,
+		slug:            slug,
+		root:            root,
+		chat:            cs,
+		chatHub:         chat.NewHub(h.authz, cs.EventEpoch),
+		whiteboardHub:   newWhiteboardHub(),
+		whiteboardRooms: rooms,
+		whiteboardStop:  stop,
+		tasks:           ts,
+		production:      ps,
+		whiteboards:     ws,
+		notifications:   ns,
 	}, nil
 }
 
@@ -291,6 +303,15 @@ func (h *hubStores) closeAll() {
 		}
 		if set.whiteboardHub != nil {
 			set.whiteboardHub.CloseAll()
+		}
+		// Flush synchronously before signalling the janitor to stop: whatever is
+		// on screen has to reach disk before the process goes.
+		if set.whiteboardRooms != nil {
+			set.whiteboardRooms.FlushAll()
+		}
+		if set.whiteboardStop != nil {
+			close(set.whiteboardStop)
+			set.whiteboardStop = nil
 		}
 		if set.chat != nil {
 			set.chat.Close()

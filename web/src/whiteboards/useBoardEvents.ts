@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from 'react'
 //  - peers: who else has this board open, republished whenever someone joins
 //    or leaves. Ephemeral server-side, so a reconnect never replays a stale
 //    roster claiming someone is here who left.
-//  - doc.changed: someone saved. onRemoteSave fires with the new revision, so
-//    the canvas can say so immediately rather than discovering it when its own
-//    next save is refused.
+//  - patch: a peer's edit, carrying the board's new revision and the id of the
+//    client that made it (so a client can ignore its own echo).
+//  - doc.changed: a whole document was written — an import, or an acknowledged
+//    overwrite. It cannot be expressed as a patch, so the canvas re-reads.
 //
 // Recovery is EventSource's own: it reconnects and re-sends Last-Event-ID, and
 // the server replays what its ring holds or sends a named `reset`. A reset
@@ -24,34 +25,55 @@ export interface BoardPeer {
 interface BoardEvent {
   type: string
   v: number
-  data?: { peers?: BoardPeer[]; rev?: number; by?: BoardPeer }
+  data?: {
+    peers?: BoardPeer[]
+    rev?: number
+    by?: BoardPeer
+    clientId?: string
+    put?: Record<string, unknown>
+    remove?: string[]
+  }
 }
 
 export function useBoardEvents(
   projectId: string | null,
   boardId: string | null,
-  onRemoteSave: (rev: number, by?: BoardPeer) => void,
-): { peers: BoardPeer[]; live: boolean } {
+  handlers: {
+    // A peer's edit, to be ordered and applied (see sync/protocol.ts).
+    onPatch: (frame: { rev: number; clientId: string; put?: Record<string, unknown>; remove?: string[] }) => void
+    // A whole-document write — an import or an overwrite. Not expressible as a
+    // patch, so the canvas re-reads.
+    onReplaced: (rev: number, by?: BoardPeer) => void
+    onLive: (live: boolean) => void
+  },
+): { peers: BoardPeer[] } {
   const [peers, setPeers] = useState<BoardPeer[]>([])
-  const [live, setLive] = useState(false)
-  // The callback changes identity on every canvas render; holding it in a ref
+  // The callbacks change identity on every canvas render; holding them in a ref
   // keeps the stream from being torn down and re-established each time.
-  const onSave = useRef(onRemoteSave)
-  onSave.current = onRemoteSave
+  const cb = useRef(handlers)
+  cb.current = handlers
 
   useEffect(() => {
     if (!projectId || !boardId) return
     const url = `/api/whiteboards/events?projectId=${encodeURIComponent(projectId)}&boardId=${encodeURIComponent(boardId)}`
     const es = new EventSource(url)
 
-    es.onopen = () => setLive(true)
-    es.onerror = () => setLive(false)
+    es.onopen = () => cb.current.onLive(true)
+    es.onerror = () => cb.current.onLive(false)
     es.onmessage = (e) => {
       try {
         const ev = JSON.parse(e.data) as BoardEvent
-        if (ev.type === 'peers') setPeers(ev.data?.peers ?? [])
-        else if (ev.type === 'doc.changed' && typeof ev.data?.rev === 'number') {
-          onSave.current(ev.data.rev, ev.data.by)
+        if (ev.type === 'peers') {
+          setPeers(ev.data?.peers ?? [])
+        } else if (ev.type === 'patch' && typeof ev.data?.rev === 'number') {
+          cb.current.onPatch({
+            rev: ev.data.rev,
+            clientId: ev.data.clientId ?? '',
+            put: ev.data.put,
+            remove: ev.data.remove,
+          })
+        } else if (ev.type === 'doc.changed' && typeof ev.data?.rev === 'number') {
+          cb.current.onReplaced(ev.data.rev, ev.data.by)
         }
       } catch {
         /* one malformed frame must not kill the stream */
@@ -60,10 +82,10 @@ export function useBoardEvents(
 
     return () => {
       es.close()
-      setLive(false)
+      cb.current.onLive(false)
       setPeers([])
     }
   }, [projectId, boardId])
 
-  return { peers, live }
+  return { peers }
 }

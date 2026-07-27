@@ -1,6 +1,8 @@
 package server
 
 import (
+	"encoding/json"
+
 	"github.com/schneik80/fusionlocalserver/whiteboards"
 )
 
@@ -64,4 +66,22 @@ func whiteboardDTO(b whiteboards.Board, projectID, hubID, projectName string) Wh
 		SnapshotBytes: b.SnapshotBytes,
 		DocRev:        b.DocRev,
 	}
+}
+
+// WhiteboardPatchDTO answers a patch submission: where the board is now, and
+// which of the client's records were refused (a shape it tried to update that
+// someone else had already deleted). The client drops those locally.
+type WhiteboardPatchDTO struct {
+	Rev      int64    `json:"rev"`
+	Rejected []string `json:"rejected"`
+}
+
+// WhiteboardPatchEventDTO is a patch as it reaches the other clients. Put
+// carries whole records, opaque to the server; Remove may be longer than what
+// the sender asked for, because deleting a shape takes its bindings with it.
+type WhiteboardPatchEventDTO struct {
+	Rev      int64                      `json:"rev"`
+	ClientID string                     `json:"clientId"`
+	Put      map[string]json.RawMessage `json:"put,omitempty"`
+	Remove   []string                   `json:"remove"`
 }

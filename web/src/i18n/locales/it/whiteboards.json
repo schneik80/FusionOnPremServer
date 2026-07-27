@@ -21,16 +21,15 @@
     "jobBatchButton": "Commessa / lotto",
     "documentButton": "Documento",
     "assemblyButton": "Assieme",
-    "saving": "Salvataggio…",
-    "saved": "Salvato",
     "placeDocumentTitle": "Posiziona una scheda documento",
     "place": "Posiziona",
-    "notSaving": "Salvataggio in pausa",
-    "conflict": "Qualcun altro ha salvato questa lavagna mentre era aperta. Il salvataggio è in pausa.",
-    "conflictReload": "Carica la loro",
-    "conflictOverwrite": "Mantieni la mia",
-    "conflictBy": "{{name}} ha salvato questa lavagna mentre era aperta. Il salvataggio è in pausa.",
-    "peersHere": "Anche qui: {{names}}"
+    "peersHere": "Anche qui: {{names}}",
+    "synced": "Sincronizzato",
+    "syncing": "Sincronizzazione…",
+    "connecting": "Connessione…",
+    "syncError": "Errore di sincronizzazione",
+    "offlineShort": "Non in linea",
+    "offline": "Disconnesso — le tue modifiche restano qui e verranno sincronizzate al ritorno della connessione."
   },
   "assembly": {
     "expandTitle": "Espandi un assieme",

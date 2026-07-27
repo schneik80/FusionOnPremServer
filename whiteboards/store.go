@@ -38,6 +38,25 @@ type Store struct {
 
 	mu       sync.Mutex // guards projects map
 	projects map[string]*projectState
+	// rooms is the live-editing registry, when one is wired (NewRooms sets it).
+	// The store holds the back-reference so that deleting a board or resetting
+	// after a restore drops the matching rooms HERE, rather than depending on
+	// every caller to remember — forgetting would resurrect a deleted document
+	// or overwrite a restored one.
+	rooms *Rooms
+}
+
+// setRooms is called by NewRooms; a store without live editing simply has nil.
+func (s *Store) setRooms(rs *Rooms) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rooms = rs
+}
+
+func (s *Store) liveRooms() *Rooms {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.rooms
 }
 
 // projectState is the in-memory copy of one project's whiteboards.json. mu
@@ -60,6 +79,11 @@ func NewStore(dir string) (*Store, error) {
 // disk. Required after a backup restore replaces the files under a
 // still-running process (the listener rebind does not recreate the store).
 func (s *Store) Reset() {
+	// Rooms are DISCARDED, never flushed: a restore has just replaced the files
+	// underneath us, and writing a live room back would overwrite the restored
+	// board with the state from before the restore. Done here rather than at
+	// the call site so no future caller can forget it.
+	s.liveRooms().DropAll()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.projects = make(map[string]*projectState)
@@ -73,6 +97,9 @@ func (s *Store) Reset() {
 // project mutex), and holding the project mutex through the removal means no
 // in-flight autosave can rewrite a document mid-delete.
 func (s *Store) DeleteProject(projectID string) error {
+	// Drop the project's live rooms first: an eviction flush afterwards would
+	// recreate document files under a directory that is about to be removed.
+	s.liveRooms().DropProject(projectID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if ps, ok := s.projects[projectID]; ok {
@@ -236,6 +263,10 @@ func (s *Store) Update(projectID, boardID string, p Patch) (Board, error) {
 // orphaned document nobody can reach is harmless, whereas leaving the board
 // listed after the user deleted it is not.
 func (s *Store) Delete(projectID, boardID string) error {
+	// Drop the live room before the metadata goes: otherwise an eviction flush
+	// would write doc-<id>.json back out after the board it belongs to has
+	// ceased to exist.
+	s.liveRooms().Drop(projectID, boardID)
 	ps, err := s.project(projectID)
 	if err != nil {
 		return err
@@ -309,6 +340,49 @@ func (s *Store) SaveSnapshot(projectID, boardID string, doc []byte, by UserRef, 
 	b.UpdatedBy = by
 	b.SnapshotBytes = int64(len(doc))
 	b.DocRev++
+	if err := s.saveFile(projectID, ps.file); err != nil {
+		ps.file = prev
+		return Board{}, err
+	}
+	return *b, nil
+}
+
+// saveSnapshotAtRev writes a live room's document at an EXPLICIT revision.
+//
+// The ordinary SaveSnapshot increments the revision by one per save, which is
+// right when the file is the authority. While a room is live it is the
+// authority instead: the revision advances per patch, and a save covers however
+// many patches have accumulated since the last one. Writing that revision
+// through unchanged is what keeps the file and the room from drifting apart.
+// Unexported: the room registry is the only legitimate caller.
+func (s *Store) saveSnapshotAtRev(projectID, boardID string, doc []byte, by UserRef, rev int64) (Board, error) {
+	if len(doc) == 0 {
+		return Board{}, fmt.Errorf("%w: empty document", ErrInvalid)
+	}
+	if len(doc) > MaxSnapshotBytes {
+		return Board{}, fmt.Errorf("%w: document exceeds %d bytes", ErrInvalid, MaxSnapshotBytes)
+	}
+	if !json.Valid(doc) {
+		return Board{}, fmt.Errorf("%w: document is not valid JSON", ErrInvalid)
+	}
+	ps, err := s.project(projectID)
+	if err != nil {
+		return Board{}, err
+	}
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	b := findBoard(ps.file, boardID)
+	if b == nil {
+		return Board{}, fmt.Errorf("%w: whiteboard %q", ErrNotFound, boardID)
+	}
+	if err := s.writeSnapshot(projectID, boardID, doc); err != nil {
+		return Board{}, err
+	}
+	prev := cloneFile(ps.file)
+	b.UpdatedAt = time.Now().UTC()
+	b.UpdatedBy = by
+	b.SnapshotBytes = int64(len(doc))
+	b.DocRev = rev
 	if err := s.saveFile(projectID, ps.file); err != nil {
 		ps.file = prev
 		return Board{}, err

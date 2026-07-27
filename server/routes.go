@@ -186,6 +186,9 @@ func (s *Server) routes() http.Handler {
 	// Board awareness stream: who has a board open, and when it changed. Its
 	// own SSE endpoint rather than a chat event type — see whiteboard_hub.go.
 	mux.HandleFunc("GET /api/whiteboards/events", protHub(s.handleWhiteboardEvents))
+	// Live editing: one client's RecordsDiff, applied to the board's
+	// authoritative record map and fanned out to everyone else on it.
+	mux.HandleFunc("POST /api/whiteboards/patch", protHub(s.handleWhiteboardPatch))
 	mux.HandleFunc("GET /api/whiteboards/doc", protHub(s.handleWhiteboardDocGet))
 	mux.HandleFunc("PUT /api/whiteboards/doc", protHub(s.handleWhiteboardDocPut))
 

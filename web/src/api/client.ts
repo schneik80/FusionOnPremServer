@@ -762,6 +762,19 @@ export const api = {
       { method: 'PUT', body: JSON.stringify(doc) },
     ),
 
+  // One client's edit, as a folded tldraw RecordsDiff. The response carries the
+  // board's new revision and any records the server refused (a shape someone
+  // else had already deleted), which the caller drops locally.
+  whiteboardPatch: (
+    projectId: string,
+    boardId: string,
+    body: { clientId: string; seq: number; baseRev: number; put: Record<string, unknown>; remove: string[] },
+  ) =>
+    request<{ rev: number; rejected: string[] }>(
+      `/api/whiteboards/patch${qs({ projectId, boardId })}`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
   // Wiki: published markdown pages in a project's root "Wiki" folder. hubId is
   // the GraphQL hub id (the server resolves it to the DM hub id); dmProjectId is
   // the project's altId. itemId is a page's lineage urn.

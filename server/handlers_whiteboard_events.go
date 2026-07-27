@@ -51,12 +51,16 @@ func (s *Server) handleWhiteboardEvents(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	}
-	// The board must exist — otherwise a typo silently opens a stream on a
-	// room nobody will ever publish to, and the client waits forever.
-	if _, _, err := c.store.Document(c.projectID, boardID); err != nil {
-		s.whiteboardError(w, r, err)
+	// Open the live room for as long as this stream lasts. It doubles as the
+	// board-exists check — otherwise a typo silently opens a stream on a room
+	// nobody will ever publish to, and the client waits forever — and it keeps
+	// the document resident while anyone is watching, so patches don't have to
+	// re-read it and an idle eviction can't happen underneath a live editor.
+	if err := set.whiteboardRooms.Open(c.projectID, boardID); err != nil {
+		s.whiteboardSyncError(w, r, err)
 		return
 	}
+	defer set.whiteboardRooms.Release(c.projectID, boardID)
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		writeError(w, http.StatusInternalServerError, "streaming unsupported")
