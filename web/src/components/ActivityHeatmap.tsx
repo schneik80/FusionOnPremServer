@@ -219,6 +219,7 @@ export default function ActivityHeatmap({
   childCount,
   rollup,
   scale = 1,
+  hideStats,
 }: {
   report: ActivityReport
   childCount?: number
@@ -228,6 +229,11 @@ export default function ActivityHeatmap({
   // Uniformly scales the rendered isometric grid (viewBox unchanged, so the
   // aspect ratio is preserved). The dashboard passes <1 for a shorter chart.
   scale?: number
+  // Suppresses the versions/contributors caption. The hub pulse reuses the
+  // isometric grid + window timeline, but its data is local collaboration
+  // events (not design versions), so that design-specific caption would
+  // mislabel it — the hub pulse renders its own totals instead.
+  hideStats?: boolean
 }) {
   const { t } = useTranslation('details')
   const theme = useTheme()
@@ -446,24 +452,28 @@ export default function ActivityHeatmap({
         </ToggleButtonGroup>
       </Stack>
 
-      {/* All-time totals plus recent-change tallies, as a compact caption. */}
-      <Typography variant="caption" color="text.secondary">
-        <Trans t={t} i18nKey="activity.statVersions" count={report.versionCount} components={{ b: <b /> }} />
-        {' · '}
-        <Trans t={t} i18nKey="activity.statContributors" count={report.contributorCount} components={{ b: <b /> }} />
-        {' · '}
-        {t('activity.statTotalChanges', { count: report.totalEvents })}
-        {' · '}
-        <Trans t={t} i18nKey="activity.statSinceYesterday" count={recent.sinceYesterday} components={{ b: <b /> }} />
-        {' · '}
-        <Trans t={t} i18nKey="activity.statThisWeek" count={recent.thisWeek} components={{ b: <b /> }} />
-        {childCount ? (
-          <>
-            {' · '}
-            <Trans t={t} i18nKey="activity.statChildDocuments" count={childCount} components={{ b: <b /> }} />
-          </>
-        ) : null}
-      </Typography>
+      {/* All-time totals plus recent-change tallies, as a compact caption.
+          Hidden for the hub pulse, whose local-event data these design-specific
+          labels (versions/contributors) would misdescribe. */}
+      {!hideStats && (
+        <Typography variant="caption" color="text.secondary">
+          <Trans t={t} i18nKey="activity.statVersions" count={report.versionCount} components={{ b: <b /> }} />
+          {' · '}
+          <Trans t={t} i18nKey="activity.statContributors" count={report.contributorCount} components={{ b: <b /> }} />
+          {' · '}
+          {t('activity.statTotalChanges', { count: report.totalEvents })}
+          {' · '}
+          <Trans t={t} i18nKey="activity.statSinceYesterday" count={recent.sinceYesterday} components={{ b: <b /> }} />
+          {' · '}
+          <Trans t={t} i18nKey="activity.statThisWeek" count={recent.thisWeek} components={{ b: <b /> }} />
+          {childCount ? (
+            <>
+              {' · '}
+              <Trans t={t} i18nKey="activity.statChildDocuments" count={childCount} components={{ b: <b /> }} />
+            </>
+          ) : null}
+        </Typography>
+      )}
 
       {/* Roll-up toggle (only when the design has children). */}
       {rollup && (

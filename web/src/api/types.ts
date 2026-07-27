@@ -404,6 +404,67 @@ export interface ActivityReport {
   eventsTruncated: boolean
 }
 
+// --- Hub dashboard overview (mirror server/dto_hub.go) ---
+
+export interface HubDayCount {
+  day: string // YYYY-MM-DD (UTC)
+  count: number
+}
+
+export interface HubTaskStats {
+  total: number
+  todo: number
+  inprogress: number
+  blocked: number
+  done: number
+  open: number
+  overdue: number
+}
+
+export interface HubProdStats {
+  jobs: number
+  batches: number
+  planned: number
+  running: number
+  complete: number
+}
+
+export interface HubChatStats {
+  total: number
+  days: HubDayCount[]
+}
+
+export interface HubContributor {
+  id?: string
+  name: string
+  count: number
+}
+
+export interface HubProjectPulse {
+  projectId: string
+  projectName: string
+  total: number
+  days: HubDayCount[]
+}
+
+// HubOverview is GET /api/hub/overview — aggregate counts plus local-activity
+// buckets across the projects the caller can access in the current hub. Every
+// figure comes from the local stores (tasks/production/chat), scoped to the
+// accessible projects; there is no APS design activity here.
+export interface HubOverview {
+  hubId: string
+  hubName: string
+  generatedAt: string
+  windowDays: number
+  projectCount: number
+  tasks: HubTaskStats
+  production: HubProdStats
+  chat: HubChatStats
+  contributors: HubContributor[]
+  projects: HubProjectPulse[]
+  pulse: HubDayCount[]
+}
+
 // --- Wiki (mirror server/dto_wiki.go) ---
 
 // WikiPage is one published markdown page in a project's Wiki folder. title is

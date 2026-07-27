@@ -22,6 +22,7 @@ import type {
   DrawingRef,
   FsDirs,
   GroupMember,
+  HubOverview,
   Item,
   Location,
   Meta,
@@ -359,6 +360,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(args),
     }),
+
+  // hubOverview aggregates the hub dashboard snapshot: counts and local-activity
+  // buckets across the projects the caller can access. The server makes one
+  // upstream GetProjects call (the accessible-project scope) then reads the
+  // local stores — no per-project fan-out. No params: the hub is the session's.
+  hubOverview: () => request<HubOverview>('/api/hub/overview'),
 
   // permissionsPath returns the access at each layer of a document's path
   // (project → folders, root→leaf): groups + individual members with roles.

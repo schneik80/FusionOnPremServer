@@ -216,6 +216,67 @@ func matchesRef(ref UserRef, userID, email string) bool {
 	return ref.Email != "" && email != "" && strings.EqualFold(ref.Email, email)
 }
 
+// ListForProjects returns every job in the given projects, annotated with its
+// project, for hub-wide aggregation (the dashboard overview). The production
+// analogue of tasks.ListForProjects: NO user filter — the caller passes the
+// projects the user is authorized to see, and scoping to that set is what
+// keeps the hub roll-up from surfacing another project's jobs. An empty id set
+// yields no jobs. Reads go straight to disk like Mine; unreadable, corrupt, or
+// future-versioned files are skipped rather than failing the whole listing.
+func (s *Store) ListForProjects(projectIDs []string) ([]ProjectJob, error) {
+	if len(projectIDs) == 0 {
+		return []ProjectJob{}, nil
+	}
+	allow := make(map[string]struct{}, len(projectIDs))
+	for _, id := range projectIDs {
+		if id != "" {
+			allow[id] = struct{}{}
+		}
+	}
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []ProjectJob{}, nil
+		}
+		return nil, fmt.Errorf("production: scanning store dir: %w", err)
+	}
+	out := []ProjectJob{}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(s.dir, e.Name(), "production.json"))
+		if err != nil {
+			continue
+		}
+		var pf projectFile
+		if err := json.Unmarshal(data, &pf); err != nil || pf.Version > fileVersion {
+			continue
+		}
+		if _, ok := allow[pf.ProjectID]; !ok {
+			continue
+		}
+		for _, j := range pf.Jobs {
+			if j == nil {
+				continue
+			}
+			out = append(out, ProjectJob{
+				Job:         copyJob(j),
+				ProjectID:   pf.ProjectID,
+				HubID:       pf.HubID,
+				ProjectName: pf.ProjectName,
+			})
+		}
+	}
+	sort.Slice(out, func(i, k int) bool {
+		if out[i].ProjectName != out[k].ProjectName {
+			return out[i].ProjectName < out[k].ProjectName
+		}
+		return out[i].Num > out[k].Num
+	})
+	return out, nil
+}
+
 // ProjectInfo returns the hub id and name stored for a project (so handlers
 // can resolve a job's hub without trusting the client).
 func (s *Store) ProjectInfo(projectID string) (hubID, projectName string, err error) {

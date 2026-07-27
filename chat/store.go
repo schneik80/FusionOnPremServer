@@ -1,11 +1,13 @@
 package chat
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -708,6 +710,89 @@ func (s *Store) LatestSeq(projectID, channelID string) (int64, error) {
 	}
 	defer ps.mu.Unlock()
 	return cs.nextSeq - 1, nil
+}
+
+// ---- hub aggregation ----
+
+// ProjectDayCount attributes one day's message-create count to a project,
+// for the hub dashboard's collaboration pulse (day is YYYY-MM-DD, UTC).
+type ProjectDayCount struct {
+	ProjectID string
+	Day       string
+	Count     int
+}
+
+// MessageActivity counts message-create events per project per day (UTC)
+// across the given projects, for messages dated at or after since. It reads
+// the append-only channel logs DIRECTLY — like the tasks/production
+// cross-project scans — without touching the in-memory cache or opening any
+// append handle, so it has no side effects (no EventEpoch bump, no log
+// compaction) and never mutates a log. A torn final line (crash tail) or any
+// undecodable line is skipped, not fatal; a project with no chat data (or an
+// unreadable directory) contributes nothing. An empty id set yields no counts.
+func (s *Store) MessageActivity(projectIDs []string, since time.Time) ([]ProjectDayCount, error) {
+	out := []ProjectDayCount{}
+	if len(projectIDs) == 0 {
+		return out, nil
+	}
+	seen := make(map[string]struct{}, len(projectIDs))
+	for _, pid := range projectIDs {
+		if pid == "" {
+			continue
+		}
+		if _, dup := seen[pid]; dup {
+			continue
+		}
+		seen[pid] = struct{}{}
+		entries, err := os.ReadDir(s.projectDir(pid))
+		if err != nil {
+			continue // no chat data for this project (or unreadable) — skip
+		}
+		perDay := map[string]int{}
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasPrefix(name, "msg-") || !strings.HasSuffix(name, ".jsonl") {
+				continue
+			}
+			countCreatesByDay(filepath.Join(s.projectDir(pid), name), since, perDay)
+		}
+		for day, n := range perDay {
+			out = append(out, ProjectDayCount{ProjectID: pid, Day: day, Count: n})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ProjectID != out[j].ProjectID {
+			return out[i].ProjectID < out[j].ProjectID
+		}
+		return out[i].Day < out[j].Day
+	})
+	return out, nil
+}
+
+// countCreatesByDay reads one channel log and increments perDay for every
+// create record dated at/after since. Read-only and best-effort: a missing
+// file or a bad/torn line is skipped, never fatal.
+func countCreatesByDay(path string, since time.Time, perDay map[string]int) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var rec record
+		if err := json.Unmarshal(line, &rec); err != nil {
+			continue
+		}
+		if rec.Op != opCreate {
+			continue
+		}
+		if !since.IsZero() && rec.At.Before(since) {
+			continue
+		}
+		perDay[rec.At.UTC().Format("2006-01-02")]++
+	}
 }
 
 // ---- internals ----

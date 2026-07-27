@@ -19,6 +19,7 @@ import type {
   DiskUsage,
   DrawingRef,
   GroupMember,
+  HubOverview,
   Item,
   Location,
   Meta,
@@ -475,6 +476,19 @@ export const usePins = (hubId: string | null): UseQueryResult<Pin[]> =>
   useQuery({
     queryKey: ['pins', hubId],
     queryFn: () => api.pins(hubId!),
+    enabled: !!hubId,
+    staleTime: STALE,
+  })
+
+// useHubOverview backs the hub dashboard. One request the server answers with a
+// single upstream GetProjects call plus local aggregation — durable enough to
+// treat like the other browsing data (STALE), so it persists across reloads.
+// The key intentionally avoids the volatile chat/task/prod prefixes so it does
+// persist (it is hub-level aggregate browsing state, not per-user realtime).
+export const useHubOverview = (hubId: string | null): UseQueryResult<HubOverview> =>
+  useQuery({
+    queryKey: ['hubOverview', hubId],
+    queryFn: () => api.hubOverview(),
     enabled: !!hubId,
     staleTime: STALE,
   })

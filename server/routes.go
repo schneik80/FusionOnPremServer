@@ -73,6 +73,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/activity/report", protHub(s.handleActivityReport))
 	mux.HandleFunc("POST /api/activity/rollup", protHub(s.handleActivityRollup))
 
+	// Hub dashboard overview: one GetProjects call (the accessible-project
+	// scope) then a local aggregation of tasks/production/chat. No per-project
+	// fan-out — everything after that single upstream call is a local scan.
+	mux.HandleFunc("GET /api/hub/overview", protHub(s.handleHubOverview))
+
 	// Settings.
 	mux.HandleFunc("POST /api/settings/port", protHub(s.handleSetPort))
 

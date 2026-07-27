@@ -197,6 +197,68 @@ func matchesRef(ref UserRef, userID, email string) bool {
 	return ref.Email != "" && email != "" && strings.EqualFold(ref.Email, email)
 }
 
+// ListForProjects returns every task in the given projects, annotated with its
+// project, for hub-wide aggregation (the dashboard overview). Unlike Mine it
+// applies NO user filter — the caller passes the set of projects the user is
+// authorized to see (the hub's accessible project list), so scoping to that
+// set is exactly what keeps a hub-wide scan from surfacing another project's
+// tasks. An empty id set yields no tasks (never "all projects"). Reads go
+// straight to disk, same posture as Mine; unreadable, corrupt, or
+// future-versioned files are skipped rather than failing the whole listing.
+func (s *Store) ListForProjects(projectIDs []string) ([]ProjectTask, error) {
+	if len(projectIDs) == 0 {
+		return []ProjectTask{}, nil
+	}
+	allow := make(map[string]struct{}, len(projectIDs))
+	for _, id := range projectIDs {
+		if id != "" {
+			allow[id] = struct{}{}
+		}
+	}
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []ProjectTask{}, nil
+		}
+		return nil, fmt.Errorf("tasks: scanning store dir: %w", err)
+	}
+	out := []ProjectTask{}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(s.dir, e.Name(), "tasks.json"))
+		if err != nil {
+			continue
+		}
+		var pf projectFile
+		if err := json.Unmarshal(data, &pf); err != nil || pf.Version > fileVersion {
+			continue
+		}
+		if _, ok := allow[pf.ProjectID]; !ok {
+			continue
+		}
+		for _, t := range pf.Tasks {
+			if t == nil {
+				continue
+			}
+			out = append(out, ProjectTask{
+				Task:        copyTask(t),
+				ProjectID:   pf.ProjectID,
+				HubID:       pf.HubID,
+				ProjectName: pf.ProjectName,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ProjectName != out[j].ProjectName {
+			return out[i].ProjectName < out[j].ProjectName
+		}
+		return out[i].Num < out[j].Num
+	})
+	return out, nil
+}
+
 // ---- mutations ----
 
 // Create validates the draft and appends a new task. hubID and projectName
