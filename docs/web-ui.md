@@ -5,6 +5,10 @@ release builds). It talks to the server over the same-origin JSON API under
 `/api` — see [`docs/api.md`](api.md) for the upstream data layer and
 [`docs/architecture.md`](architecture.md) for the HTTP route surface.
 
+This page is the screen-by-screen reference. For a first-run walkthrough that
+starts at install and ends with a team working in the app, read
+[`docs/getting-started.md`](getting-started.md).
+
 ## Signing in
 
 On load the SPA probes `GET /api/auth/me`:
