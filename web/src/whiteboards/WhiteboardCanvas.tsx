@@ -507,7 +507,17 @@ export function WhiteboardCanvas({
           never saw left the upload overlay stuck over the whole window. */}
       <Box
         ref={wrapRef}
-        sx={{ flex: 1, minHeight: 0, position: 'relative' }}
+        // --fls-canvas hands the resolved canvas colour to whiteboard.css,
+        // which is the only stylesheet in the app (tldraw is themed through CSS
+        // variables and cannot be reached with sx). Without this the board
+        // would keep the literal fallback baked into that file while every
+        // other canvas followed the theme.
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          position: 'relative',
+          '--fls-canvas': (t) => t.palette.background.canvas,
+        }}
         className="fls-tldraw"
         data-fls-drop-owner=""
       >

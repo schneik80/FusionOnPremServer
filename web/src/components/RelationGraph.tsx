@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Box, Typography } from '@mui/material'
-import { alpha, useTheme } from '@mui/material/styles'
+import { useTheme } from '@mui/material/styles'
 import { useQuery } from '@tanstack/react-query'
 import { faArrowsToDot, faMagnifyingGlassMinus, faMagnifyingGlassPlus } from '@fortawesome/free-solid-svg-icons'
 import { api } from '../api/client'
@@ -220,7 +220,7 @@ export default function RelationGraph({
         border: 1,
         borderColor: 'divider',
         borderRadius: 1,
-        bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.03 : 0.02),
+        bgcolor: 'background.canvas',
         cursor: drag.current ? 'grabbing' : 'grab',
         userSelect: 'none',
       }}

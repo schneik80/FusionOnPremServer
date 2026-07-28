@@ -28,6 +28,7 @@ import { Field } from './Field'
 const TOKEN_KEYS: (keyof ThemeTokens)[] = [
   'bgPrimary',
   'bgPanel',
+  'bgCanvas',
   'bgHover',
   'border',
   'textPrimary',

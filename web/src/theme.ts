@@ -1,5 +1,14 @@
 import { createTheme, type Theme } from '@mui/material/styles'
 
+// The canvas surface rides MUI's background group so components can reach it
+// through the ordinary sx path (`bgcolor: 'background.canvas'`) rather than a
+// bespoke context.
+declare module '@mui/material/styles' {
+  interface TypeBackground {
+    canvas: string
+  }
+}
+
 // Palette tokens lifted from the sibling PowerTools-Assembly project so the web
 // UI matches Fusion's own light/dark chrome.
 // (commands/assemblybuilder/resources/html/index.html)
@@ -23,6 +32,12 @@ const dark = {
   bgPrimary: '#2A3442',
   bgPanel: '#323E50',
   bgHover: '#242E39',
+  // The surface every pan/zoom canvas paints: whiteboards, the relationship
+  // graphs, the production flow and batch timeline. It is its own token because
+  // a canvas is a place you work IN, not a panel — the whiteboard already had
+  // to hardcode this value in CSS, and the graphs each faked it with their own
+  // alpha over whatever they sat on.
+  bgCanvas: '#2A3442',
   border: '#4a5568',
   textPrimary: '#ffffff',
   textSecondary: '#a0aec0',
@@ -34,6 +49,7 @@ const light = {
   bgPrimary: '#f4f4f4',
   bgPanel: '#ffffff',
   bgHover: '#e8e8e8',
+  bgCanvas: '#f4f4f4',
   border: '#d1d5db',
   textPrimary: '#333333',
   textSecondary: '#555555',
@@ -77,7 +93,7 @@ export function makeTheme(mode: ColorMode, overrides?: ThemeOverride): Theme {
       secondary: { main: acAlt, contrastText: '#ffffff' },
       // Amber needs dark ink, unlike the two accents.
       warning: { main: acWarn, contrastText: '#1a1a1a' },
-      background: { default: t.bgPrimary, paper: t.bgPanel },
+      background: { default: t.bgPrimary, paper: t.bgPanel, canvas: t.bgCanvas },
       text: { primary: t.textPrimary, secondary: t.textSecondary },
       divider: t.border,
     },

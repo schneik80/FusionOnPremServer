@@ -25,6 +25,7 @@
     "token": {
       "bgPrimary": "Sfondo",
       "bgPanel": "Sfondo dei pannelli",
+      "bgCanvas": "Sfondo dell'area di lavoro",
       "bgHover": "Sfondo al passaggio del mouse",
       "border": "Bordi e separatori",
       "textPrimary": "Testo principale",

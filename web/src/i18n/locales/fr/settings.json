@@ -25,6 +25,7 @@
     "token": {
       "bgPrimary": "Arrière-plan",
       "bgPanel": "Arrière-plan des panneaux",
+      "bgCanvas": "Arrière-plan du canevas",
       "bgHover": "Arrière-plan au survol",
       "border": "Bordures et séparateurs",
       "textPrimary": "Texte principal",

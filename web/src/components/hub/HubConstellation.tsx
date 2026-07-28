@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Box, Typography } from '@mui/material'
-import { alpha, lighten, useTheme } from '@mui/material/styles'
+import { lighten, useTheme } from '@mui/material/styles'
 import { faArrowsToDot, faMagnifyingGlassMinus, faMagnifyingGlassPlus } from '@fortawesome/free-solid-svg-icons'
 import type { HubOverview, Item } from '../../api/types'
 import { ToolBtn } from '../canvas/ToolBtn'
@@ -181,7 +181,7 @@ export default function HubConstellation({
         border: 1,
         borderColor: 'divider',
         borderRadius: 1,
-        bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.03 : 0.02),
+        bgcolor: 'background.canvas',
         cursor: drag.current ? 'grabbing' : 'grab',
         userSelect: 'none',
       }}

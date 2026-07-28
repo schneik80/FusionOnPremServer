@@ -78,7 +78,7 @@ export function BatchTimeline({
         borderColor: 'divider',
         overflowX: 'auto',
         flexShrink: 0,
-        bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.02 : 0.015),
+        bgcolor: 'background.canvas',
       }}
     >
       <svg width={width} height={height} style={{ display: 'block' }}>

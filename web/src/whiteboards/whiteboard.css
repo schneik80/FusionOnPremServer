@@ -38,23 +38,27 @@
   --tl-color-selection-stroke: #0696d7;
 }
 
-/* Canvas: paint it the app's own page background so the board reads as part of
-   the app rather than a panel dropped into it. These two values are
-   `dark.bgPrimary` / `light.bgPrimary` from src/theme.ts — keep them in step if
-   that palette moves.
+/* Canvas: paint it the app's canvas colour, so a board matches the relationship
+   graphs and the production flow rather than reading as a panel dropped into
+   the app. WhiteboardCanvas sets --fls-canvas from the resolved theme (the
+   `bgCanvas` token, which Settings → Appearance can retheme per hub and per
+   mode); the literals here are only the fallback for a stylesheet that loads
+   before — or without — that value, and they are `dark.bgCanvas` /
+   `light.bgCanvas` from src/theme.ts.
 
-   Scoped per theme on purpose. `--tl-color-background` is a *canvas* colour:
-   tldraw also derives the halo behind canvas text from it, and its light theme
-   draws near-black strokes that assume a near-white canvas. Setting one dark
-   value for both themes would reproduce the unreadable-text regression this
-   file's header warns about. */
+   The fallback stays scoped per theme on purpose. `--tl-color-background` is a
+   *canvas* colour: tldraw also derives the halo behind canvas text from it, and
+   its light theme draws near-black strokes that assume a near-white canvas. One
+   dark value for both themes would reproduce the unreadable-text regression
+   this file's header warns about — which is also why the token itself is
+   per-mode rather than a single shared colour. */
 .fls-tldraw .tl-theme__dark {
-  --tl-color-background: #2a3442;
+  --tl-color-background: var(--fls-canvas, #2a3442);
   --tl-color-panel: hsla(235, 6.8%, 13.5%, 0.82);
 }
 
 .fls-tldraw .tl-theme__light {
-  --tl-color-background: #f4f4f4;
+  --tl-color-background: var(--fls-canvas, #f4f4f4);
   --tl-color-panel: hsla(0, 0%, 99%, 0.82);
 }
 

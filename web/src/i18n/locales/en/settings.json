@@ -25,6 +25,7 @@
     "token": {
       "bgPrimary": "Background",
       "bgPanel": "Panel background",
+      "bgCanvas": "Canvas background",
       "bgHover": "Hover background",
       "border": "Borders & dividers",
       "textPrimary": "Primary text",

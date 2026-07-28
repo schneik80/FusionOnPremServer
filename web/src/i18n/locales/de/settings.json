@@ -25,6 +25,7 @@
     "token": {
       "bgPrimary": "Hintergrund",
       "bgPanel": "Panel-Hintergrund",
+      "bgCanvas": "Arbeitsflächen-Hintergrund",
       "bgHover": "Hover-Hintergrund",
       "border": "Rahmen & Trennlinien",
       "textPrimary": "Primärer Text",

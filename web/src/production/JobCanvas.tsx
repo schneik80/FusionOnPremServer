@@ -310,7 +310,7 @@ export function JobCanvas({
         flex: 1,
         minHeight: MIN_VIEW_H,
         overflow: 'hidden',
-        bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.03 : 0.02),
+        bgcolor: 'background.canvas',
         cursor: pan.current ? 'grabbing' : 'grab',
         userSelect: 'none',
       }}
