@@ -31,7 +31,9 @@
       "textSecondary": "Sekundärer Text",
       "textMuted": "Gedämpfter Text",
       "accentHover": "Akzent (Hover)",
-      "accent": "Akzent"
+      "accent": "Akzent",
+      "accentAlt": "Zweiter Akzent",
+      "accentWarn": "Warnakzent"
     },
     "perHubNote": "Design und eigene Farben werden pro Hub gespeichert — jeder Hub kann sein eigenes Erscheinungsbild haben. Die Sprache gilt überall."
   },

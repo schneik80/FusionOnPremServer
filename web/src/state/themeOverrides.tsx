@@ -21,7 +21,7 @@ import { resolveHubScopedKey } from './hubKeys'
 
 const BASE_KEY = 'fdc.themeOverrides'
 
-export type TokenKey = keyof ThemeTokens | 'accent'
+export type TokenKey = keyof ThemeTokens | 'accent' | 'accentAlt' | 'accentWarn'
 
 export interface ThemeOverrides {
   light?: ThemeOverride

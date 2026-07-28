@@ -275,11 +275,20 @@ function MessageRow({
           <Chip
             size="small"
             variant="outlined"
-            color="primary"
             icon={<FontAwesomeIcon icon={faComments} size="xs" />}
             label={t('message.replies', { count: msg.replyCount })}
             onClick={() => onOpenThread(msg.seq)}
-            sx={{ mt: 0.5 }}
+            // Secondary text rather than the accent: the accent-on-outlined
+            // chip read as low-contrast against the message body. Hovering
+            // lifts it to primary text so it still announces it's clickable.
+            sx={{
+              mt: 0.5,
+              color: 'text.secondary',
+              borderColor: 'divider',
+              transition: 'color 120ms, border-color 120ms',
+              '& .MuiChip-icon': { color: 'inherit' },
+              '&:hover': { color: 'text.primary', borderColor: 'text.secondary' },
+            }}
           />
         )}
       </Box>

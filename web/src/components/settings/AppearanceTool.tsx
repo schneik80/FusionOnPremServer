@@ -18,7 +18,7 @@ import { LOCALE_LABEL, type Locale } from '../../i18n'
 import { useColorMode } from '../../state/colorMode'
 import { useLocale } from '../../state/locale'
 import { useThemeOverrides, type TokenKey } from '../../state/themeOverrides'
-import { defaultAccent, tokens, type ThemeTokens } from '../../theme'
+import { defaultAccent, defaultAccentAlt, defaultAccentWarn, tokens, type ThemeTokens } from '../../theme'
 import { Field } from './Field'
 
 // AppearanceTool: theme preference, language, and per-mode custom colors.
@@ -47,6 +47,8 @@ export function AppearanceTool() {
   const rows: { key: TokenKey; def: string }[] = [
     ...TOKEN_KEYS.map((key) => ({ key: key as TokenKey, def: defaults[key] })),
     { key: 'accent', def: defaultAccent },
+    { key: 'accentAlt', def: defaultAccentAlt },
+    { key: 'accentWarn', def: defaultAccentWarn },
   ]
   const anyOverridden = rows.some(({ key }) => bag[key] !== undefined)
 

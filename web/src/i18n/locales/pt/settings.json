@@ -31,7 +31,9 @@
       "textSecondary": "Texto secundário",
       "textMuted": "Texto esbatido",
       "accentHover": "Destaque (ao passar o cursor)",
-      "accent": "Destaque"
+      "accent": "Destaque",
+      "accentAlt": "Destaque secundário",
+      "accentWarn": "Destaque de aviso"
     },
     "perHubNote": "O tema e as cores personalizadas são guardados por hub — cada hub pode ter o seu próprio aspeto. O idioma aplica-se em todo o lado."
   },
