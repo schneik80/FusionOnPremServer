@@ -48,8 +48,6 @@ export function HubDashboard() {
     return () => window.clearTimeout(h)
   }, [playing, mode])
 
-  const isCanvas = mode !== 'overview'
-
   const action = (
     <Stack direction="row" spacing={0.75} alignItems="center">
       <Tooltip title={playing ? t('dashboards.stopTour') : t('dashboards.playTour')}>
@@ -87,6 +85,7 @@ export function HubDashboard() {
     { label: t('dashboards.statOpenTasks'), value: ov ? ov.tasks.open : spinner },
     { label: t('dashboards.statRunningBatches'), value: ov ? ov.production.running : spinner },
     { label: t('dashboards.statMessages'), value: ov ? ov.chat.total : spinner },
+    { label: t('dashboards.statUsers'), value: ov ? ov.contributorCount : spinner },
   ]
 
   const subtitle =
@@ -101,7 +100,7 @@ export function HubDashboard() {
   )
 
   return (
-    <DashboardShell title={nav.hubName ?? t('dashboards.hub')} subtitle={subtitle} stats={stats} action={action} fill={isCanvas}>
+    <DashboardShell title={nav.hubName ?? t('dashboards.hub')} subtitle={subtitle} stats={stats} action={action} fill>
       {mode === 'explore' ? (
         ov && projectsQ.data ? (
           <Suspense fallback={<Hint>{t('common:loading')}</Hint>}>
@@ -141,12 +140,22 @@ function OverviewBody({
     if (loading) return <Hint>{t('common:loading')}</Hint>
     return <Hint>{error ? t('dashboards.overviewUnavailable') : t('dashboards.pulseEmpty')}</Hint>
   }
+  // The pulse hero takes the pane's leftover height; the four widgets keep
+  // their natural height and sit at the bottom whatever the window size, the
+  // same shape as the project dashboard's activity card.
   return (
-    <Stack spacing={1.5}>
-      <WidgetCard title={t('dashboards.pulseTitle')}>
+    <Stack spacing={1.5} sx={{ flex: 1, minHeight: 0 }}>
+      <WidgetCard title={t('dashboards.pulseTitle')} fill>
         <HubPulse overview={overview} />
       </WidgetCard>
-      <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1.5,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          flexShrink: 0,
+        }}
+      >
         <WidgetCard title={t('dashboards.wSchedule')}>
           <ScheduleWidget tasks={myTasks} />
         </WidgetCard>

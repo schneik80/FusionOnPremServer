@@ -26,17 +26,22 @@ const (
 // local event timestamps only; there is no APS design activity here (that
 // stays on the metered per-design endpoints, which never fan out on load).
 type HubOverviewDTO struct {
-	HubID        string               `json:"hubId"`
-	HubName      string               `json:"hubName"`
-	GeneratedAt  string               `json:"generatedAt"`
-	WindowDays   int                  `json:"windowDays"`
-	ProjectCount int                  `json:"projectCount"`
-	Tasks        HubTaskStatsDTO      `json:"tasks"`
-	Production   HubProdStatsDTO      `json:"production"`
-	Chat         HubChatStatsDTO      `json:"chat"`
-	Contributors []HubContributorDTO  `json:"contributors"`
-	Projects     []HubProjectPulseDTO `json:"projects"`
-	Pulse        []HubDayCountDTO     `json:"pulse"`
+	HubID        string              `json:"hubId"`
+	HubName      string              `json:"hubName"`
+	GeneratedAt  string              `json:"generatedAt"`
+	WindowDays   int                 `json:"windowDays"`
+	ProjectCount int                 `json:"projectCount"`
+	Tasks        HubTaskStatsDTO     `json:"tasks"`
+	Production   HubProdStatsDTO     `json:"production"`
+	Chat         HubChatStatsDTO     `json:"chat"`
+	Contributors []HubContributorDTO `json:"contributors"`
+	// ContributorCount is the number of DISTINCT people who authored local
+	// content in this hub — the full tally, before Contributors is capped at
+	// maxHubContributors. It is the "Users" KPI, so the cap on the detail list
+	// never understates how many people are in play.
+	ContributorCount int                  `json:"contributorCount"`
+	Projects         []HubProjectPulseDTO `json:"projects"`
+	Pulse            []HubDayCountDTO     `json:"pulse"`
 }
 
 // HubTaskStatsDTO is hub-wide task counts by Kanban status plus derived
@@ -253,7 +258,9 @@ func hubOverviewDTO(hubID, hubName string, now time.Time, windowDays, projectCou
 		projects = projects[:maxHubPulseProjects]
 	}
 
-	// Contributors → sorted, capped list.
+	// Contributors → sorted, capped list. The distinct count is taken before
+	// the cap so the KPI stays true.
+	contribCount := len(contribs)
 	contribList := make([]HubContributorDTO, 0, len(contribs))
 	for _, c := range contribs {
 		contribList = append(contribList, HubContributorDTO{ID: c.id, Name: c.name, Count: c.count})
@@ -269,17 +276,18 @@ func hubOverviewDTO(hubID, hubName string, now time.Time, windowDays, projectCou
 	}
 
 	return HubOverviewDTO{
-		HubID:        hubID,
-		HubName:      hubName,
-		GeneratedAt:  fmtTime(now),
-		WindowDays:   windowDays,
-		ProjectCount: projectCount,
-		Tasks:        ts,
-		Production:   ps,
-		Chat:         cs,
-		Contributors: contribList,
-		Projects:     projects,
-		Pulse:        sortedDayCounts(hubByDay),
+		HubID:            hubID,
+		HubName:          hubName,
+		GeneratedAt:      fmtTime(now),
+		WindowDays:       windowDays,
+		ProjectCount:     projectCount,
+		Tasks:            ts,
+		Production:       ps,
+		Chat:             cs,
+		Contributors:     contribList,
+		ContributorCount: contribCount,
+		Projects:         projects,
+		Pulse:            sortedDayCounts(hubByDay),
 	}
 }
 

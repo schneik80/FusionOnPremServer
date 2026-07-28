@@ -54,6 +54,7 @@
     "statOpenTasks": "Offene Aufgaben",
     "statRunningBatches": "Laufende Chargen",
     "statMessages": "Nachrichten",
+    "statUsers": "Benutzer",
     "overviewUnavailable": "Hub-Übersicht nicht verfügbar",
     "pulseTitle": "Hub-Puls",
     "pulseAllProjects": "Alle Projekte",
@@ -288,7 +289,6 @@
     "refCount_one": "{{count}} Verweis",
     "refCount_other": "{{count}} Verweise",
     "locating": "Wird gesucht…",
-    "locationUnavailable": "Speicherort nicht verfügbar",
-    "clickToOpen": "Zum Öffnen klicken"
+    "locationUnavailable": "Speicherort nicht verfügbar"
   }
 }

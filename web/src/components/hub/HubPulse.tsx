@@ -62,8 +62,19 @@ export default function HubPulse({ overview }: { overview: HubOverview }) {
   }
 
   return (
-    <Box onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <Stack direction="row" justifyContent="space-between" alignItems="baseline" flexWrap="wrap" gap={1} sx={{ mb: 0.5 }}>
+    <Box
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}
+    >
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="baseline"
+        flexWrap="wrap"
+        gap={1}
+        sx={{ mb: 0.5, flexShrink: 0 }}
+      >
         <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, minWidth: 0 }} title={active.name}>
           {active.name}
         </Typography>
@@ -72,14 +83,15 @@ export default function HubPulse({ overview }: { overview: HubOverview }) {
         </Typography>
       </Stack>
 
-      {/* Fixed height so the heat map measures a stable size in this scrolling
-          (non-fill) pane; it scrolls horizontally on its own when wide. Keyed by
+      {/* The hero grows into the card's leftover height (the widgets below it
+          stay their natural size), and `fit` lets the isometric use the width as
+          well so it neither shrinks to a stamp nor runs off the pane. Keyed by
           the selection so its window re-anchors to each series on cycle. */}
-      <Box sx={{ height: 240 }}>
-        <ActivityHeatmap key={active.id} report={report} hideStats />
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <ActivityHeatmap key={active.id} report={report} hideStats fit />
       </Box>
 
-      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 0.5, color: 'text.secondary' }}>
+      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 0.5, flexShrink: 0, color: 'text.secondary' }}>
         <Typography variant="caption">{t('activity.less')}</Typography>
         {ramp.map((c, i) => (
           <Box key={i} sx={{ width: 12, height: 12, borderRadius: '2px', bgcolor: c }} />
@@ -88,7 +100,7 @@ export default function HubPulse({ overview }: { overview: HubOverview }) {
       </Stack>
 
       {series.length > 1 && (
-        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
+        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mt: 1, flexShrink: 0 }}>
           {series.map((s, i) => (
             <Chip
               key={s.id}

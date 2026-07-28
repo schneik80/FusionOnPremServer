@@ -496,6 +496,9 @@ export interface HubOverview {
   production: HubProdStats
   chat: HubChatStats
   contributors: HubContributor[]
+  // Distinct people who authored local content in the hub — the full tally,
+  // before `contributors` is capped server-side.
+  contributorCount: number
   projects: HubProjectPulse[]
   pulse: HubDayCount[]
 }
