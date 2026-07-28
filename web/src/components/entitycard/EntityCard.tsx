@@ -329,8 +329,9 @@ export function EntityCard({
         userSelect: 'none',
         verticalAlign: 'middle',
         // The back is taller than the front whenever there are more than a
-        // couple of rows, so it floats over what follows rather than reflowing
-        // it. The shadow is what makes that read as a card lifted off the page.
+        // couple of rows. It takes that height in flow (see the flip scene
+        // below), so the container grows; the shadow is what still makes it
+        // read as the card lifted off the page mid-turn.
         boxShadow: 3,
       }}
     >
@@ -391,13 +392,30 @@ export function EntityCard({
         borderRadius: 1.5,
         transition: 'border-color 120ms',
         ...(selected && { borderColor: (th) => alpha(th.palette.primary.main, CONNECTOR_OPACITY) }),
+        // A flipped card is taller than its neighbours and carries a shadow, so
+        // it has to paint above the cards that follow it in the DOM. Without
+        // this the next card in a wrapped grid — a batch step's plan documents —
+        // draws its own front face straight over the back face being read.
+        ...(flipped && { position: 'relative', zIndex: 2 }),
       }}
     >
-      {/* Flip scene. The FRONT face is always the one in flow, so the card's
-          box is the same whether it is flipped, selected or neither — which is
-          what lets the whiteboard keep a shape's geometry in step with a card
-          without transient state leaking into the shared document. The back is
-          absolutely positioned and overflows downward when it needs to. */}
+      {/* Flip scene: both faces share one 1x1 grid cell, and only the face
+          turned towards the viewer takes part in sizing it.
+
+          Vertically that means the scene — and every container above it, a
+          batch step's Paper included — grows to the back face's height while
+          the card is flipped, instead of the back overflowing and being drawn
+          through by whatever follows.
+
+          Horizontally the back contributes NOTHING: `width: 0` with a
+          percentage `min-width` is auto during intrinsic sizing and full width
+          once the column is resolved (the same trick the action bar uses), so a
+          long metadata row can never widen the card. Together with `align-self:
+          start` — which keeps the front face at its natural height rather than
+          stretching it to the taller row — that leaves the FRONT face's box
+          identical flipped or not, which is what lets the whiteboard measure a
+          shape's geometry off it without this viewer's transient state leaking
+          into the shared document. */}
       <Box
         component="span"
         sx={{
@@ -410,13 +428,18 @@ export function EntityCard({
         <Box
           component="span"
           sx={{
-            display: 'inline-flex',
+            display: 'grid',
             width: '100%',
             minWidth: 0,
             transformStyle: 'preserve-3d',
             transition: `transform ${FLIP_MS}ms`,
             transform: flipped ? 'rotateY(180deg)' : 'none',
-            '& > span': { backfaceVisibility: 'hidden' },
+            '& > span': {
+              gridArea: '1 / 1',
+              alignSelf: 'start',
+              minWidth: 0,
+              backfaceVisibility: 'hidden',
+            },
           }}
         >
           <Box component="span" sx={{ display: 'inline-flex', width: '100%', minWidth: 0 }}>
@@ -426,15 +449,17 @@ export function EntityCard({
             component="span"
             sx={{
               display: 'inline-flex',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              minWidth: 0,
               zIndex: 1,
               transform: 'rotateY(180deg)',
               // Nothing to hit on the face turned away from the viewer.
               pointerEvents: flipped ? 'auto' : 'none',
+              ...(flipped
+                ? // In flow: it sizes the scene's height, never its width.
+                  { width: 0, minWidth: '100%' }
+                : // Out of flow while it faces away, so the resting card is
+                  // exactly its front face. It stays mounted and positioned so
+                  // the turn back reads as one continuous rotation.
+                  { position: 'absolute', top: 0, left: 0, width: '100%' }),
             }}
           >
             {back}

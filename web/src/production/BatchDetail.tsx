@@ -399,6 +399,12 @@ function SectionLabel({ children }: { children: ReactNode }) {
   )
 }
 
+// The card grids inside a step. Items align to the top, not the middle: cards
+// are the same height at rest, but flipping one to its back face makes it
+// taller, and centring would shove every other card in its row downwards to
+// re-centre on it.
 function ChipWrap({ children }: { children: ReactNode }) {
-  return <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>{children}</Box>
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'flex-start' }}>{children}</Box>
+  )
 }
