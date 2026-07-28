@@ -31,7 +31,9 @@
       "textSecondary": "Secondary text",
       "textMuted": "Muted text",
       "accentHover": "Accent (hover)",
-      "accent": "Accent"
+      "accent": "Accent",
+      "accentAlt": "Second accent",
+      "accentWarn": "Warning accent"
     },
     "perHubNote": "Theme and custom colors are saved per hub — each hub can have its own look. Language applies everywhere."
   },

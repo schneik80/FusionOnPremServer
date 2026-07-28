@@ -31,7 +31,9 @@
       "textSecondary": "Texte secondaire",
       "textMuted": "Texte atténué",
       "accentHover": "Accent (survol)",
-      "accent": "Accent"
+      "accent": "Accent",
+      "accentAlt": "Accent secondaire",
+      "accentWarn": "Accent d'avertissement"
     },
     "perHubNote": "Le thème et les couleurs personnalisées sont enregistrés par hub — chaque hub peut avoir sa propre apparence. La langue s'applique partout."
   },

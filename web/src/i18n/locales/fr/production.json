@@ -120,8 +120,7 @@
     "uploadFile": "Téléverser un fichier…"
   },
   "pinnedDoc": {
-    "versionBadge": "v{{num}}",
-    "asRun": "exécuté"
+    "pinned": "Document épinglé"
   },
   "refDialog": {
     "title": "Lier un ordre de fabrication ou un lot",

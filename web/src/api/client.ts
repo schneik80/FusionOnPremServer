@@ -323,6 +323,13 @@ export const api = {
   fileUrl: (dmProjectId: string, itemId: string, name?: string) =>
     `/api/items/file${qs({ dmProjectId, itemId, name })}`,
 
+  // downloadUrl is fileUrl as an attachment: same stream, but the server sends
+  // Content-Disposition: attachment and skips the inline preview cap, so the
+  // data card's download button saves the file instead of navigating to it.
+  // Used as an <a href download>, not fetched — the browser owns the transfer.
+  downloadUrl: (dmProjectId: string, itemId: string, name?: string) =>
+    `/api/items/file${qs({ dmProjectId, itemId, name, download: '1' })}`,
+
   // fileText fetches an uploaded file's bytes as text for the source/code viewer.
   // It returns tooLarge=true — without downloading the body — when the server
   // caps the file (413) or it exceeds maxBytes, so the UI can offer a plain

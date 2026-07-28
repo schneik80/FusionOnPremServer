@@ -12,12 +12,12 @@ import {
   Typography,
 } from '@mui/material'
 import { useMemo, useState } from 'react'
+import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
 import { useMyProduction } from '../api/queries'
 import { batchStatusLabel } from '../i18n/enums'
 import { ProductionViewDialog } from '../components/productioncard/ProductionViewDialog'
 import type { BatchRef, JobRef } from '../components/productioncard/prodref'
-import { PRODUCTION_ACCENT } from './BatchDetail'
 import type { Job, ProdBatch } from './types'
 import { jobDisplayId } from './types'
 
@@ -178,6 +178,7 @@ function completenessOf(batch: ProdBatch): { filled: number; total: number; pct:
 
 function RunCard({ job, batch, onOpen }: { job: Job; batch: ProdBatch; onOpen: () => void }) {
   const { t } = useTranslation('production')
+  const prodAccent = useTheme().palette.secondary.main
   const isProd = batch.kind === 'production'
   const { filled, total, pct } = completenessOf(batch)
   return (
@@ -195,7 +196,7 @@ function RunCard({ job, batch, onOpen }: { job: Job; batch: ProdBatch; onOpen: (
       <Stack direction="row" alignItems="center" spacing={1}>
         <FontAwesomeIcon
           icon={faFlask}
-          style={{ fontSize: 13, color: isProd ? PRODUCTION_ACCENT : undefined }}
+          style={{ fontSize: 13, color: isProd ? prodAccent : undefined }}
         />
         <Typography variant="body2" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
           {batch.name}

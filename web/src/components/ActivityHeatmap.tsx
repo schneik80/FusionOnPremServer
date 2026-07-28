@@ -26,6 +26,11 @@ type Gran = 'day' | 'week' | 'month' | 'year'
 
 const DAY_MS = 86_400_000
 const HOUR_MS = 3_600_000
+
+// Floor for the rendered grid height: the chart area never asks for less, and
+// in `fit` mode a pane too narrow to contain the grid at this height scrolls
+// horizontally instead of shrinking it further.
+const FIT_MIN_H = 160
 // Catalog keys for the axis labels (details namespace), indexed by month /
 // UTC weekday number and rendered through t() where the labels are built.
 const MONTH_KEYS = [
@@ -220,6 +225,7 @@ export default function ActivityHeatmap({
   rollup,
   scale = 1,
   hideStats,
+  fit,
 }: {
   report: ActivityReport
   childCount?: number
@@ -234,6 +240,13 @@ export default function ActivityHeatmap({
   // events (not design versions), so that design-specific caption would
   // mislabel it — the hub pulse renders its own totals instead.
   hideStats?: boolean
+  // Contain the grid in BOTH axes instead of filling the height and scrolling
+  // horizontally: the grid takes the pane's height unless that would make it
+  // wider than the pane, in which case width decides (down to FIT_MIN_H, past
+  // which it scrolls rather than becoming unreadable). The hub pulse hero uses
+  // this so a tall window grows the grid instead of pushing it off-screen; the
+  // document Activity tab keeps the fill-height-and-scroll default.
+  fit?: boolean
 }) {
   const { t } = useTranslation('details')
   const theme = useTheme()
@@ -246,13 +259,15 @@ export default function ActivityHeatmap({
   // box's minHeight pins a sensible size instead — the measurement settles
   // there rather than collapsing.
   const chartRef = useRef<HTMLDivElement | null>(null)
-  const [availH, setAvailH] = useState(0)
+  const [avail, setAvail] = useState({ w: 0, h: 0 })
   useEffect(() => {
     const el = chartRef.current
     if (!el) return
     const ro = new ResizeObserver((entries) => {
-      const h = entries[0]?.contentRect.height ?? 0
-      setAvailH((prev) => (Math.abs(prev - h) > 0.5 ? h : prev))
+      const r = entries[0]?.contentRect
+      const w = r?.width ?? 0
+      const h = r?.height ?? 0
+      setAvail((prev) => (Math.abs(prev.h - h) > 0.5 || Math.abs(prev.w - w) > 0.5 ? { w, h } : prev))
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -430,7 +445,12 @@ export default function ActivityHeatmap({
   // Height the SVG fills: the measured chart area (once observed), else its
   // natural height for the first paint. `scale` lets the dashboard render a
   // shorter chart.
-  const chartH = (availH > 0 ? availH : svg ? svg.hgt : 0) * scale
+  const fillH = (avail.h > 0 ? avail.h : svg ? svg.hgt : 0) * scale
+  // In `fit` mode the width is a constraint too: cap the height at whatever
+  // keeps the proportional width inside the pane, but never shrink below
+  // FIT_MIN_H — a narrow pane scrolls (as it always did) rather than rendering
+  // a grid too small to read.
+  const chartH = fit && avail.w > 0 ? Math.max(Math.min(fillH, avail.w / aspect), Math.min(fillH, FIT_MIN_H)) : fillH
   const chartW = chartH * aspect
 
   return (
@@ -556,17 +576,20 @@ export default function ActivityHeatmap({
       </Box>
 
       {/* Isometric grid: fills the pane's remaining height (aspect preserved),
-          scrolling horizontally when the proportional width overflows. */}
+          scrolling horizontally when the proportional width overflows. In `fit`
+          mode the width constrains the height instead, so the grid is centred
+          in whatever space is left over. */}
       <Box
         ref={chartRef}
         sx={{
           // flex:1 fills a definite-height pane; minHeight keeps a sensible
           // size where the host is content-sized (dashboard widget).
           flex: 1,
-          minHeight: 160,
+          minHeight: FIT_MIN_H,
           overflowX: 'auto',
           overflowY: 'hidden',
           py: 1,
+          ...(fit ? { display: 'flex', flexDirection: 'column', justifyContent: 'center' } : {}),
         }}
       >
         {svg && chartH > 0 && (

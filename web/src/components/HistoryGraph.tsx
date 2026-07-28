@@ -4,6 +4,17 @@ import { Box, Stack, Tooltip, Typography } from '@mui/material'
 import { alpha, darken, useTheme } from '@mui/material/styles'
 import { thumbnailSrc } from '../api/thumbnails'
 import type { VersionSummary } from '../api/types'
+import {
+  CONNECTOR_OPACITY,
+  CONNECTOR_W,
+  NODE_R,
+  RAIL_ALPHA,
+  RAIL_W,
+  RING_W,
+  TAG_ANGLE,
+  TAG_FONT_SIZE,
+  TAG_OFFSET,
+} from './graphstyle'
 
 // HistoryGraph renders a design's version history as a horizontal, GitHub-style
 // branch graph. Lanes, top → bottom (only drawn when populated):
@@ -20,11 +31,8 @@ import type { VersionSummary } from '../api/types'
 
 type Lane = 'share' | 'main' | 'release' | 'dev'
 
-// SHARE_COLOR is the rust-orange used for the public-share lane and dot — set
-// apart from the primary-accent release/milestone lanes.
-const SHARE_COLOR = '#b7410e'
-
-const NODE_R = 7 // commit dot radius
+// Dot/stroke weights come from graphstyle.ts, shared with the Batch timeline.
+// The spacing below is this graph's own — one column per save is dense.
 const COL_GAP = 38 // horizontal spacing between saves
 const LANE_GAP = 56 // vertical spacing between lanes
 const PAD_X = COL_GAP / 2 + 12 // left/right padding (keeps edge columns in-bounds)
@@ -63,7 +71,7 @@ export default function HistoryGraph({
     dev: theme.palette.text.secondary,
     release: accent,
     main: darken(accent, 0.25),
-    share: SHARE_COLOR,
+    share: theme.palette.secondary.main,
   }
   const ringColor = theme.palette.background.paper
 
@@ -118,8 +126,8 @@ export default function HistoryGraph({
                 y1={devY}
                 x2={xOf(ordered.length - 1)}
                 y2={devY}
-                stroke={alpha(laneColor.dev, 0.5)}
-                strokeWidth={3}
+                stroke={alpha(laneColor.dev, RAIL_ALPHA)}
+                strokeWidth={RAIL_W}
                 strokeLinecap="round"
               />
             )}
@@ -129,8 +137,8 @@ export default function HistoryGraph({
                 y1={yOf('release')}
                 x2={xOf(releaseRail[1])}
                 y2={yOf('release')}
-                stroke={alpha(laneColor.release, 0.5)}
-                strokeWidth={3}
+                stroke={alpha(laneColor.release, RAIL_ALPHA)}
+                strokeWidth={RAIL_W}
                 strokeLinecap="round"
               />
             )}
@@ -140,8 +148,8 @@ export default function HistoryGraph({
                 y1={yOf('main')}
                 x2={xOf(mainRail[1])}
                 y2={yOf('main')}
-                stroke={alpha(laneColor.main, 0.5)}
-                strokeWidth={3}
+                stroke={alpha(laneColor.main, RAIL_ALPHA)}
+                strokeWidth={RAIL_W}
                 strokeLinecap="round"
               />
             )}
@@ -151,8 +159,8 @@ export default function HistoryGraph({
                 y1={yOf('share')}
                 x2={xOf(shareRail[1])}
                 y2={yOf('share')}
-                stroke={alpha(laneColor.share, 0.5)}
-                strokeWidth={3}
+                stroke={alpha(laneColor.share, RAIL_ALPHA)}
+                strokeWidth={RAIL_W}
                 strokeLinecap="round"
               />
             )}
@@ -167,8 +175,8 @@ export default function HistoryGraph({
                   x2={xOf(i)}
                   y2={devY}
                   stroke={laneColor.share}
-                  strokeWidth={2}
-                  strokeOpacity={0.8}
+                  strokeWidth={CONNECTOR_W}
+                  strokeOpacity={CONNECTOR_OPACITY}
                   strokeDasharray="3 3"
                 />
               ) : null,
@@ -184,8 +192,8 @@ export default function HistoryGraph({
                   x2={xOf(i)}
                   y2={yOf('release')}
                   stroke={laneColor.release}
-                  strokeWidth={2}
-                  strokeOpacity={0.8}
+                  strokeWidth={CONNECTOR_W}
+                  strokeOpacity={CONNECTOR_OPACITY}
                 />
               ) : null,
             )}
@@ -198,8 +206,8 @@ export default function HistoryGraph({
                   x2={xOf(i)}
                   y2={yOf('main')}
                   stroke={laneColor.main}
-                  strokeWidth={2}
-                  strokeOpacity={0.8}
+                  strokeWidth={CONNECTOR_W}
+                  strokeOpacity={CONNECTOR_OPACITY}
                 />
               ) : null,
             )}
@@ -214,7 +222,7 @@ export default function HistoryGraph({
                   r={NODE_R}
                   fill={laneColor.dev}
                   stroke={ringColor}
-                  strokeWidth={hovered === i ? 2 : 0}
+                  strokeWidth={hovered === i ? RING_W : 0}
                 />
                 {/* milestone dot on the release lane */}
                 {v.isMilestone && (
@@ -224,7 +232,7 @@ export default function HistoryGraph({
                     r={NODE_R}
                     fill={laneColor.release}
                     stroke={ringColor}
-                    strokeWidth={2}
+                    strokeWidth={RING_W}
                   />
                 )}
                 {/* release dot on the main lane */}
@@ -235,7 +243,7 @@ export default function HistoryGraph({
                     r={NODE_R}
                     fill={laneColor.main}
                     stroke={ringColor}
-                    strokeWidth={2}
+                    strokeWidth={RING_W}
                   />
                 )}
                 {/* public-share dot on the top lane */}
@@ -246,7 +254,7 @@ export default function HistoryGraph({
                     r={NODE_R}
                     fill={laneColor.share}
                     stroke={ringColor}
-                    strokeWidth={2}
+                    strokeWidth={RING_W}
                   />
                 )}
               </g>
@@ -255,15 +263,15 @@ export default function HistoryGraph({
             {/* angled date-time tags under the dev lane */}
             {ordered.map((v, i) => {
               const tx = xOf(i)
-              const ty = devY + NODE_R + 12
+              const ty = devY + NODE_R + TAG_OFFSET
               return (
                 <text
                   key={`t-${i}`}
                   x={tx}
                   y={ty}
                   textAnchor="end"
-                  transform={`rotate(-35 ${tx} ${ty})`}
-                  fontSize={9}
+                  transform={`rotate(${TAG_ANGLE} ${tx} ${ty})`}
+                  fontSize={TAG_FONT_SIZE}
                   fill={theme.palette.text.secondary}
                   style={{ fontWeight: hovered === i ? 600 : 400 }}
                 >
@@ -354,7 +362,7 @@ function VersionTooltip({ v }: { v: VersionSummary }) {
         {v.revision ? ` · ${t('history.release', { revision: v.revision })}` : ''}
       </Typography>
       {v.publicShare && (
-        <Typography variant="caption" sx={{ display: 'block', color: SHARE_COLOR, fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ display: 'block', color: 'secondary.main', fontWeight: 600 }}>
           {t('history.publicShare')}
         </Typography>
       )}

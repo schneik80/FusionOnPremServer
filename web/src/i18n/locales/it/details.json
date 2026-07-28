@@ -54,6 +54,7 @@
     "statOpenTasks": "Attività aperte",
     "statRunningBatches": "Lotti in corso",
     "statMessages": "Messaggi",
+    "statUsers": "Utenti",
     "overviewUnavailable": "Panoramica dell'hub non disponibile",
     "pulseTitle": "Battito dell'hub",
     "pulseAllProjects": "Tutti i progetti",
@@ -288,7 +289,6 @@
     "refCount_one": "{{count}} riferimento",
     "refCount_other": "{{count}} riferimenti",
     "locating": "Localizzazione…",
-    "locationUnavailable": "Posizione non disponibile",
-    "clickToOpen": "Fai clic per aprire"
+    "locationUnavailable": "Posizione non disponibile"
   }
 }

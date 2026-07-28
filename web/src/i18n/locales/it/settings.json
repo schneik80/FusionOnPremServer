@@ -31,7 +31,9 @@
       "textSecondary": "Testo secondario",
       "textMuted": "Testo attenuato",
       "accentHover": "Accento (al passaggio del mouse)",
-      "accent": "Accento"
+      "accent": "Accento",
+      "accentAlt": "Accento secondario",
+      "accentWarn": "Accento di avviso"
     },
     "perHubNote": "Il tema e i colori personalizzati vengono salvati per hub — ogni hub può avere il proprio aspetto. La lingua si applica ovunque."
   },

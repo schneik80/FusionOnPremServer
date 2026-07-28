@@ -1,30 +1,24 @@
-import { faArrowUpRightFromSquare, faListCheck } from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Box, Tooltip, Typography } from '@mui/material'
+import { faListCheck } from '@fortawesome/free-solid-svg-icons'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api/client'
 import { useTask } from '../../api/queries'
-import { taskStatusLabel } from '../../i18n/enums'
+import { fmtDate } from '../../fmt'
+import { taskPriorityLabel, taskStatusLabel } from '../../i18n/enums'
 import { STATUS_COLOR, fmtDue, isOverdue } from '../../tasks/chips'
 import { TaskViewDialog } from '../../tasks/TaskViewDialog'
 import { taskDisplayId } from '../../tasks/types'
+import { EntityCard, type CardMeta } from '../entitycard/EntityCard'
 import type { TaskRef } from './taskref'
 
-// TaskCard is the unfurled form of a TaskRef (see taskref.ts) — the task
-// sibling of DocumentCard: a compact link-preview card with a status-tinted
-// icon, the task number and title, and a second line of project · status ·
-// assignee · due. It hydrates itself from the shared task query (falling
-// back to the title captured in the token while loading) and opens the
-// task's details in a dialog on click — a card can sit in any project's
-// chat or wiki, so it must not depend on the browser's nav state.
+// TaskCard is the unfurled form of a TaskRef (see taskref.ts) — the same shared
+// EntityCard as a document card, fed from the shared task query and opening the
+// task's details in a dialog. A card can sit in any project's chat or wiki, so
+// it must not depend on the browser's nav state.
 //
 // A deleted task's 404 is a designed state, not an error: chat logs and
-// published wiki pages keep their tokens forever, so the card degrades to
-// a muted, non-clickable "task not found".
-//
-// Built entirely from span elements so it is valid inside a <p> — markdown
-// paragraphs and chat text bodies are its two homes.
+// published wiki pages keep their tokens forever, so the card degrades to a
+// muted, non-clickable "task not found".
 export function TaskCard({ taskRef }: { taskRef: TaskRef }) {
   const { t } = useTranslation('browse')
   const taskQ = useTask(taskRef.projectId, taskRef.taskId)
@@ -34,6 +28,7 @@ export function TaskCard({ taskRef }: { taskRef: TaskRef }) {
   const gone = taskQ.error instanceof ApiError && taskQ.error.status === 404
   const title = task?.title ?? taskRef.title
   const statusColor = task ? STATUS_COLOR[task.status] : 'default'
+  const overdue = !!task && isOverdue(task.dueDate, task.status)
 
   const subtitle = gone
     ? t('taskCard.notFound')
@@ -50,101 +45,41 @@ export function TaskCard({ taskRef }: { taskRef: TaskRef }) {
         ? t('common:loading')
         : t('taskCard.unavailable')
 
-  const card = (
-    <Box
-      component="span"
-      role={gone ? undefined : 'button'}
-      tabIndex={gone ? undefined : 0}
-      onClick={gone ? undefined : () => setOpen(true)}
-      onKeyDown={
-        gone
-          ? undefined
-          : (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setOpen(true)
-              }
+  const meta: CardMeta[] = task
+    ? ([
+        { label: t('card.priority'), value: taskPriorityLabel(t, task.priority) },
+        task.assignee?.name || task.assignee?.email
+          ? { label: t('card.assignee'), value: task.assignee!.name || task.assignee!.email! }
+          : null,
+        task.dueDate ? { label: t('card.due'), value: fmtDue(task.dueDate) } : null,
+        task.createdAt
+          ? { label: t('card.created'), value: fmtDate(task.createdAt, { dateStyle: 'medium' }) }
+          : null,
+        task.updatedAt
+          ? {
+              label: t('card.modified'),
+              value: fmtDate(task.updatedAt, { dateStyle: 'medium', timeStyle: 'short' }),
             }
-      }
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 1.25,
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 1,
-        bgcolor: 'background.paper',
-        px: 1,
-        py: 0.75,
-        my: 0.25,
-        maxWidth: 'min(420px, 100%)',
-        cursor: gone ? 'default' : 'pointer',
-        verticalAlign: 'middle',
-        userSelect: 'none',
-        opacity: gone ? 0.6 : 1,
-        transition: 'border-color 120ms',
-        '&:hover, &:focus-visible': gone
-          ? undefined
-          : {
-              borderColor: 'primary.main',
-              '& .taskcard-go': { opacity: 1 },
-            },
-      }}
-    >
-      <Box
-        component="span"
-        sx={{
-          width: 40,
-          height: 40,
-          flexShrink: 0,
-          borderRadius: 0.5,
-          bgcolor: 'action.hover',
-          color: statusColor === 'default' ? 'text.secondary' : `${statusColor}.main`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <FontAwesomeIcon icon={faListCheck} style={{ fontSize: 17 }} />
-      </Box>
-      <Box component="span" sx={{ display: 'inline-flex', flexDirection: 'column', minWidth: 0 }}>
-        <Typography
-          component="span"
-          variant="subtitle2"
-          noWrap
-          sx={{ lineHeight: 1.3, textDecoration: task?.status === 'done' ? 'line-through' : undefined }}
-        >
-          {task ? `${taskDisplayId(task)} ${title}` : title}
-        </Typography>
-        <Typography
-          component="span"
-          variant="caption"
-          noWrap
-          color={task && isOverdue(task.dueDate, task.status) ? 'error.main' : 'text.secondary'}
-        >
-          {subtitle}
-        </Typography>
-      </Box>
-      <Box
-        component="span"
-        className="taskcard-go"
-        sx={{
-          ml: 0.5,
-          color: 'primary.main',
-          opacity: 0,
-          transition: 'opacity 120ms',
-          flexShrink: 0,
-          display: 'inline-flex',
-        }}
-      >
-        <FontAwesomeIcon icon={faArrowUpRightFromSquare} style={{ fontSize: 12 }} />
-      </Box>
-    </Box>
-  )
+          : null,
+        task.createdBy?.name ? { label: t('card.modifiedBy'), value: task.createdBy.name } : null,
+      ].filter(Boolean) as CardMeta[])
+    : []
 
   return (
     <>
-      {gone ? card : <Tooltip title={t('taskCard.open')}>{card}</Tooltip>}
+      <EntityCard
+        title={task ? `${taskDisplayId(task)} ${title}` : title}
+        strikeTitle={task?.status === 'done'}
+        subtitle={subtitle}
+        subtitleColor={overdue ? 'error.main' : undefined}
+        icon={faListCheck}
+        iconColor={statusColor === 'default' ? undefined : `${statusColor}.main`}
+        meta={meta}
+        metaLoading={taskQ.isLoading}
+        onNavigate={gone ? undefined : () => setOpen(true)}
+        dimmed={gone}
+        selectable
+      />
       {open && (
         <TaskViewDialog
           open={open}

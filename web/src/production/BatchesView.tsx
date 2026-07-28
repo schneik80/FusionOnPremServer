@@ -16,12 +16,12 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import { alpha } from '@mui/material/styles'
+import { alpha, useTheme } from '@mui/material/styles'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useBatchMutations } from '../api/queries'
 import { batchKindLabel } from '../i18n/enums'
-import { BatchDetail, PRODUCTION_ACCENT } from './BatchDetail'
+import { BatchDetail } from './BatchDetail'
 import { BatchTimeline } from './BatchTimeline'
 import type { Job } from './types'
 
@@ -45,6 +45,7 @@ export function BatchesView({
   myId: string
 }) {
   const { t } = useTranslation('production')
+  const prodAccent = useTheme().palette.secondary.main
   const { createBatch } = useBatchMutations(projectId, jobId)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -114,7 +115,7 @@ export function BatchesView({
                       icon={faFlask}
                       style={{
                         fontSize: 11,
-                        color: b.kind === 'production' ? PRODUCTION_ACCENT : undefined,
+                        color: b.kind === 'production' ? prodAccent : undefined,
                       }}
                     />
                     <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1 }}>
@@ -211,7 +212,12 @@ function CreateBatchDialog({
           <ToggleButton value="prove">{t('createBatch.proveOut')}</ToggleButton>
           <ToggleButton
             value="production"
-            sx={{ '&.Mui-selected': { color: PRODUCTION_ACCENT, borderColor: alpha(PRODUCTION_ACCENT, 0.5) } }}
+            sx={{
+              '&.Mui-selected': {
+                color: 'secondary.main',
+                borderColor: (th) => alpha(th.palette.secondary.main, 0.5),
+              },
+            }}
           >
             {t('createBatch.production')}
           </ToggleButton>

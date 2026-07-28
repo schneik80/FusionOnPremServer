@@ -120,8 +120,7 @@
     "uploadFile": "Datei hochladen…"
   },
   "pinnedDoc": {
-    "versionBadge": "v{{num}}",
-    "asRun": "as-run"
+    "pinned": "Fixiertes Dokument"
   },
   "refDialog": {
     "title": "Auftrag oder Charge verknüpfen",

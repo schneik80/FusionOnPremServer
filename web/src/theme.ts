@@ -5,6 +5,20 @@ import { createTheme, type Theme } from '@mui/material/styles'
 // (commands/assemblybuilder/resources/html/index.html)
 const accent = '#0696d7'
 
+// The rust-orange second accent. It marks the things that are deliberately set
+// apart from the primary accent: production runs (vs prove-out) and the History
+// graph's public-share lane. It rides MUI's `secondary` slot — nothing else in
+// the app used that slot — so components read it as theme.palette.secondary.main
+// rather than repeating the literal, and Settings → Appearance can retheme it.
+const accentAlt = '#b7410e'
+
+// The amber third accent. It marks "pay attention to this" without meaning
+// failure: an as-run artifact on a batch card, a high-priority task, a blocked
+// Gantt bar, a backup warning. Those all read MUI's `warning` slot, which until
+// now was MUI's own stock orange — outside our palette and unreachable from
+// Settings, which is exactly why the batch cards' yellow couldn't be themed.
+const accentWarn = '#ffab00'
+
 const dark = {
   bgPrimary: '#2A3442',
   bgPanel: '#323E50',
@@ -31,9 +45,13 @@ export type ColorMode = 'light' | 'dark'
 
 // ThemeTokens is the shape of one mode's token bag; ThemeOverride is a user's
 // partial customization of it (Settings → Appearance → Custom colors), which
-// may also replace the accent color.
+// may also replace either accent color.
 export type ThemeTokens = typeof dark
-export type ThemeOverride = Partial<ThemeTokens> & { accent?: string }
+export type ThemeOverride = Partial<ThemeTokens> & {
+  accent?: string
+  accentAlt?: string
+  accentWarn?: string
+}
 
 // Montserrat carries no CJK/Arabic glyphs; system-ui and the Noto/Segoe
 // entries let the OS supply coverage for scripts we don't bundle, instead
@@ -42,13 +60,23 @@ const fontFamily =
   '"Montserrat", system-ui, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif'
 
 export function makeTheme(mode: ColorMode, overrides?: ThemeOverride): Theme {
-  const { accent: accentOverride, ...tokenOverrides } = overrides ?? {}
+  const {
+    accent: accentOverride,
+    accentAlt: accentAltOverride,
+    accentWarn: accentWarnOverride,
+    ...tokenOverrides
+  } = overrides ?? {}
   const t = { ...(mode === 'dark' ? dark : light), ...tokenOverrides }
   const ac = accentOverride ?? accent
+  const acAlt = accentAltOverride ?? accentAlt
+  const acWarn = accentWarnOverride ?? accentWarn
   return createTheme({
     palette: {
       mode,
       primary: { main: ac, dark: t.accentHover, contrastText: '#ffffff' },
+      secondary: { main: acAlt, contrastText: '#ffffff' },
+      // Amber needs dark ink, unlike the two accents.
+      warning: { main: acWarn, contrastText: '#1a1a1a' },
       background: { default: t.bgPrimary, paper: t.bgPanel },
       text: { primary: t.textPrimary, secondary: t.textSecondary },
       divider: t.border,
@@ -115,6 +143,8 @@ export function makeTheme(mode: ColorMode, overrides?: ThemeOverride): Theme {
 // MUI's semantic slots (e.g. muted text for type tags).
 export const tokens = { dark, light }
 
-// The stock accent, exported so the Appearance tool can show it as the
-// default swatch value beside the mode token bags.
+// The stock accents, exported so the Appearance tool can show them as the
+// default swatch values beside the mode token bags.
 export const defaultAccent = accent
+export const defaultAccentAlt = accentAlt
+export const defaultAccentWarn = accentWarn
