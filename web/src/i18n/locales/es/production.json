@@ -120,8 +120,7 @@
     "uploadFile": "Cargar un archivo…"
   },
   "pinnedDoc": {
-    "versionBadge": "v{{num}}",
-    "asRun": "de ejecución"
+    "pinned": "Documento fijado"
   },
   "refDialog": {
     "title": "Vincular un trabajo o lote",

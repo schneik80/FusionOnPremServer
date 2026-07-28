@@ -120,8 +120,7 @@
     "uploadFile": "Carregar um ficheiro…"
   },
   "pinnedDoc": {
-    "versionBadge": "v{{num}}",
-    "asRun": "as-run"
+    "pinned": "Documento fixado"
   },
   "refDialog": {
     "title": "Ligar um trabalho ou lote",

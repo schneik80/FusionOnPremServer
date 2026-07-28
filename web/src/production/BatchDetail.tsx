@@ -28,13 +28,9 @@ import { useNav } from '../state/nav'
 import { AttachTaskDialog } from '../tasks/AttachTaskDialog'
 import { DocSourceButton } from './DocSourceButton'
 import { StepNumBadge } from './chips'
-import { PinnedDocChip } from './PinnedDocChip'
+import { PinnedDocCard } from './PinnedDocCard'
 import { BATCH_STATUSES } from './types'
 import type { ProdBatch } from './types'
-
-// The rust-orange the History graph uses for the public-share lane — reused
-// here as the signature "production run" accent.
-export const PRODUCTION_ACCENT = '#b7410e'
 
 // BatchDetail is the as-run record: frozen plan-doc versions, placeholders to
 // supply, and as-run artifacts — organised per step. Everything renders from
@@ -133,7 +129,7 @@ export function BatchDetail({
             fontSize: 11,
             textTransform: 'capitalize',
             ...(isProd
-              ? { color: '#fff', bgcolor: PRODUCTION_ACCENT }
+              ? { color: 'secondary.contrastText', bgcolor: 'secondary.main' }
               : { color: 'primary.contrastText', bgcolor: 'primary.main' }),
           }}
         />
@@ -249,7 +245,7 @@ export function BatchDetail({
                     <SectionLabel>{t('batchDetail.planDocsFrozen')}</SectionLabel>
                     <ChipWrap>
                       {step.planDocs.map((pd) => (
-                        <PinnedDocChip key={pd.id} doc={pd.doc} />
+                        <PinnedDocCard key={pd.id} doc={pd.doc} />
                       ))}
                     </ChipWrap>
                   </Box>
@@ -269,7 +265,7 @@ export function BatchDetail({
                               {ph.required && <span style={{ color: '#d32f2f' }}> *</span>}
                             </Typography>
                             {f ? (
-                              <PinnedDocChip
+                              <PinnedDocCard
                                 doc={f.doc}
                                 onRemove={
                                   canWrite
@@ -304,7 +300,7 @@ export function BatchDetail({
                   <SectionLabel>{t('batchDetail.asRunArtifacts')}</SectionLabel>
                   <ChipWrap>
                     {asRun.map((f) => (
-                      <PinnedDocChip
+                      <PinnedDocCard
                         key={f.id}
                         doc={f.doc}
                         asRun

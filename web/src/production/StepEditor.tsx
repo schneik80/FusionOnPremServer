@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { useJobGraphMutations } from '../api/queries'
 import { DocSourceButton } from './DocSourceButton'
-import { PinnedDocChip } from './PinnedDocChip'
+import { PinnedDocCard } from './PinnedDocCard'
 import { PlaceholderChip, StepNumBadge } from './chips'
 import type { ProdStep } from './types'
 
@@ -169,7 +169,7 @@ export function StepEditor({
             </Typography>
             <Stack spacing={0.75} sx={{ mb: 1 }}>
               {step.planDocs.map((pd) => (
-                <PinnedDocChip
+                <PinnedDocCard
                   key={pd.id}
                   doc={pd.doc}
                   onRemove={

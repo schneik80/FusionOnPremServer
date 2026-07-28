@@ -26,7 +26,9 @@ const fileStreamTimeout = 15 * time.Minute
 // It forwards the request's Range header to OSS so video/PDF can seek, mirroring
 // the upstream 206 + Content-Range. Served same-origin (carries the session
 // cookie), so the signed S3 url never reaches the browser.
-// GET /api/items/file?dmProjectId=<altId>&itemId=<lineage urn>
+// download=1 serves the same bytes as an attachment (the data card's download
+// action) and skips the inline preview cap.
+// GET /api/items/file?dmProjectId=<altId>&itemId=<lineage urn>[&download=1]
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	dmProjectID, ok := reqParam(w, r, "dmProjectId")
 	if !ok {
@@ -62,10 +64,16 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		name = storedName
 	}
 
+	// download=1 asks for the bytes as a file rather than a preview: it is a
+	// deliberate user action (the data card's download button), so the inline
+	// cap — which exists to stop a viewer pulling hundreds of MiB it can't show
+	// — does not apply, and the response is an attachment.
+	download := r.URL.Query().Get("download") == "1"
+
 	// A whole-object response over the inline cap: don't pump hundreds of MiB
 	// through the viewer — tell the client to download it instead. (Range
 	// responses are windows, so they're never capped here.)
-	if resp.StatusCode == http.StatusOK && resp.ContentLength > maxInlineFile {
+	if !download && resp.StatusCode == http.StatusOK && resp.ContentLength > maxInlineFile {
 		writeError(w, http.StatusRequestEntityTooLarge, "file too large to preview")
 		return
 	}
@@ -82,7 +90,11 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", ct)
 	h.Set("Accept-Ranges", "bytes")
 	h.Set("Cache-Control", "private, max-age=3600")
-	h.Set("Content-Disposition", "inline"+dispositionFilename(name))
+	disposition := "inline"
+	if download {
+		disposition = "attachment"
+	}
+	h.Set("Content-Disposition", disposition+dispositionFilename(name))
 	if cl := resp.Header.Get("Content-Length"); cl != "" {
 		h.Set("Content-Length", cl)
 	}

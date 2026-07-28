@@ -120,8 +120,7 @@
     "uploadFile": "Upload a file…"
   },
   "pinnedDoc": {
-    "versionBadge": "v{{num}}",
-    "asRun": "as-run"
+    "pinned": "Pinned document"
   },
   "refDialog": {
     "title": "Link a job or batch",

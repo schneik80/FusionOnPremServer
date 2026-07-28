@@ -1,0 +1,539 @@
+import { faArrowUpRightFromSquare, faCircleInfo, faXmark } from '@fortawesome/free-solid-svg-icons'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Box, IconButton, Tooltip, Typography } from '@mui/material'
+import { alpha } from '@mui/material/styles'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { CONNECTOR_OPACITY, RING_W } from '../graphstyle'
+
+// EntityCard is THE card. Every link-preview card in the app is one of these:
+// the fls:doc / fls:task / fls:job / fls:batch tokens unfurled in chat, wiki and
+// task bodies, and the version-pinned documents on a production step or batch.
+// Before this existed each of those drew its own chrome, and they had drifted —
+// different thumbnail sizes, different borders, a bespoke amber treatment on the
+// batch cards. One component, one look.
+//
+// It is built entirely from `span` elements (and buttons, which are phrasing
+// content) so it stays valid inside a markdown <p> — chat text bodies and wiki
+// paragraphs are two of its homes.
+//
+// Capabilities beyond the old cards, all opt-in per host:
+//   • selection, drawn as the same halo the History graph rings a commit dot
+//     with (graphstyle.ts tokens), with an action bar in the halo's bottom
+//     margin: open, download, details, and the host's own extras;
+//   • a details FLIP — the card turns over to a metadata back face (no
+//     thumbnail there, it is the back of the card), an X turns it back;
+//   • badges, for the version language the pinned cards need (v3 · as run ·
+//     current v5).
+//
+// Hosts feed it whatever they already have: the back face is pure formatting of
+// data the card's own queries fetched, and any per-card APS call behind that
+// stays gated on the row nearing the viewport (useInView), never on a fan-out.
+
+// A host that owns selection itself provides it here instead of drilling a prop
+// through RefCard and every card type. The whiteboard does this: a card on the
+// canvas is selected when its SHAPE is, so one click on the shape both selects
+// it and opens the card's action bar — the same two clicks to reach an action
+// that a card in chat takes.
+export const CardHostContext = createContext<{ selected: boolean } | null>(null)
+
+// The class on the card's front face, and the halo box's inset around it. A
+// host that has to keep geometry in step with the card (the whiteboard shape)
+// measures the FACE and adds the inset, so the action bar and the flipped back
+// face — both transient, per-viewer state — never move the stored box.
+export const CARD_FACE_CLASS = 'fls-card-face'
+export const CARD_HALO_INSET = 3.5
+
+// THUMB is 50% up from the 40px the cards used to draw — the thumbnail is the
+// point of a document card and it was too small to read a part by.
+export const CARD_THUMB = 60
+
+// Halo geometry, mirroring HistoryGraph's selected commit dot (r + RING_W +
+// 1.5): a ring of the same width and opacity, the same hairline gap off the
+// card's own border. The gap and ring are always in the box (transparent when
+// unselected) so selecting a card never nudges the layout sideways.
+const HALO_GAP = 1.5
+
+// A flip needs longer than the app's usual 100–120ms state transitions to read
+// as a physical turn rather than a glitch; it is still a plain sx transition.
+const FLIP_MS = 300
+
+export type BadgeTone = 'accent' | 'warn' | 'muted'
+
+export interface CardBadge {
+  label: string
+  tone?: BadgeTone
+  /** Long-form text for the badge's tooltip (e.g. what "as run" means). */
+  title?: string
+}
+
+export interface CardMeta {
+  label: string
+  value: string
+}
+
+export interface CardAction {
+  key: string
+  icon: IconDefinition
+  label: string
+  onClick?: () => void
+  /** Renders the action as a link (the download action) instead of a button. */
+  href?: string
+  download?: boolean
+  disabled?: boolean
+  /** Tints the action as destructive (remove). */
+  danger?: boolean
+}
+
+export function EntityCard({
+  title,
+  subtitle,
+  subtitleColor,
+  strikeTitle,
+  thumbUrl,
+  icon,
+  iconColor,
+  badges,
+  meta,
+  metaLoading,
+  actions,
+  onNavigate,
+  navigateLabel,
+  selectable,
+  dimmed,
+  tooltip,
+  outline,
+  fullWidth,
+}: {
+  title: string
+  subtitle?: ReactNode
+  subtitleColor?: string
+  strikeTitle?: boolean
+  thumbUrl?: string | null
+  icon: IconDefinition
+  iconColor?: string
+  badges?: CardBadge[]
+  /** Back-face rows. Empty/omitted hides the details action. */
+  meta?: CardMeta[]
+  metaLoading?: boolean
+  /** Extra actions beside navigate/details, e.g. download or remove. */
+  actions?: CardAction[]
+  /**
+   * Take the user to this thing — move the browser to a document, raise a
+   * task's dialog. Deliberately "navigate", never "open": an open action
+   * (launching in Fusion) is a different verb and will be a different button,
+   * and the two must not blur together.
+   */
+  onNavigate?: () => void
+  navigateLabel?: string
+  /**
+   * Click selects (revealing the action bar) instead of opening. Card grids —
+   * a batch's documents, a step's plan docs — want this; inline token cards in
+   * a sentence keep click-to-open, which is what a link preview should do.
+   */
+  selectable?: boolean
+  /** Muted and inert: a deleted task, a card minted in another hub. */
+  dimmed?: boolean
+  /**
+   * Hover description of the card itself — the relationship graph resolves a
+   * node's project/folder path here. It is NOT the place to name the click
+   * target: selection reveals buttons that carry their own labels.
+   */
+  tooltip?: ReactNode
+  /**
+   * Border treatment. 'accent' marks the subject of the view (the focused
+   * document in a relationship graph); 'soft' dashes the border for a weaker
+   * relationship — a chat mention is not an assembly occurrence and the UI
+   * must not draw them identically.
+   */
+  outline?: 'accent' | 'soft'
+  /**
+   * Fill the container instead of shrinking to content. A graph lays its nodes
+   * out on a fixed grid, so every card there has to be the same width.
+   */
+  fullWidth?: boolean
+}) {
+  const { t } = useTranslation('browse')
+  const host = useContext(CardHostContext)
+  const [selfSelected, setSelfSelected] = useState(false)
+  const selected = host ? host.selected : selfSelected
+  const [flipped, setFlipped] = useState(false)
+  const [thumbFailed, setThumbFailed] = useState(false)
+
+  // A new thumbnail deserves a fresh attempt; without this a card that failed
+  // once stays iconic even after the host swaps in a working url.
+  useEffect(() => setThumbFailed(false), [thumbUrl])
+
+  const inert = !!dimmed
+  const showThumb = !!thumbUrl && !thumbFailed
+  const hasMeta = !!meta && meta.length > 0
+
+
+  const navigateAction: CardAction | null = onNavigate
+    ? {
+        key: 'navigate',
+        icon: faArrowUpRightFromSquare,
+        label: navigateLabel ?? t('card.navigate'),
+        onClick: onNavigate,
+      }
+    : null
+  const detailsAction: CardAction | null =
+    hasMeta || metaLoading
+      ? { key: 'details', icon: faCircleInfo, label: t('card.details'), onClick: () => setFlipped(true) }
+      : null
+  const bar = [navigateAction, ...(actions ?? []), detailsAction].filter(Boolean) as CardAction[]
+
+  function primaryClick() {
+    if (inert) return
+    // With a host owning selection there is nothing to toggle — clicking the
+    // face is a no-op and the action bar is the way in.
+    if (host) return
+    if (selectable) setSelfSelected((sel) => !sel)
+    else onNavigate?.()
+  }
+
+  const face = (
+    <Box
+      component="span"
+      className={CARD_FACE_CLASS}
+      role={inert ? undefined : 'button'}
+      tabIndex={inert ? undefined : 0}
+      onClick={inert ? undefined : primaryClick}
+      onKeyDown={
+        inert
+          ? undefined
+          : (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                primaryClick()
+              }
+            }
+      }
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 1.25,
+        border: outline === 'accent' ? 2 : 1,
+        borderStyle: outline === 'soft' ? 'dashed' : 'solid',
+        borderColor: outline === 'accent' ? 'primary.main' : 'divider',
+        borderRadius: 1,
+        bgcolor: 'background.paper',
+        px: 1,
+        py: 0.75,
+        width: '100%',
+        minWidth: 0,
+        cursor: inert ? 'default' : 'pointer',
+        opacity: inert ? 0.55 : 1,
+        verticalAlign: 'middle',
+        // A card is a control, not text — clicking it must not smear a text
+        // selection across the surrounding message.
+        userSelect: 'none',
+        transition: 'border-color 120ms',
+        // Hover keeps the paper background (the row underneath paints its own
+        // hover wash; changing ours too reads as a smeared double highlight) —
+        // the border alone carries "this is a control". There is deliberately no
+        // hover jump icon: a click selects rather than navigates, and Open is
+        // one of the buttons selection reveals, so an arrow here promised
+        // something the click no longer does and duplicated the button.
+        ...(inert || outline === 'accent'
+          ? {}
+          : { '&:hover, &:focus-visible': { borderColor: 'primary.main' } }),
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          width: CARD_THUMB,
+          height: CARD_THUMB,
+          flexShrink: 0,
+          borderRadius: 0.5,
+          bgcolor: 'action.hover',
+          color: iconColor ?? 'text.secondary',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        {showThumb ? (
+          <Box
+            component="img"
+            src={thumbUrl!}
+            alt=""
+            // The card is a control: the browser must not start a native image
+            // drag from it. That drag advertises the image as a file, which the
+            // app-wide drop handler reads as an incoming upload, and it fights
+            // whatever the card sits in — a whiteboard, a graph being panned.
+            draggable={false}
+            onError={() => setThumbFailed(true)}
+            sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+          />
+        ) : (
+          <FontAwesomeIcon icon={icon} style={{ fontSize: 24 }} />
+        )}
+      </Box>
+
+      <Box component="span" sx={{ display: 'inline-flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+        <Typography
+          component="span"
+          variant="subtitle2"
+          noWrap
+          title={title}
+          sx={{ lineHeight: 1.3, textDecoration: strikeTitle ? 'line-through' : undefined }}
+        >
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography
+            component="span"
+            variant="caption"
+            noWrap
+            sx={{ color: subtitleColor ?? 'text.secondary' }}
+          >
+            {subtitle}
+          </Typography>
+        )}
+        {badges && badges.length > 0 && (
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+            {badges.map((b) => (
+              <Badge key={b.label} badge={b} />
+            ))}
+          </Box>
+        )}
+      </Box>
+
+    </Box>
+  )
+
+  // A tooltip describes the card, not the click — hosts stopped passing an
+  // "open this" label when selection took over the click.
+  const faceNode = tooltip ? <Tooltip title={tooltip}>{face}</Tooltip> : face
+
+  const back = (
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        gap: 0.25,
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        bgcolor: 'background.paper',
+        px: 1,
+        py: 0.75,
+        width: '100%',
+        minHeight: CARD_THUMB + 12,
+        minWidth: 0,
+        userSelect: 'none',
+        verticalAlign: 'middle',
+        // The back is taller than the front whenever there are more than a
+        // couple of rows, so it floats over what follows rather than reflowing
+        // it. The shadow is what makes that read as a card lifted off the page.
+        boxShadow: 3,
+      }}
+    >
+      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+        <Typography component="span" variant="caption" noWrap sx={{ flex: 1, minWidth: 0, fontWeight: 600 }}>
+          {title}
+        </Typography>
+        <Tooltip title={t('card.flipBack')}>
+          <IconButton size="small" onClick={() => setFlipped(false)} sx={{ flexShrink: 0, p: 0.25 }}>
+            <FontAwesomeIcon icon={faXmark} style={{ fontSize: 11 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      {metaLoading && !hasMeta ? (
+        <Typography component="span" variant="caption" color="text.secondary">
+          {t('common:loading')}
+        </Typography>
+      ) : hasMeta ? (
+        meta!.map((m) => (
+          <Box key={m.label} component="span" sx={{ display: 'inline-flex', gap: 1, minWidth: 0 }}>
+            <Typography
+              component="span"
+              variant="caption"
+              sx={{ color: 'text.secondary', flexShrink: 0, minWidth: 88 }}
+            >
+              {m.label}
+            </Typography>
+            <Typography component="span" variant="caption" noWrap title={m.value} sx={{ minWidth: 0 }}>
+              {m.value}
+            </Typography>
+          </Box>
+        ))
+      ) : (
+        <Typography component="span" variant="caption" color="text.disabled">
+          {t('card.noDetails')}
+        </Typography>
+      )}
+    </Box>
+  )
+
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: fullWidth ? 'flex' : 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        my: 0.25,
+        // Shrink with the container (thread drawer, narrow panes): the cap is
+        // the container width and the text column ellipsizes.
+        maxWidth: fullWidth ? '100%' : 'min(420px, 100%)',
+        ...(fullWidth && { width: '100%' }),
+        minWidth: 0,
+        // The halo box is always present so selection never shifts the layout;
+        // only its colour changes.
+        p: `${HALO_GAP}px`,
+        border: `${RING_W}px solid transparent`,
+        borderRadius: 1.5,
+        transition: 'border-color 120ms',
+        ...(selected && { borderColor: (th) => alpha(th.palette.primary.main, CONNECTOR_OPACITY) }),
+      }}
+    >
+      {/* Flip scene. The FRONT face is always the one in flow, so the card's
+          box is the same whether it is flipped, selected or neither — which is
+          what lets the whiteboard keep a shape's geometry in step with a card
+          without transient state leaking into the shared document. The back is
+          absolutely positioned and overflows downward when it needs to. */}
+      <Box
+        component="span"
+        sx={{
+          display: 'inline-flex',
+          position: 'relative',
+          minWidth: 0,
+          perspective: '900px',
+        }}
+      >
+        <Box
+          component="span"
+          sx={{
+            display: 'inline-flex',
+            width: '100%',
+            minWidth: 0,
+            transformStyle: 'preserve-3d',
+            transition: `transform ${FLIP_MS}ms`,
+            transform: flipped ? 'rotateY(180deg)' : 'none',
+            '& > span': { backfaceVisibility: 'hidden' },
+          }}
+        >
+          <Box component="span" sx={{ display: 'inline-flex', width: '100%', minWidth: 0 }}>
+            {faceNode}
+          </Box>
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-flex',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              minWidth: 0,
+              zIndex: 1,
+              transform: 'rotateY(180deg)',
+              // Nothing to hit on the face turned away from the viewer.
+              pointerEvents: flipped ? 'auto' : 'none',
+            }}
+          >
+            {back}
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Action bar, floating in the halo's bottom margin. Buttons are phrasing
+          content, so this stays valid inside a <p>; they are siblings of the
+          card's role=button face rather than nested inside it. */}
+      {selected && !flipped && bar.length > 0 && (
+        <Box
+          component="span"
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            // Clear of the card, not tucked against it. On the whiteboard the
+            // shape's selection indicator is stroked along the card's geometry
+            // edge — which is the face's bottom, since the bar is deliberately
+            // outside the measured box — so a bar sitting flush there gets a
+            // line drawn straight through the buttons. This gap puts the
+            // indicator in empty space between the card and the toolbar.
+            pt: 1,
+            // Take the card's width without contributing to it: a percentage
+            // min-width resolves to auto while the browser computes intrinsic
+            // size, so a short-named card can never be made WIDER by its own
+            // action bar — which would make the measured size depend on
+            // selection, the very thing the whiteboard must not see.
+            width: 0,
+            minWidth: '100%',
+          }}
+        >
+          {/* The buttons carry their own surface: on a board they sit over the
+              canvas (and whatever is behind the card), where bare glyphs are
+              unreadable. */}
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.25,
+              px: 0.25,
+              borderRadius: 1,
+              bgcolor: 'background.paper',
+              border: 1,
+              borderColor: 'divider',
+              boxShadow: 2,
+            }}
+          >
+            {bar.map((a) => (
+              <Tooltip key={a.key} title={a.label}>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={a.disabled}
+                    aria-label={a.label}
+                    {...(a.href
+                      ? { component: 'a' as const, href: a.href, download: a.download ? '' : undefined }
+                      : {})}
+                    onClick={a.onClick}
+                    sx={{ p: 0.5, color: a.danger ? 'error.main' : 'text.secondary' }}
+                  >
+                    <FontAwesomeIcon icon={a.icon} style={{ fontSize: 12 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ))}
+          </Box>
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+function Badge({ badge }: { badge: CardBadge }) {
+  const { tone = 'accent', label, title } = badge
+  const chip = (
+    <Box
+      component="span"
+      sx={{
+        px: 0.6,
+        borderRadius: 0.75,
+        fontSize: 10,
+        fontWeight: 700,
+        lineHeight: '15px',
+        whiteSpace: 'nowrap',
+        ...(tone === 'accent' && { color: 'primary.contrastText', bgcolor: 'primary.main' }),
+        ...(tone === 'warn' && { color: 'warning.contrastText', bgcolor: 'warning.main' }),
+        ...(tone === 'muted' && {
+          color: 'text.secondary',
+          border: 1,
+          borderColor: 'divider',
+          fontWeight: 600,
+        }),
+      }}
+    >
+      {label}
+    </Box>
+  )
+  return title ? <Tooltip title={title}>{chip}</Tooltip> : chip
+}

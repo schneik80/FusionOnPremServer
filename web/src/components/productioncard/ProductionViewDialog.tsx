@@ -11,16 +11,13 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
 import { useJob } from '../../api/queries'
 import { batchKindLabel, batchStatusLabel } from '../../i18n/enums'
-import { PinnedDocChip } from '../../production/PinnedDocChip'
+import { PinnedDocCard } from '../../production/PinnedDocCard'
 import { jobDisplayId } from '../../production/types'
 import type { BatchRef, JobRef } from './prodref'
-
-// PRODUCTION_ACCENT is duplicated from BatchDetail to avoid importing the whole
-// batch UI into a card dialog; the rust-orange "production run" hue.
-const PRODUCTION_ACCENT = '#b7410e'
 
 // ProductionViewDialog is the read-only unfurled view of a Job or Batch ref —
 // the production sibling of TaskViewDialog. It hydrates from the shared job
@@ -37,6 +34,7 @@ export function ProductionViewDialog({
   onClose: () => void
 }) {
   const { t } = useTranslation('browse')
+  const prodAccent = useTheme().palette.secondary.main
   const jobQ = useJob(jobRef.projectId, jobRef.jobId, true)
   const job = jobQ.data
   const batch = batchRef ? job?.batches.find((b) => b.id === batchRef.batchId) : undefined
@@ -51,7 +49,7 @@ export function ProductionViewDialog({
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <FontAwesomeIcon
           icon={batchRef ? faFlask : faDiagramProject}
-          style={{ fontSize: 15, color: batch?.kind === 'production' ? PRODUCTION_ACCENT : undefined }}
+          style={{ fontSize: 15, color: batch?.kind === 'production' ? prodAccent : undefined }}
         />
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography variant="h6" noWrap>
@@ -132,7 +130,7 @@ function BatchSummary({ batch }: { batch: NonNullable<ReturnType<typeof useJob>[
             fontSize: 11,
             textTransform: 'capitalize',
             ...(batch.kind === 'production'
-              ? { color: '#fff', bgcolor: PRODUCTION_ACCENT }
+              ? { color: 'secondary.contrastText', bgcolor: 'secondary.main' }
               : { color: 'primary.contrastText', bgcolor: 'primary.main' }),
           }}
         />
@@ -150,10 +148,10 @@ function BatchSummary({ batch }: { batch: NonNullable<ReturnType<typeof useJob>[
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
               {step.planDocs.map((pd) => (
-                <PinnedDocChip key={pd.id} doc={pd.doc} />
+                <PinnedDocCard key={pd.id} doc={pd.doc} />
               ))}
               {asRun.map((f) => (
-                <PinnedDocChip key={f.id} doc={f.doc} asRun={f.isAsRun} />
+                <PinnedDocCard key={f.id} doc={f.doc} asRun={f.isAsRun} />
               ))}
               {step.planDocs.length === 0 && asRun.length === 0 && (
                 <Typography variant="caption" color="text.disabled">

@@ -1,20 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Box, Tooltip, Typography } from '@mui/material'
+import { Box, Typography } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { useQuery } from '@tanstack/react-query'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faArrowsToDot,
-  faMagnifyingGlassMinus,
-  faMagnifyingGlassPlus,
-  faUpRightFromSquare,
-} from '@fortawesome/free-solid-svg-icons'
+import { faArrowsToDot, faMagnifyingGlassMinus, faMagnifyingGlassPlus } from '@fortawesome/free-solid-svg-icons'
 import { api } from '../api/client'
 import { thumbnailSrc } from '../api/thumbnails'
 import { ToolBtn } from './canvas/ToolBtn'
 import { useNav } from '../state/nav'
-import { ItemIcon } from './entityIcons'
+import { EntityCard, type CardBadge } from './entitycard/EntityCard'
+import { iconForItem } from './icons'
 
 // A node in the relationship graph. navId (lineage/item id) drives navigation;
 // cvId (componentVersionId) drives the thumbnail; absent navId = not navigable.
@@ -47,18 +42,24 @@ export interface GraphNode {
   openable?: boolean
 }
 
-// node geometry — width matches the permissions LayersViz boxes for consistency
-const W = 100
-const H = 92
-const HGAP = 124
+// Node geometry. A node is the app's shared document card (EntityCard), so it
+// is wide and short rather than the tall 100px tile this graph used to draw its
+// own version of — H tracks the card's painted height (thumbnail + padding +
+// halo) and is what the edge endpoints and fit-to-view bounds are computed
+// from.
+const W = 300
+const H = 88
+const HGAP = W + 28
 const VGAP = 172
 // Relations wrap into rows of at most COLS. A document can be referenced from
 // a dozen places once local sources (chat, whiteboards, tasks, jobs, batches)
 // join the graph, and one unbounded row would either run thousands of pixels
 // wide or fit-to-view down to an unreadable 30%. Rows stack away from the
-// focus, so the first row — the structural parents — stays nearest it.
-const COLS = 8
-const ROWGAP = H + 44
+// focus, so the first row — the structural parents — stays nearest it. Cards
+// are three times the width of the old tiles, so a row holds proportionally
+// fewer before fit-to-view stops being readable.
+const COLS = 3
+const ROWGAP = H + 56
 // The viewport grows to fill whatever vertical space its tab gives it (see
 // the flex:1 below); MIN_VIEW_H is just a floor so a very short panel still
 // shows a usable canvas (and scrolls) rather than collapsing.
@@ -99,7 +100,6 @@ export default function RelationGraph({
 }) {
   const { t } = useTranslation('details')
   const theme = useTheme()
-  const accent = theme.palette.primary.main
   const edgeColor = theme.palette.text.secondary
   // Drawings render their preview keyed by item id + the current project's altId
   // (best-effort: a related doc in another project falls back to its kind icon).
@@ -255,7 +255,6 @@ export default function RelationGraph({
             node={p}
             left={p.x + ox - W / 2}
             top={p.y + oy - H / 2}
-            accent={accent}
             projectAltId={projectAltId}
             onNavigate={onNavigate}
           />
@@ -282,103 +281,61 @@ function NodeBox({
   node,
   left,
   top,
-  accent,
   projectAltId,
   onNavigate,
 }: {
   node: Placed
   left: number
   top: number
-  accent: string
   projectAltId?: string
   onNavigate: (n: GraphNode) => void
 }) {
   const { t } = useTranslation('details')
-  const [imgFailed, setImgFailed] = useState(false)
-  const [hovered, setHovered] = useState(false)
   const canNav = !node.isFocus && (!!node.navId || !!node.openable)
-  const thumbSrc = thumbnailSrc({ kind: node.kind, cvId: node.cvId, itemId: node.navId, projectAltId })
-  const showThumb = !!thumbSrc && !imgFailed
 
-  const box = (
-    <Box
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onMouseDown={(e) => e.stopPropagation()} // don't start a pan when pressing a node
-      onClick={() => canNav && onNavigate(node)}
-      sx={{
-        position: 'absolute',
-        left,
-        top,
-        width: W,
-        height: H,
-        p: 0.75,
-        border: node.isFocus ? 2 : 1,
-        borderRadius: 1,
-        borderStyle: node.soft ? 'dashed' : 'solid',
-        borderColor: node.isFocus ? accent : hovered && canNav ? alpha(accent, 0.6) : 'divider',
-        bgcolor: hovered && canNav ? alpha(accent, 0.1) : 'background.paper',
-        cursor: canNav ? 'pointer' : 'default',
-        boxShadow: hovered && canNav ? 2 : 0,
-        transition: 'border-color .1s, background-color .1s, box-shadow .1s',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 0.25,
-        overflow: 'hidden',
-      }}
-    >
-      {/* nav glyph on hover */}
-      {canNav && (
-        <Box sx={{ position: 'absolute', top: 3, right: 4, color: accent, opacity: hovered ? 1 : 0, transition: 'opacity .1s' }}>
-          <FontAwesomeIcon icon={faUpRightFromSquare} style={{ fontSize: 10 }} />
-        </Box>
-      )}
-      <Box sx={{ width: '100%', height: 46, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-        {showThumb ? (
-          <Box
-            component="img"
-            src={thumbSrc!}
-            alt=""
-            draggable={false} // a native image drag would fight the pan gesture
-            onError={() => setImgFailed(true)}
-            sx={{ maxWidth: '100%', maxHeight: 46, objectFit: 'contain', borderRadius: 0.5 }}
-          />
-        ) : (
-          <ItemIcon item={{ kind: node.kind }} style={{ fontSize: 22, color: alpha(accent, 0.7) }} />
-        )}
-      </Box>
-      <Typography variant="caption" fontWeight={600} noWrap sx={{ width: '100%', textAlign: 'center', lineHeight: 1.2 }} title={node.name}>
-        {node.name}
-      </Typography>
-      <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', textTransform: 'capitalize', lineHeight: 1 }}>
-        {node.isFocus ? t('relation.thisDocument') : (node.kindLabel ?? node.kind)}
-        {node.count && node.count > 1 ? ` · ${t('relation.refCount', { count: node.count })}` : ''}
-      </Typography>
-    </Box>
-  )
+  const badges: CardBadge[] =
+    node.count && node.count > 1
+      ? [{ label: t('relation.refCount', { count: node.count }), tone: 'muted' }]
+      : []
 
-  if (node.isFocus) return box
-  // A hub document resolves its project/folder path on hover; a local record
-  // (chat, whiteboard, task, job, batch) has no lineage id to resolve, and
-  // carries its context in `detail` instead.
-  const title = node.navId ? (
+  // A hub document resolves its project/folder path on hover — one location
+  // call per node would be a fan-out, so it stays inside the tooltip, which
+  // only mounts when hovered. A local record (chat, whiteboard, task, job,
+  // batch) has no lineage id to resolve and carries its context in `detail`.
+  const tooltip = node.isFocus ? undefined : node.navId ? (
     <NodeTooltip navId={node.navId} name={node.name} />
   ) : (
-    <LocalNodeTooltip name={node.name} detail={node.detail} openable={!!node.openable} />
+    <LocalNodeTooltip name={node.name} detail={node.detail} />
   )
+
   return (
-    <Tooltip title={title} placement="top" arrow>
-      {box}
-    </Tooltip>
+    <Box
+      // Pressing a node must not start a canvas pan.
+      onMouseDown={(e) => e.stopPropagation()}
+      sx={{ position: 'absolute', left, top, width: W }}
+    >
+      <EntityCard
+        title={node.name}
+        subtitle={node.isFocus ? t('relation.thisDocument') : (node.kindLabel ?? node.kind)}
+        thumbUrl={thumbnailSrc({ kind: node.kind, cvId: node.cvId, itemId: node.navId, projectAltId })}
+        icon={iconForItem({ kind: node.kind, subtype: '' })}
+        badges={badges}
+        tooltip={tooltip}
+        // The focus is the subject of the view, not a destination; a soft
+        // relation (a chat mention) is dashed so it never reads as structural.
+        outline={node.isFocus ? 'accent' : node.soft ? 'soft' : undefined}
+        onNavigate={canNav ? () => onNavigate(node) : undefined}
+        selectable={canNav}
+        fullWidth
+      />
+    </Box>
   )
 }
 
 // LocalNodeTooltip is the tooltip for a reference that lives in our own data.
 // It shows what the caller already resolved server-side — the project, the
 // channel excerpt, the step title — rather than making a lookup call.
-function LocalNodeTooltip({ name, detail, openable }: { name: string; detail?: string; openable: boolean }) {
-  const { t } = useTranslation('details')
+function LocalNodeTooltip({ name, detail }: { name: string; detail?: string }) {
   return (
     <Box sx={{ py: 0.25, maxWidth: 260 }}>
       <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
@@ -387,11 +344,6 @@ function LocalNodeTooltip({ name, detail, openable }: { name: string; detail?: s
       {detail ? (
         <Typography variant="caption" sx={{ display: 'block', opacity: 0.85 }}>
           {detail}
-        </Typography>
-      ) : null}
-      {openable ? (
-        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, opacity: 0.85 }}>
-          <FontAwesomeIcon icon={faUpRightFromSquare} style={{ fontSize: 9 }} /> {t('relation.clickToOpen')}
         </Typography>
       ) : null}
     </Box>
@@ -418,9 +370,6 @@ function NodeTooltip({ navId, name }: { navId: string; name: string }) {
       </Typography>
       <Typography variant="caption" sx={{ display: 'block', color: 'inherit', opacity: 0.85 }}>
         {locQ.isLoading ? t('relation.locating') : (path ?? t('relation.locationUnavailable'))}
-      </Typography>
-      <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, opacity: 0.85 }}>
-        <FontAwesomeIcon icon={faUpRightFromSquare} style={{ fontSize: 9 }} /> {t('relation.clickToOpen')}
       </Typography>
     </Box>
   )

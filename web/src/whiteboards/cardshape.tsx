@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { HTMLContainer, Rectangle2d, ShapeUtil, useValue, type Editor, type TLShape } from 'tldraw'
 import { RefCard } from '../components/RefCard'
+import { CARD_FACE_CLASS, CARD_HALO_INSET, CardHostContext } from '../components/entitycard/EntityCard'
 
 // The whiteboard's own shape: a live app card pinned to the canvas. Its only
 // state is an fls: token — the same compact reference chat, the wiki and task
@@ -26,8 +27,11 @@ export type FlsCardShape = TLShape<typeof FLS_CARD_TYPE>
 // mount the shape measures the rendered card and shrinks its geometry to fit
 // (see CardBody). CARD_W is the ceiling; CARD_H the initial guess before the
 // first measure. Keeping geometry == paint is what makes bound arrows point at
-// the card rather than at the empty right edge of a fixed 320 box.
-export const CARD_W = 320
+// the card rather than at the empty right edge of a fixed box.
+//
+// CARD_W matches EntityCard's own max width, so a name truncates at the same
+// place on a board as it does in chat.
+export const CARD_W = 420
 export const CARD_H = 96
 
 // How far the measured size may sit from the stored one before it is written
@@ -149,8 +153,17 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 			// locally: the measurement is this browser's opinion, and persisting it
 			// is a write they are not entitled to make.
 			if (editor.getInstanceState().isReadonly) return
-			const w = Math.min(CARD_W, Math.ceil(el.offsetWidth))
-			const h = Math.ceil(el.offsetHeight)
+			// Measure the card's FRONT FACE plus the halo inset, never the whole
+			// wrapper. Selecting a card adds an action bar and flipping it shows a
+			// taller back — both are this viewer's transient state, and the wrapper
+			// grows with them. Writing that would push one person's selection into
+			// the shared document, and two people selecting different cards would
+			// each keep overwriting the other's size.
+			const faceEl = el.querySelector(`.${CARD_FACE_CLASS}`)
+			const face = faceEl instanceof HTMLElement ? faceEl : el
+			const inset = CARD_HALO_INSET * 2
+			const w = Math.min(CARD_W, Math.ceil(face.offsetWidth + inset))
+			const h = Math.ceil(face.offsetHeight + inset)
 			if (!w || !h) return
 			// Close enough is a match — don't churn the store on rounding.
 			//
@@ -201,12 +214,27 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 				height: shape.props.h,
 				pointerEvents: interactive ? 'all' : 'none',
 				display: 'flex',
-				alignItems: 'center',
+				// TOP-aligned, not centred. The shape box is measured from the card's
+				// front face alone, so a selected card (action bar) and a flipped one
+				// (taller back) are both taller than their box. Centring split that
+				// overflow above and below, which lifted the card and left the action
+				// bar straddling the bottom edge — right where tldraw strokes the
+				// selection indicator. Aligned to the top, everything transient hangs
+				// clear below the box.
+				alignItems: 'flex-start',
 				overflow: 'visible',
 			}}
 		>
-			<div ref={ref} style={{ width: 'max-content', maxWidth: CARD_W, display: 'flex', alignItems: 'center' }}>
-				<RefCard token={shape.props.token} />
+			<div
+				ref={ref}
+				style={{ width: 'max-content', maxWidth: CARD_W, display: 'flex', alignItems: 'flex-start' }}
+			>
+				{/* A card on the canvas takes its selection from the SHAPE, so the
+				    click that selects the shape also opens the card's action bar —
+				    two clicks to reach an action, the same as a card in chat. */}
+				<CardHostContext.Provider value={{ selected: interactive }}>
+					<RefCard token={shape.props.token} />
+				</CardHostContext.Provider>
 			</div>
 		</HTMLContainer>
 	)

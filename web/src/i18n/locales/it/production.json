@@ -120,8 +120,7 @@
     "uploadFile": "Carica un file…"
   },
   "pinnedDoc": {
-    "versionBadge": "v{{num}}",
-    "asRun": "as-run"
+    "pinned": "Documento bloccato"
   },
   "refDialog": {
     "title": "Collega una commessa o un lotto",
