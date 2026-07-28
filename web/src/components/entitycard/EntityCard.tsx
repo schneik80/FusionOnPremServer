@@ -359,7 +359,18 @@ export function EntityCard({
             >
               {m.label}
             </Typography>
-            <Typography component="span" variant="caption" noWrap title={m.value} sx={{ minWidth: 0 }}>
+            {/* Values WRAP rather than ellipsize. The card is only as wide as
+                its title, so a part number or a description was being cut off
+                on the one face whose whole job is to be read; growing taller is
+                free now that the back sizes its container. `anywhere` because
+                these are identifiers as often as prose — a part number has no
+                spaces to break at. */}
+            <Typography
+              component="span"
+              variant="caption"
+              title={m.value}
+              sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
+            >
               {m.value}
             </Typography>
           </Box>
@@ -434,10 +445,13 @@ export function EntityCard({
             transformStyle: 'preserve-3d',
             transition: `transform ${FLIP_MS}ms`,
             transform: flipped ? 'rotateY(180deg)' : 'none',
+            // Placement only. Nothing that a face has to be able to override
+            // belongs here: this compiles to a descendant selector, which
+            // outranks the faces' own single-class rules — a `min-width` here
+            // silently beat the back face's and collapsed it to zero.
             '& > span': {
               gridArea: '1 / 1',
               alignSelf: 'start',
-              minWidth: 0,
               backfaceVisibility: 'hidden',
             },
           }}
@@ -454,12 +468,16 @@ export function EntityCard({
               // Nothing to hit on the face turned away from the viewer.
               pointerEvents: flipped ? 'auto' : 'none',
               ...(flipped
-                ? // In flow: it sizes the scene's height, never its width.
+                ? // In flow: it sizes the scene's height, never its width. The
+                  // used width must still be the full column — the back is
+                  // counter-rotated about its own centre, and a narrower box
+                  // would not cancel the scene's rotation, sliding the face
+                  // sideways out of the card.
                   { width: 0, minWidth: '100%' }
                 : // Out of flow while it faces away, so the resting card is
                   // exactly its front face. It stays mounted and positioned so
                   // the turn back reads as one continuous rotation.
-                  { position: 'absolute', top: 0, left: 0, width: '100%' }),
+                  { position: 'absolute', top: 0, left: 0, width: '100%', minWidth: 0 }),
             }}
           >
             {back}
