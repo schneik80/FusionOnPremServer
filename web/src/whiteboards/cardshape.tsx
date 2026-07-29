@@ -49,7 +49,11 @@ const MEASURE_SLOP = 3
 // that never shrinks (`flexShrink: 0`); only the text column can collapse. So
 // anything at or below the thumbnail's own width is not a card that rendered —
 // it is a card that was not laid out when we looked.
-const MIN_MEASURED_W = CARD_THUMB
+// It doubles as the "is the STORED size possible?" test used to recover a card
+// the old measure bug wrote down to 7x7, so it is exported and pinned by a test:
+// the recovery size must itself clear this floor or the reset would re-trigger
+// on every render.
+export const MIN_MEASURED_W = CARD_THUMB
 
 // shapeSizeForMeasurement turns a raw front-face measurement into the geometry
 // to store, or null when the measurement must be IGNORED.
@@ -198,10 +202,43 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 			const faceEl = el.querySelector(`.${CARD_FACE_CLASS}`)
 			const face = faceEl instanceof HTMLElement ? faceEl : el
 
+			// Shrink/grow from the CENTRE, not the top-left, so a card stays put over
+			// its intended spot — otherwise a whole placed tree drifts up-left as its
+			// cards measure smaller than the 420x96 they were created at. It is also
+			// what makes recovery land in the right place: x + w/2 is invariant
+			// across every write, so a card's centre survives any amount of bad
+			// resizing and restoring the size restores the position.
+			//
+			// history:'ignore' — an auto-measure is not a user edit, so it must not
+			// land on the undo stack. It still persists via autosave.
+			const resize = (w: number, h: number) =>
+				editor.run(
+					() =>
+						editor.updateShape<FlsCardShape>({
+							id: shape.id,
+							type: FLS_CARD_TYPE,
+							x: shape.x - (w - shape.props.w) / 2,
+							y: shape.y - (h - shape.props.h) / 2,
+							props: { w, h },
+						}),
+					{ history: 'ignore' },
+				)
+
 			// A measurement taken while the card is not laid out (culled, mid-mount)
 			// must never be written — see shapeSizeForMeasurement.
 			const size = shapeSizeForMeasurement(face.offsetWidth, face.offsetHeight)
-			if (!size) return
+			if (!size) {
+				// We could not measure, and the size already stored is one no real
+				// card can have — this shape is a casualty of the measure bug that
+				// wrote culled cards down to 7x7. Reset it to the creation size so it
+				// is visible and measurable again; the next measure refines it.
+				// Done here rather than only on a successful measure because a card
+				// that is culled at load never gets a successful measure until it is
+				// panned into view, and a board should not need a guided tour to
+				// repair itself.
+				if (shape.props.w < MIN_MEASURED_W) resize(CARD_W, CARD_H)
+				return
+			}
 			const { w, h } = size
 			// Close enough is a match — don't churn the store on rounding.
 			//
@@ -216,26 +253,7 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 				Math.abs(h - shape.props.h) <= MEASURE_SLOP
 			)
 				return
-			// Shrink from the centre, not the top-left, so a card stays put over
-			// its intended spot — otherwise a whole placed tree drifts up-left as
-			// its cards measure smaller than the 320x96 they were created at.
-			const x = shape.x - (w - shape.props.w) / 2
-			const y = shape.y - (h - shape.props.h) / 2
-			// history:'ignore' — an auto-measure is not a user edit, so it must
-			// not land on the undo stack. It still persists via autosave, so a
-			// reloaded board opens already the right size and re-measures to a
-			// no-op (the guard above), leaving no churn.
-			editor.run(
-				() =>
-					editor.updateShape<FlsCardShape>({
-						id: shape.id,
-						type: FLS_CARD_TYPE,
-						x,
-						y,
-						props: { w, h },
-					}),
-				{ history: 'ignore' },
-			)
+			resize(w, h)
 		}
 		sync()
 		// The measured node is `max-content`, so its size tracks the card's
@@ -263,9 +281,27 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 				overflow: 'visible',
 			}}
 		>
+			{/* `flex: none` is load-bearing, not tidying. This div is what sync()
+			    measures, and it is a flex item in a container whose width IS
+			    shape.props.w — so with the default `flex-shrink: 1` it shrank to the
+			    stored box, and EntityCard's `minWidth: 0` chain let the face collapse
+			    with it (the thumbnail just overflowed). The measurement was therefore
+			    a function of the size it was supposed to be measuring.
+			    That made a bad size PERMANENT: a card written down to 7px measured
+			    ~0 forever and could never grow back. Pinned to `max-content` and
+			    refusing to shrink, the measurement reflects the card's CONTENT
+			    whatever the shape currently claims, so a wrong stored size corrects
+			    itself on the next render — and since the write preserves the card's
+			    centre (x + w/2 is invariant), it corrects back to the right place. */}
 			<div
 				ref={ref}
-				style={{ width: 'max-content', maxWidth: CARD_W, display: 'flex', alignItems: 'flex-start' }}
+				style={{
+					width: 'max-content',
+					maxWidth: CARD_W,
+					flex: 'none',
+					display: 'flex',
+					alignItems: 'flex-start',
+				}}
 			>
 				{/* A card on the canvas takes its selection from the SHAPE, so the
 				    click that selects the shape also opens the card's action bar —

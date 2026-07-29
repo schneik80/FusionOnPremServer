@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CARD_HALO_INSET, CARD_THUMB } from '../components/entitycard/EntityCard'
-import { CARD_W, shapeSizeForMeasurement } from './cardshape'
+import { CARD_H, CARD_W, MIN_MEASURED_W, shapeSizeForMeasurement } from './cardshape'
 
 // This function writes to a SHARED document, so a bad measurement is not a
 // glitch that a re-render fixes — it is persisted, synced to everyone on the
@@ -43,6 +43,15 @@ describe('shapeSizeForMeasurement', () => {
   it('rejects non-finite input', () => {
     expect(shapeSizeForMeasurement(NaN, 73)).toBeNull()
     expect(shapeSizeForMeasurement(313, Infinity)).toBeNull()
+  })
+
+  it('can recover to the creation size without re-triggering recovery', () => {
+    // A card whose stored width is below the floor is reset to CARD_W x CARD_H
+    // so it becomes measurable again. If the recovery size did not itself clear
+    // the floor, that reset would fire on every render forever — and every one
+    // of them is a write to the shared document.
+    expect(CARD_W).toBeGreaterThanOrEqual(MIN_MEASURED_W)
+    expect(CARD_H).toBeGreaterThan(0)
   })
 
   it('caps width at CARD_W but never caps height', () => {

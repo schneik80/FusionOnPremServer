@@ -418,6 +418,20 @@ is inherent to last-write-wins, and tldraw's own sync behaves the same way.
   rejects anything narrower than the thumbnail — a card whose chrome laid out
   but whose content had not. **Anything writing to the shared document from a
   DOM measurement needs to assume the DOM will hand it zeroes.**
+
+  The second half of the bug is the one that made it permanent, and is the more
+  transferable lesson. The measured div is a flex item inside a container whose
+  width *is* `shape.props.w`, so with the default `flex-shrink: 1` it shrank to
+  the stored box, and EntityCard's `minWidth: 0` chain let the face collapse
+  with it. **The measurement was a function of the value it was measuring.** A
+  card written down to 7px therefore measured ~0 forever and could never grow
+  back — the collapse was one-way, and no amount of reopening the board fixed
+  it. `flex: none` on that div breaks the loop: the measurement now reflects
+  the card's content whatever the shape claims, so a wrong size corrects itself
+  on the next render, and because the write preserves the card's centre
+  (`x + w/2` is invariant) it corrects back to the right place. A shape whose
+  stored size is below the floor is also reset to the creation size up front,
+  so a card that is culled at load recovers without being panned into view.
 - The whole-document `PUT` remains as the import/overwrite path. The canvas
   never calls it: falling back to it on a bad connection would reinstate
   exactly the silent clobber patches replaced. Offline edits queue in the
