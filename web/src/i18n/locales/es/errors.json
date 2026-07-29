@@ -7,5 +7,7 @@
   "service_unavailable": "Esta función no está disponible en este servidor en este momento.",
   "server_error": "El servidor encontró un error inesperado.",
   "conflict": "La solicitud entra en conflicto con el estado actual: recargue e inténtelo de nuevo.",
-  "whiteboard_stale": "Esta pizarra ha cambiado desde que la abriste."
+  "whiteboard_stale": "Esta pizarra ha cambiado desde que la abriste.",
+  "logo_unsupported": "Ese archivo no es una imagen compatible. Utilice PNG, JPEG, GIF, WebP o SVG.",
+  "logo_too_large": "Esa imagen es demasiado grande. El logotipo de inicio de sesión no debe superar los 2 MB."
 }

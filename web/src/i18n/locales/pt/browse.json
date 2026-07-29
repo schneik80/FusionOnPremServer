@@ -103,7 +103,8 @@
       "session": "O servidor não conseguiu iniciar uma sessão. Tente novamente.",
       "denied": "O início de sessão foi cancelado ou o acesso foi negado.",
       "generic": "Falha no início de sessão ({{reason}})."
-    }
+    },
+    "logoAlt": "Logótipo"
   },
   "errorBoundary": {
     "failed": "Não foi possível carregar este {{label}}.",

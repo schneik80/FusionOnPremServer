@@ -25,6 +25,11 @@ const defaultPort = 8080
 // migrated in the hub-layout migration.
 type Settings struct {
 	Port int `json:"port,omitempty"`
+	// Logo describes the sign-in logo stored under <config>/branding/ (see
+	// branding.go), or nil when none is set. Only the metadata lives here; the
+	// bytes are a file of their own, since they are megabytes-scale and are
+	// served verbatim.
+	Logo *LogoMeta `json:"logo,omitempty"`
 }
 
 // settingsPath is ~/.config/fusionlocalserver/server.json. config.Dir creates the

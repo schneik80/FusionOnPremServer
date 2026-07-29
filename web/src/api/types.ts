@@ -7,6 +7,23 @@ export interface Meta {
   port: number
   portConfigurable: boolean
   debug?: boolean // server running with -v: reveal developer-only UI affordances
+  // The configured sign-in logo, absent when none is set. It rides on /api/meta
+  // because that is the one endpoint the SPA can call before it has a session —
+  // which is exactly when the sign-in screen needs it.
+  logo?: Logo
+}
+
+// Logo mirrors server.LogoDTO: the stored sign-in logo, without its bytes.
+export interface Logo {
+  /** Short content hash. Changing the logo changes this, and so changes the
+   *  image URL — which is what retires every cached copy. */
+  version: string
+  contentType: string
+  size: number
+  /** Intrinsic pixel size, absent when the server could not determine it (a
+   *  WebP, or an SVG with neither an explicit size nor a viewBox). */
+  width?: number
+  height?: number
 }
 
 // AuthMe mirrors server.AuthMeDTO (GET /api/auth/me): the login-state probe.

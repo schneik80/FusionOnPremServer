@@ -10,12 +10,17 @@ import (
 // handleMeta describes the running server: version, region, and the listen
 // port (plus whether it can be changed at runtime).
 func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
+	var logo *LogoDTO
+	if meta, _, ok := s.logo.get(); ok {
+		logo = logoDTO(&meta)
+	}
 	writeJSON(w, http.StatusOK, MetaDTO{
 		Version:          s.opts.Version,
 		Region:           regionLabel(s.region),
 		Port:             s.currentPort(),
 		PortConfigurable: s.portConfigurable,
 		Debug:            api.DebugEnabled(),
+		Logo:             logo,
 	})
 }
 

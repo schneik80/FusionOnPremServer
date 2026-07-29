@@ -74,8 +74,14 @@ import {
 // the required ids being present.
 const STALE = 5 * 60 * 1000
 
+// Meta used to be immutable for a process (version, region, port) and was held
+// forever. It now also carries the sign-in logo, which an operator can change
+// at any time — and since this query is persisted to localStorage, staleTime:
+// Infinity meant a browser that had ever loaded the app would keep showing the
+// previous logo indefinitely. STALE bounds that; the client that made the
+// change invalidates outright (useLogoMutations).
 export const useMeta = (): UseQueryResult<Meta> =>
-  useQuery({ queryKey: ['meta'], queryFn: api.meta, staleTime: Infinity })
+  useQuery({ queryKey: ['meta'], queryFn: api.meta, staleTime: STALE })
 
 // useAuthMe drives the login gate. It is volatile (logout / session expiry),
 // so unlike the browsing data it isn't cached long and doesn't retry — a clean
@@ -211,6 +217,21 @@ export const useAdminCleanup = () => {
 // new port.
 export const useSetPort = () =>
   useMutation({ mutationFn: (port: number) => api.setPort(port) })
+
+// useLogoMutations sets and clears the sign-in logo. Both invalidate ['meta']:
+// the logo's identity travels in the meta payload (which the sign-in screen
+// reads before it has a session), and useMeta holds it with staleTime:Infinity,
+// so nothing else would ever refetch it.
+export const useLogoMutations = () => {
+  const qc = useQueryClient()
+  const done = () => {
+    void qc.invalidateQueries({ queryKey: ['meta'] })
+  }
+  return {
+    upload: useMutation({ mutationFn: (file: File) => api.uploadLogo(file), onSuccess: done }),
+    remove: useMutation({ mutationFn: () => api.deleteLogo(), onSuccess: done }),
+  }
+}
 
 export const useHubs = (): UseQueryResult<Item[]> =>
   useQuery({ queryKey: ['hubs'], queryFn: api.hubs, staleTime: STALE })

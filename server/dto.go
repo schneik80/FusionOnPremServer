@@ -24,6 +24,40 @@ type MetaDTO struct {
 	// Debug is true when the server runs with -v (request tracing on). The web
 	// UI uses it to reveal developer-only affordances (e.g. the version probe).
 	Debug bool `json:"debug"`
+	// Logo describes the configured sign-in logo, omitted when none is set. It
+	// rides on this endpoint because /api/meta is the one description the SPA
+	// can fetch before it has a session — which is exactly when the sign-in
+	// screen needs to know whether to draw a logo or the built-in mark.
+	Logo *LogoDTO `json:"logo,omitempty"`
+}
+
+// LogoDTO describes the stored sign-in logo without its bytes. Version is the
+// short content hash: it is the cache key the client puts in the image URL, so
+// a new logo is a new URL and no stale copy can survive.
+type LogoDTO struct {
+	Version     string `json:"version"`
+	ContentType string `json:"contentType"`
+	Size        int64  `json:"size"`
+	// Width/Height are the intrinsic pixel size, omitted when unknown. The
+	// client uses them to reserve the right box while the image loads; it must
+	// still lay out correctly without them.
+	Width  int `json:"width,omitempty"`
+	Height int `json:"height,omitempty"`
+}
+
+// logoDTO renders stored logo metadata for the wire. nil in, nil out — "no
+// logo configured" travels as an absent field.
+func logoDTO(m *LogoMeta) *LogoDTO {
+	if m == nil {
+		return nil
+	}
+	return &LogoDTO{
+		Version:     m.Version(),
+		ContentType: m.ContentType,
+		Size:        m.Size,
+		Width:       m.Width,
+		Height:      m.Height,
+	}
 }
 
 // SetPortRequest is the POST /api/settings/port body.

@@ -103,7 +103,8 @@
       "session": "Le serveur n'a pas pu démarrer de session. Veuillez réessayer.",
       "denied": "La connexion a été annulée ou l'accès a été refusé.",
       "generic": "Échec de la connexion ({{reason}})."
-    }
+    },
+    "logoAlt": "Logo"
   },
   "errorBoundary": {
     "failed": "Le chargement de {{label}} a échoué.",

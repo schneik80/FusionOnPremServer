@@ -7,5 +7,7 @@
   "service_unavailable": "Questa funzionalità non è al momento disponibile su questo server.",
   "server_error": "Il server ha riscontrato un errore imprevisto.",
   "conflict": "La richiesta è in conflitto con lo stato attuale: ricaricare e riprovare.",
-  "whiteboard_stale": "Questa lavagna è cambiata da quando l'hai aperta."
+  "whiteboard_stale": "Questa lavagna è cambiata da quando l'hai aperta.",
+  "logo_unsupported": "Il file non è un'immagine supportata. Utilizzare PNG, JPEG, GIF, WebP o SVG.",
+  "logo_too_large": "L'immagine è troppo grande. Il logo di accesso non deve superare i 2 MB."
 }

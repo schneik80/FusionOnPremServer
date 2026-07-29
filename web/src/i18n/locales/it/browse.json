@@ -103,7 +103,8 @@
       "session": "Il server non è riuscito ad avviare una sessione. Riprova.",
       "denied": "L'accesso è stato annullato o negato.",
       "generic": "Accesso non riuscito ({{reason}})."
-    }
+    },
+    "logoAlt": "Logo"
   },
   "errorBoundary": {
     "failed": "Caricamento non riuscito: {{label}}.",

@@ -165,5 +165,17 @@
       "done": "{{items}} Einträge entfernt, {{size}} freigegeben.",
       "nothing": "Nichts aufzuräumen."
     }
+  },
+  "logo": {
+    "label": "Anmelde-Logo",
+    "hint": "Wird auf dem Anmeldebildschirm anstelle des integrierten Zeichens angezeigt, mit einer Höhe von maximal {{height}} Pixeln — die Breite skaliert entsprechend. PNG, JPEG, GIF, WebP oder SVG, bis zu 2 MB.",
+    "scopeHint": "Das Logo wird auf dem Server gespeichert und ist für alle gleich, die er bedient. Der Anmeldebildschirm wird vor der Anmeldung angezeigt; behandeln Sie das Logo daher als öffentlich.",
+    "none": "Kein Logo festgelegt",
+    "choose": "Bild auswählen",
+    "replace": "Ersetzen",
+    "remove": "Entfernen",
+    "previewAlt": "Vorschau des Anmelde-Logos",
+    "details": "{{size}} KB",
+    "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
   }
 }

@@ -165,5 +165,17 @@
       "done": "Rimossi {{items}} elementi, liberando {{size}}.",
       "nothing": "Niente da pulire."
     }
+  },
+  "logo": {
+    "label": "Logo di accesso",
+    "hint": "Visualizzato nella schermata di accesso al posto del simbolo integrato, con un'altezza massima di {{height}} pixel; la larghezza viene ridimensionata di conseguenza. PNG, JPEG, GIF, WebP o SVG, fino a 2 MB.",
+    "scopeHint": "Il logo è memorizzato sul server ed è identico per tutti gli utenti serviti. La schermata di accesso viene visualizzata prima dell'accesso, pertanto il logo deve essere considerato pubblico.",
+    "none": "Nessun logo impostato",
+    "choose": "Scegli immagine",
+    "replace": "Sostituisci",
+    "remove": "Rimuovi",
+    "previewAlt": "Anteprima del logo di accesso",
+    "details": "{{size}} KB",
+    "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
   }
 }

@@ -20,6 +20,7 @@ import { useLocale } from '../../state/locale'
 import { useThemeOverrides, type TokenKey } from '../../state/themeOverrides'
 import { defaultAccent, defaultAccentAlt, defaultAccentWarn, tokens, type ThemeTokens } from '../../theme'
 import { Field } from './Field'
+import { LogoField } from './LogoField'
 
 // AppearanceTool: theme preference, language, and per-mode custom colors.
 // Color edits apply live (App.tsx rebuilds the theme from the overrides) and
@@ -145,6 +146,11 @@ export function AppearanceTool() {
           </Button>
         </Box>
       </Field>
+
+      {/* Last, and deliberately apart from the rest: everything above is this
+          browser's preference for this hub, while the logo is stored on the
+          server and shown to everyone — see LogoField. */}
+      <LogoField />
     </Stack>
   )
 }

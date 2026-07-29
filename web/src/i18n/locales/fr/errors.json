@@ -7,5 +7,7 @@
   "service_unavailable": "Cette fonctionnalité est actuellement indisponible sur ce serveur.",
   "server_error": "Le serveur a rencontré une erreur inattendue.",
   "conflict": "La requête est en conflit avec l’état actuel — rechargez et réessayez.",
-  "whiteboard_stale": "Ce tableau blanc a changé depuis son ouverture."
+  "whiteboard_stale": "Ce tableau blanc a changé depuis son ouverture.",
+  "logo_unsupported": "Ce fichier n'est pas une image prise en charge. Utilisez un PNG, JPEG, GIF, WebP ou SVG.",
+  "logo_too_large": "Cette image est trop volumineuse. Le logo de connexion ne doit pas dépasser 2 Mo."
 }

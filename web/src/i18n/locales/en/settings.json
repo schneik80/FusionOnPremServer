@@ -165,5 +165,17 @@
       "done": "Removed {{items}} items, freeing {{size}}.",
       "nothing": "Nothing to clean up."
     }
+  },
+  "logo": {
+    "label": "Sign-in logo",
+    "hint": "Shown on the sign-in screen in place of the built-in mark, at up to {{height}} pixels tall — the width scales with it. PNG, JPEG, GIF, WebP or SVG, up to 2 MB.",
+    "scopeHint": "The logo is stored on the server and is the same for everyone it serves. The sign-in screen renders before anyone signs in, so treat the logo as public.",
+    "none": "No logo set",
+    "choose": "Choose image",
+    "replace": "Replace",
+    "remove": "Remove",
+    "previewAlt": "Sign-in logo preview",
+    "details": "{{size}} KB",
+    "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
   }
 }

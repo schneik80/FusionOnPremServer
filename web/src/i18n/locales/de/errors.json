@@ -7,5 +7,7 @@
   "service_unavailable": "Diese Funktion ist auf diesem Server derzeit nicht verfügbar.",
   "server_error": "Auf dem Server ist ein unerwarteter Fehler aufgetreten.",
   "conflict": "Die Anfrage steht im Konflikt mit dem aktuellen Zustand — bitte neu laden und erneut versuchen.",
-  "whiteboard_stale": "Dieses Whiteboard hat sich geändert, seit Sie es geöffnet haben."
+  "whiteboard_stale": "Dieses Whiteboard hat sich geändert, seit Sie es geöffnet haben.",
+  "logo_unsupported": "Diese Datei ist kein unterstütztes Bild. Verwenden Sie PNG, JPEG, GIF, WebP oder SVG.",
+  "logo_too_large": "Dieses Bild ist zu groß. Das Anmelde-Logo darf höchstens 2 MB groß sein."
 }

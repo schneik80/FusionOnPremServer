@@ -17,6 +17,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/auth/callback", s.handleAuthCallback)
 	mux.HandleFunc("GET /api/auth/me", s.handleAuthMe)
 	mux.HandleFunc("POST /api/auth/logout", s.handleAuthLogout)
+	// The sign-in logo. Public because the screen that shows it renders before
+	// anyone has a session — see branding.go for why this is server-wide
+	// branding rather than hub data, and why nothing confidential belongs in
+	// it. Writing it still requires a session (below).
+	mux.HandleFunc("GET /api/branding/logo", s.handleBrandingLogo)
 	mux.HandleFunc("/api/", s.handleAPINotFound)
 
 	// Protected: every data route requires a logged-in session. prot wraps a
@@ -84,6 +89,10 @@ func (s *Server) routes() http.Handler {
 
 	// Settings.
 	mux.HandleFunc("POST /api/settings/port", protHub(s.handleSetPort))
+	// Sign-in branding. Server-wide, like the port: the GET above is public,
+	// but changing it takes a session.
+	mux.HandleFunc("POST /api/branding/logo", protHub(s.handleBrandingLogoSet))
+	mux.HandleFunc("DELETE /api/branding/logo", protHub(s.handleBrandingLogoDelete))
 
 	// Debug (only live when launched with -v; otherwise 404s). A live, real-doc
 	// probe for discovering how a version exposes its root component version.

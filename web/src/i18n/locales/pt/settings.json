@@ -165,5 +165,17 @@
       "done": "Removidos {{items}} itens, libertando {{size}}.",
       "nothing": "Nada para limpar."
     }
+  },
+  "logo": {
+    "label": "Logótipo de início de sessão",
+    "hint": "Apresentado no ecrã de início de sessão em vez do símbolo integrado, com uma altura máxima de {{height}} píxeis — a largura é dimensionada em conformidade. PNG, JPEG, GIF, WebP ou SVG, até 2 MB.",
+    "scopeHint": "O logótipo é armazenado no servidor e é o mesmo para todas as pessoas que este serve. O ecrã de início de sessão é apresentado antes do início de sessão, pelo que o logótipo deve ser considerado público.",
+    "none": "Nenhum logótipo definido",
+    "choose": "Escolher imagem",
+    "replace": "Substituir",
+    "remove": "Remover",
+    "previewAlt": "Pré-visualização do logótipo de início de sessão",
+    "details": "{{size}} KB",
+    "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
   }
 }

@@ -7,5 +7,7 @@
   "service_unavailable": "Esta funcionalidade não está disponível neste servidor de momento.",
   "server_error": "O servidor encontrou um erro inesperado.",
   "conflict": "O pedido entra em conflito com o estado atual — recarregue e tente novamente.",
-  "whiteboard_stale": "Este quadro mudou desde que o abriu."
+  "whiteboard_stale": "Este quadro mudou desde que o abriu.",
+  "logo_unsupported": "Esse ficheiro não é uma imagem suportada. Utilize PNG, JPEG, GIF, WebP ou SVG.",
+  "logo_too_large": "Essa imagem é demasiado grande. O logótipo de início de sessão não pode exceder 2 MB."
 }

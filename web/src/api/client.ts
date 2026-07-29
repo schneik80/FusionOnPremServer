@@ -27,6 +27,7 @@ import type {
   LocalRefKind,
   LocalRefs,
   Location,
+  Logo,
   Meta,
   NamedProperty,
   PhysicalProperties,
@@ -287,6 +288,20 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ port }),
     }),
+
+  // logoUrl is a same-origin <img> src for the sign-in logo. The version is the
+  // server's content hash: a new logo is a new URL, which is what lets the
+  // response be cached immutably and still never go stale. Callers pass the
+  // version from meta.logo — without it the server falls back to revalidating.
+  logoUrl: (version: string) => `/api/branding/logo${qs({ v: version })}`,
+
+  uploadLogo: (file: File) => {
+    const fd = new FormData()
+    fd.set('file', file)
+    return request<Logo>('/api/branding/logo', { method: 'POST', body: fd })
+  },
+
+  deleteLogo: () => request<void>('/api/branding/logo', { method: 'DELETE' }),
 
   hubs: () => request<Item[]>('/api/hubs'),
 

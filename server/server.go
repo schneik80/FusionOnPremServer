@@ -103,6 +103,12 @@ type Server struct {
 	// pinsMu serialises the non-atomic Load->mutate->Save pin cycle.
 	pinsMu sync.Mutex
 
+	// logo caches the sign-in logo's bytes (branding.go). The zero value is a
+	// valid empty store that loads from disk on first use, so nothing has to
+	// be built here — and the sign-in screen, the one page every visitor
+	// loads first, is served without touching the disk after that.
+	logo logoStore
+
 	// thumbs caches thumbnail status/URLs and image bytes by component version
 	// id, shared across all clients. warmSem bounds background image prefetches
 	// kicked off from the classify probe.

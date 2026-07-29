@@ -7,5 +7,7 @@
   "service_unavailable": "This feature is unavailable on this server right now.",
   "server_error": "The server hit an unexpected error.",
   "conflict": "The request conflicts with the current state — reload and try again.",
-  "whiteboard_stale": "This whiteboard changed since you opened it."
+  "whiteboard_stale": "This whiteboard changed since you opened it.",
+  "logo_unsupported": "That file is not a supported image. Use a PNG, JPEG, GIF, WebP or SVG.",
+  "logo_too_large": "That image is too large. The sign-in logo must be 2 MB or smaller."
 }

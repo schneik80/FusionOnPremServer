@@ -165,5 +165,17 @@
       "done": "{{items}} éléments supprimés, {{size}} libérés.",
       "nothing": "Rien à nettoyer."
     }
+  },
+  "logo": {
+    "label": "Logo de connexion",
+    "hint": "Affiché sur l'écran de connexion à la place du symbole intégré, avec une hauteur maximale de {{height}} pixels — la largeur s'adapte en conséquence. PNG, JPEG, GIF, WebP ou SVG, jusqu'à 2 Mo.",
+    "scopeHint": "Le logo est stocké sur le serveur et est identique pour toutes les personnes qu'il dessert. L'écran de connexion s'affiche avant toute connexion : considérez donc le logo comme public.",
+    "none": "Aucun logo défini",
+    "choose": "Choisir une image",
+    "replace": "Remplacer",
+    "remove": "Supprimer",
+    "previewAlt": "Aperçu du logo de connexion",
+    "details": "{{size}} Ko",
+    "detailsSized": "{{width}} × {{height}} px · {{size}} Ko"
   }
 }

@@ -103,7 +103,8 @@
       "session": "Der Server konnte keine Sitzung starten. Bitte versuchen Sie es erneut.",
       "denied": "Die Anmeldung wurde abgebrochen oder der Zugriff verweigert.",
       "generic": "Anmeldung fehlgeschlagen ({{reason}})."
-    }
+    },
+    "logoAlt": "Logo"
   },
   "errorBoundary": {
     "failed": "„{{label}}“ konnte nicht geladen werden.",

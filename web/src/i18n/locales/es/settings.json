@@ -165,5 +165,17 @@
       "done": "Se eliminaron {{items}} elementos, liberando {{size}}.",
       "nothing": "Nada que limpiar."
     }
+  },
+  "logo": {
+    "label": "Logotipo de inicio de sesión",
+    "hint": "Se muestra en la pantalla de inicio de sesión en lugar del símbolo integrado, con una altura máxima de {{height}} píxeles; el ancho se ajusta proporcionalmente. PNG, JPEG, GIF, WebP o SVG, hasta 2 MB.",
+    "scopeHint": "El logotipo se almacena en el servidor y es el mismo para todas las personas a las que este atiende. La pantalla de inicio de sesión se muestra antes de iniciar sesión, por lo que debe considerarse público.",
+    "none": "Ningún logotipo definido",
+    "choose": "Elegir imagen",
+    "replace": "Sustituir",
+    "remove": "Quitar",
+    "previewAlt": "Vista previa del logotipo de inicio de sesión",
+    "details": "{{size}} KB",
+    "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
   }
 }
