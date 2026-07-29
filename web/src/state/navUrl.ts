@@ -13,6 +13,7 @@
 //   dtab=<detailsTab>                 (only meaningful with sel)
 //   ptab=<projectTab>                 (ProjectPanel tab; only meaningful with proj)
 //   board=<boardId>                   (only meaningful with ptab=whiteboards)
+//   chan=<channelId>                  (only meaningful with ptab=chat)
 // The ~name/kind suffixes are display hints so the breadcrumb/label paint on a
 // cold load without a fetch; ids drive correctness (names may be stale until
 // the real item loads).
@@ -64,6 +65,10 @@ export function navToSearch(s: NavState): string {
     // WhiteboardsApp latches one as soon as a project has any board — so
     // without this gate every project would carry a board= it never shows.
     if (s.projectTab === 'whiteboards' && s.boardId) p.set('board', s.boardId)
+    // Same gate for the channel: ChatApp latches one as soon as a project has
+    // any channel, so without it every project would carry a chan= that means
+    // nothing outside the Chat tab.
+    if (s.projectTab === 'chat' && s.channelId) p.set('chan', s.channelId)
   }
   return p.toString()
 }
@@ -82,6 +87,7 @@ export interface ParsedNav {
   selectedTab: string | null
   projectTab: string | null
   boardId: string | null
+  channelId: string | null
 }
 
 // searchToNav parses a URL search string (with or without leading "?") into
@@ -130,6 +136,7 @@ export function searchToNav(search: string): ParsedNav {
     selectedTab: (selected && p.get('dtab')) || null,
     projectTab,
     boardId: (projectTab === 'whiteboards' && p.get('board')) || null,
+    channelId: (projectTab === 'chat' && p.get('chan')) || null,
   }
 }
 

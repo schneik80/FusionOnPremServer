@@ -40,18 +40,23 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
   const channels = channelsQ.data?.channels ?? []
   const caps = channelsQ.data?.capabilities ?? NO_CAPS
 
-  const [channelId, setChannelId] = useState<string | null>(null)
+  // The selection lives in nav, not here — the same move the Whiteboards tab
+  // made: it makes a channel permalinkable (?ptab=chat&chan=c2), and anything
+  // that wants to send the user to a channel can do it by putting an id there.
+  // Nav already clears it when the project changes, so no reset effect is
+  // needed.
+  //
+  // An id that isn't in the list (a deleted channel, a stale link) falls back
+  // to the root channel, exactly as an unset selection does.
   const [threadRoot, setThreadRoot] = useState<number | null>(null)
   const current =
-    channels.find((c) => c.id === channelId) ?? channels.find((c) => c.isRoot) ?? channels[0] ?? null
+    channels.find((c) => c.id === nav.channelId) ??
+    channels.find((c) => c.isRoot) ??
+    channels[0] ??
+    null
   const archived = !!current?.archivedAt
 
-  // Selection resets when the project changes; the thread panel also closes
-  // when switching channels.
-  useEffect(() => {
-    setChannelId(null)
-    setThreadRoot(null)
-  }, [projectId])
+  // The thread panel closes when switching channels.
   useEffect(() => {
     setThreadRoot(null)
   }, [current?.id])
@@ -117,7 +122,7 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
         currentId={current?.id ?? null}
         caps={caps}
         unread={unread}
-        onSelect={setChannelId}
+        onSelect={nav.selectChannel}
       />
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         {current && (

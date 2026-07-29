@@ -49,6 +49,11 @@ export interface NavState {
   // WhiteboardsApp) so a whiteboard card can open one, and so a board is
   // permalinkable.
   boardId: string | null
+  // The channel the Chat tab shows — the boardId equivalent, and owned here
+  // for the same two reasons: a channel pin has to be able to open one, and a
+  // channel is worth permalinking. Null means "whichever ChatApp latches"
+  // (the root channel, or the first one).
+  channelId: string | null
 }
 
 const initialState: NavState = {
@@ -61,6 +66,7 @@ const initialState: NavState = {
   selectedTab: null,
   projectTab: null,
   boardId: null,
+  channelId: null,
 }
 
 type Action =
@@ -81,9 +87,19 @@ type Action =
       selected: Item | null
       tab?: string
     }
-  | { type: 'openProjectApp'; project: Item; tab: string; boardId?: string | null }
+  | { type: 'openProjectApp'; project: Item; tab: string; sel?: ProjectAppSelection }
   | { type: 'setProjectTab'; tab: string }
   | { type: 'selectBoard'; id: string | null }
+  | { type: 'selectChannel'; id: string | null }
+
+// ProjectAppSelection is the sub-selection a jump into a project app can carry
+// — which board the Whiteboards tab opens, which channel the Chat tab opens.
+// An options bag rather than positional args because the list grows with every
+// app that gains an addressable record.
+export interface ProjectAppSelection {
+  boardId?: string | null
+  channelId?: string | null
+}
 
 function reducer(state: NavState, action: Action): NavState {
   switch (action.type) {
@@ -111,8 +127,8 @@ function reducer(state: NavState, action: Action): NavState {
     case 'selectProject':
       // projectTab deliberately survives a project switch (it always has —
       // ProjectPanel used to hold it in local state that no project change
-      // remounted), but boardId cannot: a board id is only meaningful inside
-      // the project that issued it.
+      // remounted), but boardId and channelId cannot: both ids are only
+      // meaningful inside the project that issued them.
       return {
         ...state,
         project: action.project,
@@ -120,6 +136,7 @@ function reducer(state: NavState, action: Action): NavState {
         selected: null,
         selectedTab: null,
         boardId: null,
+        channelId: null,
       }
     case 'enterFolder':
       return {
@@ -139,6 +156,7 @@ function reducer(state: NavState, action: Action): NavState {
         selected: null,
         selectedTab: null,
         boardId: null,
+        channelId: null,
       }
     case 'gotoProjectRoot':
       return { ...state, folderStack: [], selected: null, selectedTab: null }
@@ -153,12 +171,12 @@ function reducer(state: NavState, action: Action): NavState {
       // Cross-document jumps (document cards, where-used, …) land in the
       // browser regardless of which app issued them.
       //
-      // Crossing INTO another project drops the board selection for the same
-      // reason selectProject does — a board id is per-project sequential
-      // (w1, w2, …), so carrying one across would not read as "no board
-      // selected", it would silently open a DIFFERENT board that happens to
-      // share the number. Staying inside the project keeps it, so stepping
-      // into a document and back to the tab returns to the same board.
+      // Crossing INTO another project drops the board and channel selections
+      // for the same reason selectProject does — both ids are per-project
+      // sequential (w1/w2…, c1/c2…), so carrying one across would not read as
+      // "nothing selected", it would silently select a DIFFERENT record that
+      // happens to share the number. Staying inside the project keeps them, so
+      // stepping into a document and back to the tab returns where you were.
       const crossed = state.project?.id !== action.project.id
       return {
         ...state,
@@ -168,6 +186,7 @@ function reducer(state: NavState, action: Action): NavState {
         selected: action.selected,
         selectedTab: action.tab ?? null,
         boardId: crossed ? null : state.boardId,
+        channelId: crossed ? null : state.channelId,
       }
     }
     case 'openProjectApp':
@@ -182,12 +201,15 @@ function reducer(state: NavState, action: Action): NavState {
         selected: null,
         selectedTab: null,
         projectTab: action.tab,
-        boardId: action.boardId ?? null,
+        boardId: action.sel?.boardId ?? null,
+        channelId: action.sel?.channelId ?? null,
       }
     case 'setProjectTab':
       return state.projectTab === action.tab ? state : { ...state, projectTab: action.tab }
     case 'selectBoard':
       return state.boardId === action.id ? state : { ...state, boardId: action.id }
+    case 'selectChannel':
+      return state.channelId === action.id ? state : { ...state, channelId: action.id }
     default:
       return state
   }
@@ -203,10 +225,11 @@ interface NavCtx extends NavState {
   gotoProjectRoot: () => void
   gotoFolder: (index: number) => void
   navigate: (project: Item, folderStack: Item[], selected: Item | null, tab?: string) => void
-  /** Send the user to a project's app tab (optionally a specific whiteboard). */
-  openProjectApp: (project: Item, tab: string, boardId?: string | null) => void
+  /** Send the user to a project's app tab (optionally a specific board/channel). */
+  openProjectApp: (project: Item, tab: string, sel?: ProjectAppSelection) => void
   setProjectTab: (tab: string) => void
   selectBoard: (id: string | null) => void
+  selectChannel: (id: string | null) => void
   /** id of the folder whose contents the Contents column currently shows, or null at project root */
   currentFolderId: string | null
 }
@@ -229,6 +252,7 @@ function initFromUrl(): NavState {
     selectedTab: p.selectedTab,
     projectTab: p.projectTab,
     boardId: p.boardId,
+    channelId: p.channelId,
   }
 }
 
@@ -357,10 +381,11 @@ export function NavProvider({ children }: { children: ReactNode }) {
       gotoFolder: (index) => dispatch({ type: 'gotoFolder', index }),
       navigate: (project, folderStack, selected, tab) =>
         dispatch({ type: 'navigate', project, folderStack, selected, tab }),
-      openProjectApp: (project, tab, boardId) =>
-        dispatch({ type: 'openProjectApp', project, tab, boardId }),
+      openProjectApp: (project, tab, sel) =>
+        dispatch({ type: 'openProjectApp', project, tab, sel }),
       setProjectTab: (tab) => dispatch({ type: 'setProjectTab', tab }),
       selectBoard: (id) => dispatch({ type: 'selectBoard', id }),
+      selectChannel: (id) => dispatch({ type: 'selectChannel', id }),
     }
   }, [state])
 

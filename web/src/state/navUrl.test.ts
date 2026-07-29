@@ -24,6 +24,7 @@ function state(over: Partial<NavState> = {}): NavState {
     selectedTab: null,
     projectTab: null,
     boardId: null,
+    channelId: null,
     ...over,
   }
 }
@@ -46,6 +47,25 @@ describe('navUrl project tab and board', () => {
     expect(search).toContain('ptab=chat')
     expect(search).not.toContain('board=')
     expect(searchToNav(search).boardId).toBeNull()
+  })
+
+  it('round-trips a channel permalink', () => {
+    const s = state({ project, projectTab: 'chat', channelId: 'c2' })
+    const search = navToSearch(s)
+    expect(search).toContain('ptab=chat')
+    expect(search).toContain('chan=c2')
+
+    const back = searchToNav(search)
+    expect(back.projectTab).toBe('chat')
+    expect(back.channelId).toBe('c2')
+  })
+
+  it('drops the channel outside the chat tab', () => {
+    // ChatApp latches a channel as soon as the project has one, so an
+    // ungated chan= would ride along on every whiteboard/tasks URL too.
+    const search = navToSearch(state({ project, projectTab: 'whiteboards', channelId: 'c2' }))
+    expect(search).not.toContain('chan=')
+    expect(searchToNav(search).channelId).toBeNull()
   })
 
   it('drops the tab under a folder or a selected document', () => {
@@ -80,6 +100,7 @@ describe('navUrl project tab and board', () => {
     const a = state({ project, projectTab: 'whiteboards', boardId: 'w3' })
     expect(shouldPush(a, { ...a, projectTab: 'chat' })).toBe(false)
     expect(shouldPush(a, { ...a, boardId: 'w7' })).toBe(false)
+    expect(shouldPush(a, { ...a, channelId: 'c2' })).toBe(false)
     // Crossing to another project is a real move.
     expect(shouldPush(a, { ...a, project: { ...project, id: 'p2', name: 'Beta' } })).toBe(true)
   })

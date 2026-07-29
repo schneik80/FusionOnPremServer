@@ -69,7 +69,7 @@ export function useGoToWhiteboard() {
       nav.openProjectApp(
         { id: ref.projectId, name: ref.projectName, kind: 'project', isContainer: true },
         'whiteboards',
-        ref.boardId,
+        { boardId: ref.boardId },
       )
     },
     [nav],
