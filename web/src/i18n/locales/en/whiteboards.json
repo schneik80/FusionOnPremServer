@@ -46,9 +46,6 @@
     "emptySearch": "No whiteboards match the search",
     "empty": "No whiteboards in this project yet"
   },
-  "viewDialog": {
-    "unavailable": "This whiteboard is unavailable — it may have been deleted."
-  },
   "errorLabel": "whiteboard",
   "tldraw": {
     "strokeLabel": "Stroke",

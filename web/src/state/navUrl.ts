@@ -11,6 +11,8 @@
 //   f=<folderId>~<folderName>         (repeated, in drill order)
 //   sel=<itemId>~<name>~<kind>        (selected document)
 //   dtab=<detailsTab>                 (only meaningful with sel)
+//   ptab=<projectTab>                 (ProjectPanel tab; only meaningful with proj)
+//   board=<boardId>                   (only meaningful with ptab=whiteboards)
 // The ~name/kind suffixes are display hints so the breadcrumb/label paint on a
 // cold load without a fetch; ids drive correctness (names may be stale until
 // the real item loads).
@@ -53,6 +55,16 @@ export function navToSearch(s: NavState): string {
     p.set('sel', enc(s.selected.id, s.selected.name, String(s.selected.kind)))
     if (s.selectedTab) p.set('dtab', s.selectedTab)
   }
+  // The project tab only exists while ProjectPanel does — at a project's root,
+  // with nothing selected. Serializing it under a folder or a document would
+  // put a param in the URL that nothing reads back.
+  if (s.project && !s.selected && s.folderStack.length === 0 && s.projectTab) {
+    p.set('ptab', s.projectTab)
+    // Likewise the board: it is the Whiteboards tab's selection, and
+    // WhiteboardsApp latches one as soon as a project has any board — so
+    // without this gate every project would carry a board= it never shows.
+    if (s.projectTab === 'whiteboards' && s.boardId) p.set('board', s.boardId)
+  }
   return p.toString()
 }
 
@@ -68,6 +80,8 @@ export interface ParsedNav {
   folderStack: Item[]
   selected: Item | null
   selectedTab: string | null
+  projectTab: string | null
+  boardId: string | null
 }
 
 // searchToNav parses a URL search string (with or without leading "?") into
@@ -103,6 +117,9 @@ export function searchToNav(search: string): ParsedNav {
     if (id) selected = { id, name: name ?? '', kind: kind ?? 'unknown', isContainer: false }
   }
 
+  const atProjectRoot = !!project && !selected && folderStack.length === 0
+  const projectTab = (atProjectRoot && p.get('ptab')) || null
+
   return {
     app,
     hubId: hubId || null,
@@ -111,6 +128,8 @@ export function searchToNav(search: string): ParsedNav {
     folderStack,
     selected,
     selectedTab: (selected && p.get('dtab')) || null,
+    projectTab,
+    boardId: (projectTab === 'whiteboards' && p.get('board')) || null,
   }
 }
 

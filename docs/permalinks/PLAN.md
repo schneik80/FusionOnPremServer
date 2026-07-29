@@ -6,8 +6,14 @@
 > URL on nav changes (push vs replace via `shouldPush`), and handles `popstate` —
 > the URL sync is inlined in `nav.tsx` rather than a separate `useSyncNavToUrl.ts`.
 > Supported params: `app=browser|tasks|production` (production was added after
-> this plan), `hub`, `proj`, `f` (repeated), `sel`, and `dtab` (the Details tab).
-> **Not done:** `ptab` — the Project-panel tab is not URL-addressable.
+> this plan), `hub`, `proj`, `f` (repeated), `sel`, `dtab` (the Details tab),
+> `ptab` (the Project-panel tab) and `board` (the Whiteboards tab's selected
+> board — not in the original plan; it arrived with the `fls:whiteboard` card,
+> which needed a way to send the browser to one).
+>
+> `ptab` is serialized **only** at a project's root with nothing selected, and
+> `board` only under `ptab=whiteboards`, because that is the only state in
+> which either is displayed — see `navUrl.test.ts`.
 > The text below is the original plan, kept as history.
 
 ## Context (as written, pre-implementation)

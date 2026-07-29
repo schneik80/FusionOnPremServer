@@ -39,11 +39,20 @@ type ProjectTab = 'dashboard' | 'wiki' | 'chat' | 'tasks' | 'production' | 'whit
 // sign of the change in index, so this MUST match the <Tab> render order.
 const TAB_ORDER: ProjectTab[] = ['dashboard', 'production', 'tasks', 'whiteboards', 'wiki', 'chat']
 
+// isProjectTab guards the value coming back from nav: it can arrive from a
+// hand-edited permalink, and an unknown tab would render an empty panel.
+function isProjectTab(v: string | null): v is ProjectTab {
+  return !!v && (TAB_ORDER as string[]).includes(v)
+}
 
 export function ProjectPanel() {
   const { t } = useTranslation('browse')
   const nav = useNav()
-  const [tab, setTab] = useState<ProjectTab>('dashboard')
+  // The chosen tab lives in nav, not here: the notification bell and an
+  // fls:whiteboard card both send the user straight to one, and it makes a
+  // project's app permalinkable (?ptab=…). Selecting a project keeps it, which
+  // is what the local state this replaced did.
+  const tab: ProjectTab = isProjectTab(nav.projectTab) ? nav.projectTab : 'dashboard'
 
   // One SSE stream per open project, opened here (not inside the Chat tab) so
   // events keep the channel list and activity badges warm from any tab. `live`
@@ -113,7 +122,7 @@ export function ProjectPanel() {
     >
       <Tabs
         value={effectiveTab}
-        onChange={(_, v) => setTab(v as ProjectTab)}
+        onChange={(_, v) => nav.setProjectTab(v as ProjectTab)}
         sx={{
           minHeight: 40,
           px: 1,

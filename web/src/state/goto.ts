@@ -51,3 +51,27 @@ export function useGoToDocument() {
     [nav, qc],
   )
 }
+
+// useGoToWhiteboard is the board equivalent: move the browser to the board's
+// project, open the Whiteboards tab, and select it. Used by the fls:whiteboard
+// card wherever it sits (chat, wiki, a task's attachments) and by the local
+// nodes in a document's Where-Used graph.
+//
+// Unlike a document there is nothing to resolve first — a board's token
+// already carries its project. The project Item is built from the token's
+// hints alone; NavProvider's projects-cache backstop fills in altId, exactly
+// as it does for a cold-loaded permalink.
+export function useGoToWhiteboard() {
+  const nav = useNav()
+  return useCallback(
+    (ref: { projectId: string; projectName: string; boardId: string }) => {
+      if (!ref.projectId || !ref.boardId) return
+      nav.openProjectApp(
+        { id: ref.projectId, name: ref.projectName, kind: 'project', isContainer: true },
+        'whiteboards',
+        ref.boardId,
+      )
+    },
+    [nav],
+  )
+}

@@ -165,24 +165,35 @@ naming it and hoping. `W-3` is deliberately *not* in the token: like a task's
 `T-7` it comes from the hydrated board, so a rename never leaves a stale label
 frozen in a chat log.
 
-`components/whiteboardcard/` holds the three pieces, mirroring `taskcard/`:
-`wbref.ts` (encode / parse / `whiteboardRefFromBoard` / the markdown form),
+`components/whiteboardcard/` holds two pieces, mirroring `taskcard/`:
+`wbref.ts` (encode / parse / `whiteboardRefFromBoard` / the markdown form) and
 `WhiteboardCard.tsx` (the shared `EntityCard`, dimmed and inert for a deleted
-board or a token minted in another hub) and `WhiteboardViewDialog.tsx`.
+board or a token minted in another hub).
 
-**Clicking a card opens the live board in a dialog**, the way a task card opens
-`TaskViewDialog` — not a jump to the Whiteboards tab. A card can sit in any
-project's chat, so navigating would mean relocating the whole browser to
-another project; and both `ProjectPanel`'s tab and `WhiteboardsApp`'s selection
-are local state with no deep-link. The dialog hosts the same
-`LazyBoardCanvas` the tab does, so both share one tldraw chunk. Two canvases
-for one board in a single page (the tab plus a card's dialog) is the same
-situation as two browser tabs, which the patch protocol already handles.
+**Clicking a card NAVIGATES to the board** — the document card's behaviour, not
+the task card's. This was tried the other way first: a `WhiteboardViewDialog`
+hosting the canvas, which is what a task or a batch card does. It did not work.
+A board is mostly `fls:` cards, so the dialog had to render the app's own cards
+inside a second modal layer and they came out wrong. A board is also a
+workspace rather than a record to glance at, which is the deeper reason the
+dialog was the wrong shape: the honest answer to "show me that board" is to go
+there.
+
+Navigating needs the destination to be addressable, which it was not — the
+project tab and the selected board were both local `useState`. Both moved into
+nav (`projectTab`, `boardId`, serialized as `?ptab=` / `&board=`), so:
+
+- `useGoToWhiteboard` (`state/goto.ts`, the `useGoToDocument` sibling) is the
+  one way to open a board, used by the card and by the Where-Used graph;
+- a board is now permalinkable;
+- the notification bell's deep-link works. It passed a project tab into
+  `navigate()`'s `tab` argument, which is a *document's* Details tab read only
+  by `DetailsPanel` and only when something is selected — so every notification
+  click had been landing on the dashboard.
 
 The card **hydrates from the project's board list**, not a per-board route —
 there is no `GET /api/whiteboards/get`. `GET /api/whiteboards?projectId` is a
-local JSON read that already carries `capabilities` (the dialog needs
-`write`), and every card pointing at the same project shares one cached
+local JSON read, and every card pointing at the same project shares one cached
 `['whiteboards', projectId]` query. A per-board route would have meant a
 request per card. See `useWhiteboard` in `web/src/api/queries.ts`.
 
@@ -214,8 +225,7 @@ the only local-ref kind with no token scheme.
   and flushes on unmount.
 - `LazyBoardCanvas` — the canvas plus its Suspense fallback and error boundary.
   **This is where the code split lives**: tldraw is ~1.7 MB, so the `lazy()`
-  call sits at module scope here and both hosts (the tab, and the card's
-  dialog) share one chunk.
+  call sits at module scope here rather than in a host.
 - `AttachWhiteboardDialog` — the board picker chat, the wiki and task details
   use to insert an `fls:whiteboard` card.
 - `cardshape.tsx` — the `fls-card` ShapeUtil.

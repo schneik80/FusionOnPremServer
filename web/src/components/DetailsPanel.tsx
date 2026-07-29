@@ -58,7 +58,7 @@ import ActivityHeatmap from './ActivityHeatmap'
 import HistoryGraph from './HistoryGraph'
 import PermissionsExplorer from './PermissionsExplorer'
 import RelationGraph, { type GraphNode } from './RelationGraph'
-import { RefTokenDialog } from './RefTokenDialog'
+import { RefTokenDialog, useRefTokenNavigate } from './RefTokenDialog'
 import { ViewerTab } from './viewers/ViewerTab'
 
 // The Details metadata is now always shown (in the header, beside the
@@ -901,6 +901,7 @@ function enumStatusLabel(t: TFunction, kind: string, status: string): string {
 function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string | null; cvId?: string; active: boolean }) {
   const { t } = useTranslation('details')
   const goTo = useGoToDocument()
+  const navigateToken = useRefTokenNavigate()
   const [off, setOff] = useState<WhereUsedSource[]>([])
   const [openToken, setOpenToken] = useState<string | null>(null)
   const on = (s: WhereUsedSource) => !off.includes(s)
@@ -961,6 +962,9 @@ function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string
           onNavigate={(n) => {
             const token = tokenByKey.get(n.key)
             if (token) {
+              // Some schemes navigate rather than opening a dialog (a
+              // whiteboard); the rest raise theirs.
+              if (navigateToken(token)) return
               setOpenToken(token)
               return
             }

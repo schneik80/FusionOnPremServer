@@ -118,7 +118,11 @@ export function NotificationBell() {
     if (!n.read && !n.derived) markRead.mutate([n.id])
     const project = n.projectId ? projectById.get(n.projectId) : undefined
     if (project) {
-      nav.navigate(project, [], null, KIND_TAB[n.kind])
+      // openProjectApp, not navigate: navigate's `tab` is a DOCUMENT's Details
+      // tab, read only by DetailsPanel and only when something is selected —
+      // which it isn't here, so this deep-link used to land on the dashboard
+      // every time.
+      nav.openProjectApp(project, KIND_TAB[n.kind])
       setAnchor(null)
     }
   }

@@ -46,9 +46,6 @@
     "emptySearch": "Ninguna pizarra coincide con la búsqueda",
     "empty": "Aún no hay pizarras en este proyecto"
   },
-  "viewDialog": {
-    "unavailable": "Esta pizarra no está disponible: puede que se haya eliminado."
-  },
   "errorLabel": "pizarra",
   "tldraw": {
     "strokeLabel": "Trazo",

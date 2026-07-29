@@ -38,6 +38,17 @@ export interface NavState {
   // navigate() so a cross-document jump can land on the same tab it came from;
   // cleared by plain selection so ordinary clicks default to History.
   selectedTab: string | null
+  // The ProjectPanel tab (dashboard | production | tasks | whiteboards | wiki |
+  // chat). Distinct from selectedTab, which is a DOCUMENT's Details tab — one
+  // field meaning both is exactly the bug that left the notification bell's
+  // deep-link landing on the dashboard. Held here rather than in ProjectPanel
+  // so anything can send the user to a project's app: the bell, and an
+  // fls:whiteboard card jumping to its board.
+  projectTab: string | null
+  // The board the Whiteboards tab shows. Nav owns it (rather than
+  // WhiteboardsApp) so a whiteboard card can open one, and so a board is
+  // permalinkable.
+  boardId: string | null
 }
 
 const initialState: NavState = {
@@ -48,6 +59,8 @@ const initialState: NavState = {
   folderStack: [],
   selected: null,
   selectedTab: null,
+  projectTab: null,
+  boardId: null,
 }
 
 type Action =
@@ -68,6 +81,9 @@ type Action =
       selected: Item | null
       tab?: string
     }
+  | { type: 'openProjectApp'; project: Item; tab: string; boardId?: string | null }
+  | { type: 'setProjectTab'; tab: string }
+  | { type: 'selectBoard'; id: string | null }
 
 function reducer(state: NavState, action: Action): NavState {
   switch (action.type) {
@@ -93,7 +109,18 @@ function reducer(state: NavState, action: Action): NavState {
       // Settings → Connection, never an in-place selectHub.
       return { ...initialState, app: state.app, hubId: action.id, hubName: action.name }
     case 'selectProject':
-      return { ...state, project: action.project, folderStack: [], selected: null, selectedTab: null }
+      // projectTab deliberately survives a project switch (it always has —
+      // ProjectPanel used to hold it in local state that no project change
+      // remounted), but boardId cannot: a board id is only meaningful inside
+      // the project that issued it.
+      return {
+        ...state,
+        project: action.project,
+        folderStack: [],
+        selected: null,
+        selectedTab: null,
+        boardId: null,
+      }
     case 'enterFolder':
       return {
         ...state,
@@ -105,7 +132,14 @@ function reducer(state: NavState, action: Action): NavState {
       return { ...state, selected: action.item, selectedTab: null }
     case 'clearProject':
       // Back to the hub level (projects list); keep the hub, drop everything below it.
-      return { ...state, project: null, folderStack: [], selected: null, selectedTab: null }
+      return {
+        ...state,
+        project: null,
+        folderStack: [],
+        selected: null,
+        selectedTab: null,
+        boardId: null,
+      }
     case 'gotoProjectRoot':
       return { ...state, folderStack: [], selected: null, selectedTab: null }
     case 'gotoFolder':
@@ -126,6 +160,24 @@ function reducer(state: NavState, action: Action): NavState {
         selected: action.selected,
         selectedTab: action.tab ?? null,
       }
+    case 'openProjectApp':
+      // Land on a project's app tab: the browser, at the project ROOT with
+      // nothing selected, because that is the only place ProjectPanel shows
+      // (a folder or a document replaces it).
+      return {
+        ...state,
+        app: 'browser',
+        project: action.project,
+        folderStack: [],
+        selected: null,
+        selectedTab: null,
+        projectTab: action.tab,
+        boardId: action.boardId ?? null,
+      }
+    case 'setProjectTab':
+      return state.projectTab === action.tab ? state : { ...state, projectTab: action.tab }
+    case 'selectBoard':
+      return state.boardId === action.id ? state : { ...state, boardId: action.id }
     default:
       return state
   }
@@ -141,6 +193,10 @@ interface NavCtx extends NavState {
   gotoProjectRoot: () => void
   gotoFolder: (index: number) => void
   navigate: (project: Item, folderStack: Item[], selected: Item | null, tab?: string) => void
+  /** Send the user to a project's app tab (optionally a specific whiteboard). */
+  openProjectApp: (project: Item, tab: string, boardId?: string | null) => void
+  setProjectTab: (tab: string) => void
+  selectBoard: (id: string | null) => void
   /** id of the folder whose contents the Contents column currently shows, or null at project root */
   currentFolderId: string | null
 }
@@ -161,6 +217,8 @@ function initFromUrl(): NavState {
     folderStack: p.folderStack,
     selected: p.selected,
     selectedTab: p.selectedTab,
+    projectTab: p.projectTab,
+    boardId: p.boardId,
   }
 }
 
@@ -289,6 +347,10 @@ export function NavProvider({ children }: { children: ReactNode }) {
       gotoFolder: (index) => dispatch({ type: 'gotoFolder', index }),
       navigate: (project, folderStack, selected, tab) =>
         dispatch({ type: 'navigate', project, folderStack, selected, tab }),
+      openProjectApp: (project, tab, boardId) =>
+        dispatch({ type: 'openProjectApp', project, tab, boardId }),
+      setProjectTab: (tab) => dispatch({ type: 'setProjectTab', tab }),
+      selectBoard: (id) => dispatch({ type: 'selectBoard', id }),
     }
   }, [state])
 

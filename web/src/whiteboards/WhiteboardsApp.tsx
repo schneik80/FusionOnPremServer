@@ -33,19 +33,22 @@ export function WhiteboardsApp({ active = true }: { active?: boolean }) {
   const q = useWhiteboards(projectId, active)
   const me = useAuthMe().data?.user
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-
   const boards = q.data?.whiteboards ?? []
   const caps = q.data?.capabilities
   const canWrite = caps?.write ?? false
 
-  // Latch the selection rather than deriving it per render: the list refetches
+  // The selection lives in nav, not here: an fls:whiteboard card in any
+  // project's chat opens a board by putting its id there, and it makes a board
+  // permalinkable (?ptab=whiteboards&board=w3).
+  //
+  // It is still LATCHED rather than derived per render: the list refetches
   // every 15s newest-first, so a `?? boards[0]` fallback would swap the open
-  // board whenever a teammate created one.
-  const selected = boards.find((b) => b.id === selectedId) ?? null
+  // board whenever a teammate created one. An id that isn't in the list (a
+  // deleted board, a stale permalink) falls back to the newest.
+  const selected = boards.find((b) => b.id === nav.boardId) ?? null
   useEffect(() => {
-    if (!selected && boards.length > 0) setSelectedId(boards[0].id)
-  }, [selected, boards])
+    if (!selected && boards.length > 0) nav.selectBoard(boards[0].id)
+  }, [selected, boards, nav])
 
   if (!projectId) return null
 
@@ -62,8 +65,8 @@ export function WhiteboardsApp({ active = true }: { active?: boolean }) {
         loading={q.isLoading}
         error={q.error as Error | null}
         selectedId={selected?.id ?? null}
-        onSelect={setSelectedId}
-        onDeleted={() => setSelectedId(null)}
+        onSelect={nav.selectBoard}
+        onDeleted={() => nav.selectBoard(null)}
       />
       <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', position: 'relative' }}>
         {selected ? (

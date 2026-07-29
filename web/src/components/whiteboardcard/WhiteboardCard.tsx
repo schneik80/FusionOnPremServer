@@ -1,19 +1,22 @@
 import { faChalkboard } from '@fortawesome/free-solid-svg-icons'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWhiteboard } from '../../api/queries'
 import { fmtBytes, fmtDate } from '../../fmt'
+import { useGoToWhiteboard } from '../../state/goto'
 import { useNav } from '../../state/nav'
 import { boardDisplayId } from '../../whiteboards/types'
 import { EntityCard, type CardMeta } from '../entitycard/EntityCard'
-import { WhiteboardViewDialog } from './WhiteboardViewDialog'
 import type { WhiteboardRef } from './wbref'
 
 // WhiteboardCard is the unfurled form of a WhiteboardRef (see wbref.ts) — the
 // same shared EntityCard as the document, task and production cards, hydrating
-// from the project's board list and opening the live board in a dialog. A card
-// can sit in any project's chat, wiki or task body, so it must not depend on
-// the browser's nav state beyond the hub check below.
+// from the project's board list.
+//
+// It NAVIGATES rather than opening a dialog, which is the document card's
+// behaviour and not the task card's. A board hosted in a dialog has to render
+// the app's own cards (a board is mostly fls: cards) inside a second modal
+// layer, and they did not come out right; a board is also a workspace rather
+// than a record to glance at, so the browser going to it is the honest move.
 //
 // A board that has been deleted is a designed state, not an error: chat logs
 // and published wiki pages keep their tokens forever, so the card degrades to
@@ -27,7 +30,7 @@ export function WhiteboardCard({ whiteboardRef }: { whiteboardRef: WhiteboardRef
   const sameHub = nav.hubId !== null && whiteboardRef.hubId === nav.hubId
   const otherHub = nav.hubId !== null && !sameHub
   const q = useWhiteboard(whiteboardRef.projectId, whiteboardRef.boardId, !otherHub)
-  const [open, setOpen] = useState(false)
+  const goToBoard = useGoToWhiteboard()
 
   const board = q.data?.board ?? null
   // The list resolved but this board is not in it: deleted, or never existed.
@@ -65,18 +68,29 @@ export function WhiteboardCard({ whiteboardRef }: { whiteboardRef: WhiteboardRef
     : []
 
   return (
-    <>
-      <EntityCard
-        title={board ? `${boardDisplayId(board)} ${name}` : name}
-        subtitle={subtitle}
-        icon={faChalkboard}
-        meta={meta}
-        metaLoading={q.isLoading}
-        onNavigate={gone ? undefined : () => setOpen(true)}
-        dimmed={gone}
-        selectable
-      />
-      {open && <WhiteboardViewDialog whiteboardRef={whiteboardRef} onClose={() => setOpen(false)} />}
-    </>
+    <EntityCard
+      title={board ? `${boardDisplayId(board)} ${name}` : name}
+      subtitle={subtitle}
+      icon={faChalkboard}
+      meta={meta}
+      metaLoading={q.isLoading}
+      // Only a board we actually resolved can be navigated to: sending the
+      // browser to one that turned out to be deleted would be a worse answer
+      // than the card saying so where it sits. Navigating off the HYDRATED
+      // board also means the breadcrumb gets the project's current name rather
+      // than the token's insert-time capture of it.
+      onNavigate={
+        board
+          ? () =>
+              goToBoard({
+                projectId: board.projectId,
+                projectName: board.projectName,
+                boardId: board.id,
+              })
+          : undefined
+      }
+      dimmed={gone}
+      selectable
+    />
   )
 }
