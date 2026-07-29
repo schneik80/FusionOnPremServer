@@ -48,6 +48,7 @@
     "attachedHeading": "Attached documents",
     "attach": "Attach",
     "linkJobBatch": "Link job/batch",
+    "linkWhiteboard": "Link whiteboard",
     "nothingAttached": "Nothing attached.",
     "removeAttachment": "Remove attachment",
     "attachDocTitle": "Attach a document"

@@ -176,6 +176,12 @@
     "unavailable": "Task unavailable",
     "due": "due {{date}}"
   },
+  "whiteboardCard": {
+    "notFound": "Whiteboard not found (deleted)",
+    "unavailable": "Whiteboard unavailable",
+    "otherHub": "In another hub",
+    "updated": "updated {{date}}"
+  },
   "prodCard": {
     "jobNotFound": "Job not found",
     "batchNotFound": "Batch not found",

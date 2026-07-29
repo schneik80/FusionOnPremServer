@@ -8,6 +8,7 @@ import { ProductionCard } from '../components/productioncard/ProductionCard'
 import { splitRefTokens } from '../components/reftokens'
 import { splitMentions } from '../notifications/mentions'
 import { TaskCard } from '../components/taskcard/TaskCard'
+import { WhiteboardCard } from '../components/whiteboardcard/WhiteboardCard'
 import { REACTION_EMOJI, type ChatCaps, type ChatMessage } from './types'
 import { fmtChatTime } from './fmt'
 import { firstGrapheme } from '../fmt/graphemes'
@@ -112,8 +113,9 @@ function MentionChip({ name }: { name: string }) {
 }
 
 // ChatBody renders a message body, unfurling any fls:doc tokens into
-// DocumentCards, fls:task into TaskCards, and fls:job/fls:batch into
-// ProductionCards; @mention tokens highlight inline. Everything else stays
+// DocumentCards, fls:task into TaskCards, fls:job/fls:batch into
+// ProductionCards and fls:whiteboard into WhiteboardCards; @mention tokens
+// highlight inline. Everything else stays
 // plain text (React-escaped — the chat deliberately renders no
 // HTML/markdown; a card is a React component, not injected markup, so the
 // XSS posture is unchanged).
@@ -130,6 +132,8 @@ function ChatBody({ body }: { body: string }) {
           <ProductionCard key={i} jobRef={p.batch} batchRef={p.batch} />
         ) : 'job' in p ? (
           <ProductionCard key={i} jobRef={p.job} />
+        ) : 'whiteboard' in p ? (
+          <WhiteboardCard key={i} whiteboardRef={p.whiteboard} />
         ) : (
           <MentionText key={i} text={p.text} />
         ),

@@ -55,7 +55,12 @@ import type {
   StepDraft,
   StepPatch,
 } from '../production/types'
-import type { WhiteboardDraft, WhiteboardList, WhiteboardPatch } from '../whiteboards/types'
+import type {
+  Whiteboard,
+  WhiteboardDraft,
+  WhiteboardList,
+  WhiteboardPatch,
+} from '../whiteboards/types'
 import type { NotificationList } from '../notifications/types'
 import {
   appendPendingMessage,
@@ -1008,6 +1013,30 @@ export const useWhiteboards = (
     enabled: active && !!projectId,
     staleTime: 10_000,
     refetchInterval: active ? 15_000 : false,
+  })
+
+// useWhiteboard hydrates ONE board — what an fls:whiteboard card needs. It
+// deliberately reuses the project list's query key rather than calling a
+// per-board route (there isn't one, and adding one would mean a request per
+// card): a channel full of cards pointing at the same project costs a single
+// fetch, and a card in the project you're already viewing is warm from the
+// tab's own list. No refetchInterval — polling belongs to the open tab, not to
+// a link preview. A board missing from the list is `null`, which the card
+// renders as its deleted state.
+export const useWhiteboard = (
+  projectId: string | null,
+  boardId: string,
+  enabled = true,
+): UseQueryResult<{ board: Whiteboard | null; canWrite: boolean }> =>
+  useQuery({
+    queryKey: ['whiteboards', projectId],
+    queryFn: () => api.whiteboards(projectId!),
+    enabled: enabled && !!projectId,
+    staleTime: 30_000,
+    select: (l: WhiteboardList) => ({
+      board: l.whiteboards.find((b) => b.id === boardId) ?? null,
+      canWrite: l.capabilities.write,
+    }),
   })
 
 export function useWhiteboardMutations(projectId: string | null) {

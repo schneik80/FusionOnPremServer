@@ -40,6 +40,15 @@
     "placedSkipped_other": "Placed {{count}} components; skipped {{skipped}} with no separate document.",
     "expandFailed": "Could not expand this assembly."
   },
+  "attachDialog": {
+    "title": "Attach a whiteboard",
+    "searchPlaceholder": "Search whiteboards",
+    "emptySearch": "No whiteboards match the search",
+    "empty": "No whiteboards in this project yet"
+  },
+  "viewDialog": {
+    "unavailable": "This whiteboard is unavailable — it may have been deleted."
+  },
   "errorLabel": "whiteboard",
   "tldraw": {
     "strokeLabel": "Stroke",

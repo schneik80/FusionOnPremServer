@@ -176,6 +176,12 @@
     "unavailable": "Tarea no disponible",
     "due": "vence {{date}}"
   },
+  "whiteboardCard": {
+    "notFound": "Pizarra no encontrada (eliminada)",
+    "unavailable": "Pizarra no disponible",
+    "otherHub": "En otro hub",
+    "updated": "actualizada {{date}}"
+  },
   "prodCard": {
     "jobNotFound": "Trabajo no encontrado",
     "batchNotFound": "Lote no encontrado",

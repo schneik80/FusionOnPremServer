@@ -568,9 +568,9 @@ wanted later.
 Results are aggregated per container (one node per channel, not per message)
 with `count` carrying the references inside it, capped at 200 with
 `truncated: true` on the envelope — the tab says so rather than silently
-under-reporting. Task/job/batch hits carry the matching `fls:` token, so
-clicking the node opens the same dialog the card does; chat and whiteboard
-hits have no token scheme and are not navigable.
+under-reporting. Task/job/batch/whiteboard hits carry the matching `fls:`
+token, so clicking the node opens the same dialog the card does; chat hits have
+no token scheme and are not navigable.
 
 ### GetItemLocation — Show in Location
 

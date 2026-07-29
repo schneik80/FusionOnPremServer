@@ -59,6 +59,7 @@
     "attachTask": "Aufgabenkarte anhängen",
     "createTask": "Aufgabe erstellen und ihre Karte anhängen",
     "linkProduction": "Auftrag oder Charge verknüpfen",
+    "attachWhiteboard": "Whiteboard-Karte anhängen",
     "attach": "Anhängen",
     "send": "Nachricht senden",
     "sendFailed": "Senden fehlgeschlagen"

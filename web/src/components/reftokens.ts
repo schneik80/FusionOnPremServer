@@ -1,14 +1,16 @@
 import { parseDocRef, type DocRef } from './doccard/docref'
 import { parseBatchRef, parseJobRef, type BatchRef, type JobRef } from './productioncard/prodref'
 import { parseTaskRef, type TaskRef } from './taskcard/taskref'
+import { parseWhiteboardRef, type WhiteboardRef } from './whiteboardcard/wbref'
 
 // splitRefTokens splits plain text (chat bodies) into text runs and ref
 // tokens of every scheme — fls:doc (document cards), fls:task (task cards),
-// and fls:job / fls:batch (production cards). The character class is
-// char-for-char the one in docref.ts: exactly the application/x-www-form-
-// urlencoded alphabet URLSearchParams emits, so trailing punctuation
-// ("token.", "token)") never sticks to a token. Malformed tokens stay text.
-const TOKEN_RE = /fls:(?:doc|task|batch|job)\?[A-Za-z0-9*\-._%&=+]+/g
+// fls:job / fls:batch (production cards) and fls:whiteboard (board cards). The
+// character class is char-for-char the one in docref.ts: exactly the
+// application/x-www-form-urlencoded alphabet URLSearchParams emits, so trailing
+// punctuation ("token.", "token)") never sticks to a token. Malformed tokens
+// stay text.
+const TOKEN_RE = /fls:(?:doc|task|batch|job|whiteboard)\?[A-Za-z0-9*\-._%&=+]+/g
 
 export type RefPart =
   | { text: string }
@@ -16,6 +18,7 @@ export type RefPart =
   | { task: TaskRef }
   | { job: JobRef }
   | { batch: BatchRef }
+  | { whiteboard: WhiteboardRef }
 
 export function splitRefTokens(text: string): RefPart[] {
   const parts: RefPart[] = []
@@ -38,6 +41,10 @@ export function splitRefTokens(text: string): RefPart[] {
     if (!part) {
       const job = parseJobRef(m[0])
       if (job) part = { job }
+    }
+    if (!part) {
+      const whiteboard = parseWhiteboardRef(m[0])
+      if (whiteboard) part = { whiteboard }
     }
     if (!part) continue // malformed token: leave it as text
     if (m.index! > last) parts.push({ text: text.slice(last, m.index) })

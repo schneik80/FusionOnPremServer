@@ -176,6 +176,12 @@
     "unavailable": "Attività non disponibile",
     "due": "scadenza {{date}}"
   },
+  "whiteboardCard": {
+    "notFound": "Lavagna non trovata (eliminata)",
+    "unavailable": "Lavagna non disponibile",
+    "otherHub": "In un altro hub",
+    "updated": "aggiornata {{date}}"
+  },
   "prodCard": {
     "jobNotFound": "Commessa non trovata",
     "batchNotFound": "Lotto non trovato",

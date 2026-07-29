@@ -75,6 +75,7 @@
     "insertTaskCardTooltip": "Insert a task card (this project's tasks)",
     "createTaskCardTooltip": "Create a task and insert its card",
     "insertProdCardTooltip": "Insert a job or batch card (this project's production)",
+    "insertBoardCardTooltip": "Insert a whiteboard card (this project's boards)",
     "imageUploadFailed": "Image upload failed.",
     "hubImageDialogTitle": "Embed an image from the hub",
     "embedImage": "Embed image",

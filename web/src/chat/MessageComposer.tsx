@@ -1,4 +1,5 @@
 import {
+  faChalkboard,
   faDiagramProject,
   faFileCirclePlus,
   faListCheck,
@@ -21,8 +22,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { encodeDocRef, docRefFromItem } from '../components/doccard/docref'
 import { encodeTaskRef, taskRefFromTask } from '../components/taskcard/taskref'
+import { encodeWhiteboardRef, whiteboardRefFromBoard } from '../components/whiteboardcard/wbref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
 import { ProductionRefDialog } from '../production/ProductionRefDialog'
+import { AttachWhiteboardDialog } from '../whiteboards/AttachWhiteboardDialog'
 import { useChatMembers } from '../api/queries'
 import { encodeMention } from '../notifications/mentions'
 import { useNav } from '../state/nav'
@@ -79,6 +82,7 @@ export function MessageComposer({
   const [taskPickerOpen, setTaskPickerOpen] = useState(false)
   const [taskCreateOpen, setTaskCreateOpen] = useState(false)
   const [prodPickerOpen, setProdPickerOpen] = useState(false)
+  const [boardPickerOpen, setBoardPickerOpen] = useState(false)
 
   // @mention autocomplete: a live "@query" before the caret opens a member
   // picker; choosing a member splices an fls:user token into the draft (which
@@ -204,6 +208,21 @@ export function MessageComposer({
               sx={{ color: 'text.secondary' }}
             >
               <FontAwesomeIcon icon={faDiagramProject} />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
+      {nav.project && (
+        <Tooltip title={t('composer.attachWhiteboard')}>
+          <span>
+            <IconButton
+              size="small"
+              disabled={disabled}
+              onClick={() => setBoardPickerOpen(true)}
+              aria-label={t('composer.attachWhiteboard')}
+              sx={{ color: 'text.secondary' }}
+            >
+              <FontAwesomeIcon icon={faChalkboard} />
             </IconButton>
           </span>
         </Tooltip>
@@ -354,6 +373,17 @@ export function MessageComposer({
           projectName={nav.project.name}
           onClose={() => setProdPickerOpen(false)}
           onPick={appendToken}
+        />
+      )}
+      {nav.project && boardPickerOpen && (
+        <AttachWhiteboardDialog
+          open={boardPickerOpen}
+          projectId={nav.project.id}
+          onClose={() => setBoardPickerOpen(false)}
+          onPick={(board) => {
+            setBoardPickerOpen(false)
+            appendToken(encodeWhiteboardRef(whiteboardRefFromBoard(board)))
+          }}
         />
       )}
     </Box>

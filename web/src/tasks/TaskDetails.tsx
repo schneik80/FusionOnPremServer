@@ -1,4 +1,10 @@
-import { faDiagramProject, faPaperclip, faPen, faTrash } from '@fortawesome/free-solid-svg-icons'
+import {
+  faChalkboard,
+  faDiagramProject,
+  faPaperclip,
+  faPen,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   Alert,
@@ -16,7 +22,9 @@ import { useAuthMe, useTaskMutations } from '../api/queries'
 import { docRefFromItem, encodeDocRef } from '../components/doccard/docref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
 import { RefCard } from '../components/RefCard'
+import { encodeWhiteboardRef, whiteboardRefFromBoard } from '../components/whiteboardcard/wbref'
 import { ProductionRefDialog } from '../production/ProductionRefDialog'
+import { AttachWhiteboardDialog } from '../whiteboards/AttachWhiteboardDialog'
 import { Markdown } from '../wiki/Markdown'
 import { fmtChatTime } from '../chat/fmt'
 import { PriorityChip, StatusChip, fmtDue, isOverdue } from './chips'
@@ -45,6 +53,7 @@ export function TaskDetails({
   const [editOpen, setEditOpen] = useState(false)
   const [attachOpen, setAttachOpen] = useState(false)
   const [prodPickOpen, setProdPickOpen] = useState(false)
+  const [boardPickOpen, setBoardPickOpen] = useState(false)
 
   const addRefToken = (token: string) => {
     if (task.docRefs.includes(token)) return
@@ -182,6 +191,14 @@ export function TaskDetails({
               >
                 {t('details.linkJobBatch')}
               </Button>
+              <Button
+                size="small"
+                startIcon={<FontAwesomeIcon icon={faChalkboard} style={{ fontSize: 12 }} />}
+                onClick={() => setBoardPickOpen(true)}
+                disabled={muts.update.isPending}
+              >
+                {t('details.linkWhiteboard')}
+              </Button>
             </>
           )}
         </Stack>
@@ -244,6 +261,17 @@ export function TaskDetails({
           projectName={task.projectName}
           onClose={() => setProdPickOpen(false)}
           onPick={(token) => addRefToken(token)}
+        />
+      )}
+      {boardPickOpen && (
+        <AttachWhiteboardDialog
+          open={boardPickOpen}
+          projectId={task.projectId}
+          onClose={() => setBoardPickOpen(false)}
+          onPick={(board) => {
+            setBoardPickOpen(false)
+            addRefToken(encodeWhiteboardRef(whiteboardRefFromBoard(board)))
+          }}
         />
       )}
     </Box>

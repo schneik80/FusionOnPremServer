@@ -75,6 +75,7 @@
     "insertTaskCardTooltip": "Insérer une carte de tâche (tâches de ce projet)",
     "createTaskCardTooltip": "Créer une tâche et insérer sa carte",
     "insertProdCardTooltip": "Insérer une carte d'ordre ou de lot (production de ce projet)",
+    "insertBoardCardTooltip": "Insérer une carte de tableau blanc (tableaux de ce projet)",
     "imageUploadFailed": "Échec du téléversement de l'image.",
     "hubImageDialogTitle": "Intégrer une image du hub",
     "embedImage": "Intégrer l'image",

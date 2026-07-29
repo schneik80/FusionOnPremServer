@@ -40,6 +40,15 @@
     "placedSkipped_other": "{{count}} componentes colocados; {{skipped}} ignorados por não terem documento separado.",
     "expandFailed": "Não foi possível expandir esta montagem."
   },
+  "attachDialog": {
+    "title": "Anexar um quadro branco",
+    "searchPlaceholder": "Pesquisar quadros brancos",
+    "emptySearch": "Nenhum quadro branco corresponde à pesquisa",
+    "empty": "Ainda não há quadros brancos neste projeto"
+  },
+  "viewDialog": {
+    "unavailable": "Este quadro branco está indisponível — pode ter sido eliminado."
+  },
   "errorLabel": "quadro branco",
   "tldraw": {
     "strokeLabel": "Traço",

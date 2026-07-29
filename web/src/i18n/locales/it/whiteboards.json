@@ -40,6 +40,15 @@
     "placedSkipped_other": "Posizionati {{count}} componenti; ignorati {{skipped}} senza documento separato.",
     "expandFailed": "Impossibile espandere questo assieme."
   },
+  "attachDialog": {
+    "title": "Allega una lavagna",
+    "searchPlaceholder": "Cerca lavagne",
+    "emptySearch": "Nessuna lavagna corrisponde alla ricerca",
+    "empty": "Ancora nessuna lavagna in questo progetto"
+  },
+  "viewDialog": {
+    "unavailable": "Questa lavagna non è disponibile: potrebbe essere stata eliminata."
+  },
   "errorLabel": "lavagna",
   "tldraw": {
     "strokeLabel": "Tratto",

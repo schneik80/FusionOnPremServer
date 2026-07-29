@@ -109,7 +109,7 @@ func (s *Server) handleLocalRefs(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, err)
 			return
 		}
-		refs = append(refs, boardLocalRefDTOs(hits)...)
+		refs = append(refs, boardLocalRefDTOs(hits, set.hubID)...)
 	}
 	if slices.Contains(want, localRefJob) || slices.Contains(want, localRefBatch) {
 		hits, err := set.production.FindDocRefs(ids, itemID)

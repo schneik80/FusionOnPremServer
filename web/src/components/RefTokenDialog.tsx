@@ -1,6 +1,8 @@
 import { ProductionViewDialog } from './productioncard/ProductionViewDialog'
 import { parseBatchRef, parseJobRef } from './productioncard/prodref'
 import { parseTaskRef } from './taskcard/taskref'
+import { WhiteboardViewDialog } from './whiteboardcard/WhiteboardViewDialog'
+import { parseWhiteboardRef } from './whiteboardcard/wbref'
 import { TaskViewDialog } from '../tasks/TaskViewDialog'
 
 // RefTokenDialog opens an fls: token's record directly, skipping the card.
@@ -19,5 +21,7 @@ export function RefTokenDialog({ token, onClose }: { token: string; onClose: () 
   if (batch) return <ProductionViewDialog jobRef={batch} batchRef={batch} onClose={onClose} />
   const job = parseJobRef(token)
   if (job) return <ProductionViewDialog jobRef={job} onClose={onClose} />
+  const whiteboard = parseWhiteboardRef(token)
+  if (whiteboard) return <WhiteboardViewDialog whiteboardRef={whiteboard} onClose={onClose} />
   return null
 }

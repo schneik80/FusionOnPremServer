@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   Box,
   Button,
-  CircularProgress,
   IconButton,
   List,
   ListItemButton,
@@ -13,21 +12,15 @@ import {
   Typography,
 } from '@mui/material'
 import { alpha } from '@mui/material/styles'
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthMe, useWhiteboardMutations, useWhiteboards } from '../api/queries'
 import { APP_RAIL_WIDTH } from '../components/Column'
-import { ErrorBoundary } from '../components/ErrorBoundary'
 import { RailHeader } from '../components/RailHeader'
 import { useNav } from '../state/nav'
+import { LazyBoardCanvas } from './LazyBoardCanvas'
 import { boardDisplayId } from './types'
 import type { Whiteboard } from './types'
-
-// tldraw is a large dependency — code-split so it only loads when someone
-// actually opens the Whiteboards tab, keeping it out of the app's entry chunk.
-const WhiteboardCanvas = lazy(() =>
-  import('./WhiteboardCanvas').then((m) => ({ default: m.WhiteboardCanvas })),
-)
 
 // WhiteboardsApp is the project-tab whiteboard manager (the WikiApp/ChatApp
 // contract: `active` gates fetching to the visible tab). A rail of boards on the
@@ -74,22 +67,7 @@ export function WhiteboardsApp({ active = true }: { active?: boolean }) {
       />
       <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', position: 'relative' }}>
         {selected ? (
-          <ErrorBoundary label={t('errorLabel')} resetKey={selected.id}>
-            <Suspense
-              fallback={
-                <Box sx={{ flex: 1, display: 'grid', placeItems: 'center' }}>
-                  <CircularProgress size={22} />
-                </Box>
-              }
-            >
-              <WhiteboardCanvas
-                key={selected.id}
-                projectId={projectId}
-                boardId={selected.id}
-                canWrite={canWrite}
-              />
-            </Suspense>
-          </ErrorBoundary>
+          <LazyBoardCanvas projectId={projectId} boardId={selected.id} canWrite={canWrite} />
         ) : (
           <Box
             sx={{

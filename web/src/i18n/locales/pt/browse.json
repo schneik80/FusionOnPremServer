@@ -176,6 +176,12 @@
     "unavailable": "Tarefa indisponível",
     "due": "prazo {{date}}"
   },
+  "whiteboardCard": {
+    "notFound": "Quadro branco não encontrado (eliminado)",
+    "unavailable": "Quadro branco indisponível",
+    "otherHub": "Noutro hub",
+    "updated": "atualizado {{date}}"
+  },
   "prodCard": {
     "jobNotFound": "Trabalho não encontrado",
     "batchNotFound": "Lote não encontrado",

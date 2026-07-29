@@ -59,6 +59,7 @@
     "attachTask": "Adjuntar una tarjeta de tarea",
     "createTask": "Crear una tarea y adjuntar su tarjeta",
     "linkProduction": "Vincular un trabajo o lote",
+    "attachWhiteboard": "Adjuntar una tarjeta de pizarra",
     "attach": "Adjuntar",
     "send": "enviar mensaje",
     "sendFailed": "el envío falló"

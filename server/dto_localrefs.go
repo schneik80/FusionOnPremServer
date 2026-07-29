@@ -33,9 +33,9 @@ type LocalRefDTO struct {
 	ProjectID   string `json:"projectId"`
 	ProjectName string `json:"projectName"`
 	// Token is the fls: token for the referencing record when one exists
-	// (task/job/batch), so clicking the node opens the same dialog the card
-	// does. Chat channels and whiteboards have no token scheme and are not
-	// navigable from the graph.
+	// (task/job/batch/whiteboard), so clicking the node opens the same dialog
+	// the card does. Chat channels have no token scheme and are not navigable
+	// from the graph.
 	Token string `json:"token,omitempty"`
 	Count int    `json:"count"`
 	// Detail is free text from the user's own data (a chat excerpt, a step
@@ -99,7 +99,11 @@ func chatLocalRefDTOs(hits []chat.DocRefHit) []LocalRefDTO {
 	return out
 }
 
-func boardLocalRefDTOs(hits []whiteboards.DocRefHit) []LocalRefDTO {
+// boardLocalRefDTOs takes hubID for the token like its task/job/batch
+// siblings. The hit carries its own HubID (read from the project file), but the
+// session's hub is what the card will be rendered under, and a token minted
+// with any other hub id would render as a muted cross-hub card.
+func boardLocalRefDTOs(hits []whiteboards.DocRefHit, hubID string) []LocalRefDTO {
 	out := make([]LocalRefDTO, 0, len(hits))
 	for _, h := range hits {
 		out = append(out, LocalRefDTO{
@@ -108,9 +112,16 @@ func boardLocalRefDTOs(hits []whiteboards.DocRefHit) []LocalRefDTO {
 			Name:        h.BoardName,
 			ProjectID:   h.ProjectID,
 			ProjectName: h.ProjectName,
-			Count:       h.Count,
-			Author:      h.UpdatedBy,
-			At:          fmtTime(h.UpdatedAt),
+			Token: flsToken("fls:whiteboard?", url.Values{
+				"hubId":       {hubID},
+				"projectId":   {h.ProjectID},
+				"projectName": {h.ProjectName},
+				"boardId":     {h.BoardID},
+				"name":        {h.BoardName},
+			}),
+			Count:  h.Count,
+			Author: h.UpdatedBy,
+			At:     fmtTime(h.UpdatedAt),
 		})
 	}
 	return out

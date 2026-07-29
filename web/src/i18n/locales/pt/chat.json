@@ -59,6 +59,7 @@
     "attachTask": "Anexar um cartão de tarefa",
     "createTask": "Criar uma tarefa e anexar o seu cartão",
     "linkProduction": "Ligar um trabalho ou lote",
+    "attachWhiteboard": "Anexar um cartão de quadro branco",
     "attach": "Anexar",
     "send": "enviar mensagem",
     "sendFailed": "falha no envio"

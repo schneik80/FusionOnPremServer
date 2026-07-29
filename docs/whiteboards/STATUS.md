@@ -152,6 +152,52 @@ Pointer events on a card are off until it is the only selected shape: otherwise
 the card's own click targets would swallow the drag that moves it. One click
 selects, the next interacts.
 
+### …and a board is itself a card: `fls:whiteboard`
+
+The reference runs the other way too. A board has its own token —
+
+```
+fls:whiteboard?hubId=…&projectId=…&projectName=…&boardId=w3&name=…
+```
+
+— so chat, the wiki and a task's attachments can point at a sketch instead of
+naming it and hoping. `W-3` is deliberately *not* in the token: like a task's
+`T-7` it comes from the hydrated board, so a rename never leaves a stale label
+frozen in a chat log.
+
+`components/whiteboardcard/` holds the three pieces, mirroring `taskcard/`:
+`wbref.ts` (encode / parse / `whiteboardRefFromBoard` / the markdown form),
+`WhiteboardCard.tsx` (the shared `EntityCard`, dimmed and inert for a deleted
+board or a token minted in another hub) and `WhiteboardViewDialog.tsx`.
+
+**Clicking a card opens the live board in a dialog**, the way a task card opens
+`TaskViewDialog` — not a jump to the Whiteboards tab. A card can sit in any
+project's chat, so navigating would mean relocating the whole browser to
+another project; and both `ProjectPanel`'s tab and `WhiteboardsApp`'s selection
+are local state with no deep-link. The dialog hosts the same
+`LazyBoardCanvas` the tab does, so both share one tldraw chunk. Two canvases
+for one board in a single page (the tab plus a card's dialog) is the same
+situation as two browser tabs, which the patch protocol already handles.
+
+The card **hydrates from the project's board list**, not a per-board route —
+there is no `GET /api/whiteboards/get`. `GET /api/whiteboards?projectId` is a
+local JSON read that already carries `capabilities` (the dialog needs
+`write`), and every card pointing at the same project shares one cached
+`['whiteboards', projectId]` query. A per-board route would have meant a
+request per card. See `useWhiteboard` in `web/src/api/queries.ts`.
+
+Inserting one reuses `AttachWhiteboardDialog` (the `AttachTaskDialog` sibling)
+from three hosts: chat's composer, the wiki editor's toolbar, and a task's
+attachments — which is why `tasks/store.go` accepts `fls:whiteboard?` in its
+attachment whitelist. The canvas toolbar deliberately does *not* offer it; a
+board card on a board renders fine if one arrives, but there is no affordance
+to create the recursion.
+
+One consequence for free: `server/dto_localrefs.go` can now emit a token for
+whiteboard hits, so a board that references a document is a **clickable** node
+in that document's Where-Used graph instead of a dead one. Chat channels remain
+the only local-ref kind with no token scheme.
+
 ## Layout
 
 **Backend**
@@ -165,8 +211,13 @@ selects, the next interacts.
 - `WhiteboardsApp` — project tab: board rail (create / rename on double-click /
   delete) + the selected board's canvas.
 - `WhiteboardCanvas` — loads the document once, autosaves on a 1.5s debounce,
-  and flushes on unmount. **Lazy-loaded**: tldraw is ~1.7 MB, so it is code-split
-  out of the entry bundle and only fetched when the tab is opened.
+  and flushes on unmount.
+- `LazyBoardCanvas` — the canvas plus its Suspense fallback and error boundary.
+  **This is where the code split lives**: tldraw is ~1.7 MB, so the `lazy()`
+  call sits at module scope here and both hosts (the tab, and the card's
+  dialog) share one chunk.
+- `AttachWhiteboardDialog` — the board picker chat, the wiki and task details
+  use to insert an `fls:whiteboard` card.
 - `cardshape.tsx` — the `fls-card` ShapeUtil.
 - `whiteboard.css` — **the only stylesheet in this app.** Everything else is
   styled through MUI `sx`, but tldraw is themed via CSS variables and can only
@@ -347,7 +398,8 @@ is inherent to last-write-wins, and tldraw's own sync behaves the same way.
   never calls it: falling back to it on a bad connection would reinstate
   exactly the silent clobber patches replaced. Offline edits queue in the
   browser and drain on reconnect instead.
-- No board thumbnails in the list.
+- No board thumbnails in the list — which is also why an `fls:whiteboard` card
+  is icon-only where a document card shows a preview.
 - No cross-project "my whiteboards" screen (the store's self-describing project
   file supports adding one, as with tasks/production).
 - The tldraw skin is deliberately light-touch — brand colours, type and radii.

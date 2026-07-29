@@ -176,6 +176,12 @@
     "unavailable": "Tâche indisponible",
     "due": "échéance {{date}}"
   },
+  "whiteboardCard": {
+    "notFound": "Tableau blanc introuvable (supprimé)",
+    "unavailable": "Tableau blanc indisponible",
+    "otherHub": "Dans un autre hub",
+    "updated": "mis à jour le {{date}}"
+  },
   "prodCard": {
     "jobNotFound": "Ordre de fabrication introuvable",
     "batchNotFound": "Lot introuvable",

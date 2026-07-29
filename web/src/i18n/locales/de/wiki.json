@@ -75,6 +75,7 @@
     "insertTaskCardTooltip": "Aufgabenkarte einfügen (Aufgaben dieses Projekts)",
     "createTaskCardTooltip": "Aufgabe erstellen und ihre Karte einfügen",
     "insertProdCardTooltip": "Auftrags- oder Chargenkarte einfügen (Produktion dieses Projekts)",
+    "insertBoardCardTooltip": "Whiteboard-Karte einfügen (Boards dieses Projekts)",
     "imageUploadFailed": "Bild-Upload fehlgeschlagen.",
     "hubImageDialogTitle": "Bild aus dem Hub einbetten",
     "embedImage": "Bild einbetten",

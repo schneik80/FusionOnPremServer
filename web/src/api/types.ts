@@ -294,8 +294,8 @@ export interface LocalRef {
   projectId: string
   projectName: string
   // token is the fls: token for the referencing record when it has one
-  // (task/job/batch), so the graph node can open the same dialog its card
-  // does. Chat channels and whiteboards have no token scheme.
+  // (task/job/batch/whiteboard), so the graph node can open the same dialog its
+  // card does. Chat channels have no token scheme.
   token?: string
   count: number
   detail?: string // free text from the user's own data — never translated

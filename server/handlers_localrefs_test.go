@@ -115,7 +115,7 @@ func TestLocalRefs_AllKindsAndScoping(t *testing.T) {
 			t.Errorf("%s: project name = %q, want the APS name", r.Kind, r.ProjectName)
 		}
 		switch r.Kind {
-		case localRefTask, localRefJob, localRefBatch:
+		case localRefTask, localRefJob, localRefBatch, localRefWhiteboard:
 			if r.Token == "" {
 				t.Errorf("%s ref has no fls: token to open", r.Kind)
 			}

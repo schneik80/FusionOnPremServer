@@ -59,6 +59,7 @@
     "attachTask": "Joindre une carte de tâche",
     "createTask": "Créer une tâche et joindre sa carte",
     "linkProduction": "Lier un ordre de fabrication ou un lot",
+    "attachWhiteboard": "Joindre une carte de tableau blanc",
     "attach": "Joindre",
     "send": "envoyer le message",
     "sendFailed": "échec de l'envoi"

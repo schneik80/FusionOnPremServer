@@ -9,6 +9,8 @@ import { ProductionCard } from '../components/productioncard/ProductionCard'
 import { parseBatchRef, parseJobRef } from '../components/productioncard/prodref'
 import { TaskCard } from '../components/taskcard/TaskCard'
 import { parseTaskRef } from '../components/taskcard/taskref'
+import { WhiteboardCard } from '../components/whiteboardcard/WhiteboardCard'
+import { parseWhiteboardRef } from '../components/whiteboardcard/wbref'
 // highlight.js token theme for fenced code blocks. Light-mode palette for now;
 // swapping to a dark variant under the app's dark theme is a follow-up polish
 // item (the plan defers markdown-rendering refinements to a later iteration).
@@ -69,9 +71,9 @@ export function Markdown({ children }: { children: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSlug, rehypeHighlight]}
-        // Let fls:doc / fls:task tokens through the URL sanitiser (they never
-        // reach the DOM as hrefs — the link component below unfurls them into
-        // cards).
+        // Let fls: tokens (doc / task / job / batch / whiteboard) through the
+        // URL sanitiser (they never reach the DOM as hrefs — the link component
+        // below unfurls them into cards).
         urlTransform={(url) => (url.startsWith('fls:') ? url : defaultUrlTransform(url))}
         components={{
           a: ({ node: _node, href, children: linkChildren, ...rest }) => {
@@ -83,6 +85,8 @@ export function Markdown({ children }: { children: string }) {
             if (batchRef) return <ProductionCard jobRef={batchRef} batchRef={batchRef} />
             const jobRef = href ? parseJobRef(href) : null
             if (jobRef) return <ProductionCard jobRef={jobRef} />
+            const boardRef = href ? parseWhiteboardRef(href) : null
+            if (boardRef) return <WhiteboardCard whiteboardRef={boardRef} />
             return (
               <a href={href} {...rest}>
                 {linkChildren}

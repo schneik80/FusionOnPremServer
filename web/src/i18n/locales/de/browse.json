@@ -176,6 +176,12 @@
     "unavailable": "Aufgabe nicht verfügbar",
     "due": "fällig {{date}}"
   },
+  "whiteboardCard": {
+    "notFound": "Whiteboard nicht gefunden (gelöscht)",
+    "unavailable": "Whiteboard nicht verfügbar",
+    "otherHub": "In einem anderen Hub",
+    "updated": "aktualisiert {{date}}"
+  },
   "prodCard": {
     "jobNotFound": "Auftrag nicht gefunden",
     "batchNotFound": "Charge nicht gefunden",

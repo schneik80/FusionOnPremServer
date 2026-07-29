@@ -59,6 +59,7 @@
     "attachTask": "Allega una scheda attività",
     "createTask": "Crea un'attività e allegane la scheda",
     "linkProduction": "Collega una commessa o un lotto",
+    "attachWhiteboard": "Allega una scheda lavagna",
     "attach": "Allega",
     "send": "invia messaggio",
     "sendFailed": "invio non riuscito"

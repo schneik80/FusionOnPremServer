@@ -40,6 +40,15 @@
     "placedSkipped_other": "{{count}} composants placés ; {{skipped}} ignoré(s) sans document distinct.",
     "expandFailed": "Impossible de développer cet assemblage."
   },
+  "attachDialog": {
+    "title": "Joindre un tableau blanc",
+    "searchPlaceholder": "Rechercher des tableaux blancs",
+    "emptySearch": "Aucun tableau blanc ne correspond à la recherche",
+    "empty": "Aucun tableau blanc dans ce projet pour l'instant"
+  },
+  "viewDialog": {
+    "unavailable": "Ce tableau blanc est indisponible — il a peut-être été supprimé."
+  },
   "errorLabel": "tableau blanc",
   "tldraw": {
     "strokeLabel": "Trait",

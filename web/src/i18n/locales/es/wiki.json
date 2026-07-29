@@ -75,6 +75,7 @@
     "insertTaskCardTooltip": "Insertar una tarjeta de tarea (tareas de este proyecto)",
     "createTaskCardTooltip": "Crear una tarea e insertar su tarjeta",
     "insertProdCardTooltip": "Insertar una tarjeta de trabajo o lote (producción de este proyecto)",
+    "insertBoardCardTooltip": "Insertar una tarjeta de pizarra (pizarras de este proyecto)",
     "imageUploadFailed": "La carga de la imagen falló.",
     "hubImageDialogTitle": "Incrustar una imagen del hub",
     "embedImage": "Incrustar imagen",

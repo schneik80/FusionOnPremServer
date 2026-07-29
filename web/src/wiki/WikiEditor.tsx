@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faBold,
+  faChalkboard,
   faCode,
   faDiagramProject,
   faFileCirclePlus,
@@ -38,10 +39,13 @@ import { useTranslation } from 'react-i18next'
 import type { Item } from '../api/types'
 import { docRefFromItem, docRefMarkdown } from '../components/doccard/docref'
 import { taskRefFromTask, taskRefMarkdown } from '../components/taskcard/taskref'
+import { whiteboardRefFromBoard, whiteboardRefMarkdown } from '../components/whiteboardcard/wbref'
 import { ProductionRefDialog } from '../production/ProductionRefDialog'
 import { AttachTaskDialog } from '../tasks/AttachTaskDialog'
 import { QuickTaskDialog } from '../tasks/QuickTaskDialog'
 import type { Task } from '../tasks/types'
+import { AttachWhiteboardDialog } from '../whiteboards/AttachWhiteboardDialog'
+import type { Whiteboard } from '../whiteboards/types'
 import {
   HubBrowserDialog,
   hubFileSrc,
@@ -158,6 +162,7 @@ export function WikiEditor({
   const [taskPickerOpen, setTaskPickerOpen] = useState(false)
   const [taskCreateOpen, setTaskCreateOpen] = useState(false)
   const [prodPickerOpen, setProdPickerOpen] = useState(false)
+  const [boardPickerOpen, setBoardPickerOpen] = useState(false)
   // Hold the latest onChange in a ref so the update listener (installed once per
   // document) always calls the current callback without re-creating the editor.
   const onChangeRef = useRef(onChangeMarkdown)
@@ -303,6 +308,15 @@ export function WikiEditor({
     insertText(viewRef.current, taskRefMarkdown(taskRefFromTask(task)))
   }
 
+  // handleBoardPick inserts a whiteboard card — the fls:whiteboard sibling of
+  // the task token. The card opens the live board in a dialog, so a published
+  // page can point at a sketch without sending the reader hunting for it.
+  function handleBoardPick(board: Whiteboard) {
+    setBoardPickerOpen(false)
+    if (!viewRef.current) return
+    insertText(viewRef.current, whiteboardRefMarkdown(whiteboardRefFromBoard(board)))
+  }
+
   const status = saved ? t('editor.savedLocally') : t('editor.saving')
 
   return (
@@ -406,6 +420,13 @@ export function WikiEditor({
             onClick={() => setProdPickerOpen(true)}
           />
         )}
+        {hubProject && (
+          <ToolBtn
+            title={t('editor.insertBoardCardTooltip')}
+            icon={faChalkboard}
+            onClick={() => setBoardPickerOpen(true)}
+          />
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -494,6 +515,14 @@ export function WikiEditor({
           onPick={(token, label) => {
             if (viewRef.current) insertText(viewRef.current, `[${label.replace(/[[\]]/g, '')}](${token})`)
           }}
+        />
+      )}
+      {hubProject && boardPickerOpen && (
+        <AttachWhiteboardDialog
+          open={boardPickerOpen}
+          projectId={hubProject.id}
+          onClose={() => setBoardPickerOpen(false)}
+          onPick={handleBoardPick}
         />
       )}
     </Box>

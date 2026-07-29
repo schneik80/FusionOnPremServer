@@ -40,6 +40,15 @@
     "placedSkipped_other": "{{count}} Komponenten platziert; {{skipped}} ohne eigenes Dokument übersprungen.",
     "expandFailed": "Diese Baugruppe konnte nicht erweitert werden."
   },
+  "attachDialog": {
+    "title": "Whiteboard anhängen",
+    "searchPlaceholder": "Whiteboards durchsuchen",
+    "emptySearch": "Keine Whiteboards entsprechen der Suche",
+    "empty": "Noch keine Whiteboards in diesem Projekt"
+  },
+  "viewDialog": {
+    "unavailable": "Dieses Whiteboard ist nicht verfügbar — möglicherweise wurde es gelöscht."
+  },
   "errorLabel": "Whiteboard",
   "tldraw": {
     "strokeLabel": "Strich",

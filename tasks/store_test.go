@@ -128,12 +128,21 @@ func TestUpdatePatchAndClear(t *testing.T) {
 		t.Errorf("clear failed: %+v", got)
 	}
 
-	refs := []string{"fls:doc?hubId=h&itemId=i2", "fls:doc?hubId=h&itemId=i3"}
+	// Every cross-link scheme a task may carry: documents plus our own apps'
+	// cards. A scheme missing from the whitelist is rejected as ErrInvalid, so
+	// this list is the contract the composers encode against.
+	refs := []string{
+		"fls:doc?hubId=h&itemId=i2",
+		"fls:doc?hubId=h&itemId=i3",
+		"fls:job?hubId=h&projectId=p&jobId=j1",
+		"fls:batch?hubId=h&projectId=p&jobId=j1&batchId=b1",
+		"fls:whiteboard?hubId=h&projectId=p&boardId=w1&name=Sketch",
+	}
 	got, err = s.Update(projA, created.ID, Patch{DocRefs: &refs})
 	if err != nil {
 		t.Fatalf("Update docRefs: %v", err)
 	}
-	if len(got.DocRefs) != 2 {
+	if len(got.DocRefs) != len(refs) {
 		t.Errorf("docRefs = %v", got.DocRefs)
 	}
 

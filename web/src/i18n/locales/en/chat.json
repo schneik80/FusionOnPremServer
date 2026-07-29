@@ -59,6 +59,7 @@
     "attachTask": "Attach a task card",
     "createTask": "Create a task and attach its card",
     "linkProduction": "Link a job or batch",
+    "attachWhiteboard": "Attach a whiteboard card",
     "attach": "Attach",
     "send": "send message",
     "sendFailed": "send failed"

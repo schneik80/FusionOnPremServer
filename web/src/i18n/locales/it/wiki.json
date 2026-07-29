@@ -75,6 +75,7 @@
     "insertTaskCardTooltip": "Inserisci una scheda attività (attività di questo progetto)",
     "createTaskCardTooltip": "Crea un'attività e inseriscine la scheda",
     "insertProdCardTooltip": "Inserisci una scheda commessa o lotto (produzione di questo progetto)",
+    "insertBoardCardTooltip": "Inserisci una scheda lavagna (lavagne di questo progetto)",
     "imageUploadFailed": "Caricamento dell'immagine non riuscito.",
     "hubImageDialogTitle": "Incorpora un'immagine dall'hub",
     "embedImage": "Incorpora immagine",
