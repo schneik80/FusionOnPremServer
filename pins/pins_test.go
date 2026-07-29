@@ -2,6 +2,7 @@ package pins
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -203,6 +204,11 @@ func TestIsPinnable(t *testing.T) {
 		"design":     true,
 		"drawing":    true,
 		"configured": true,
+		"whiteboard": true,
+		"task":       true,
+		"job":        true,
+		"batch":      true,
+		"channel":    true,
 		"hub":        false,
 		"":           false,
 		"unknown":    false,
@@ -211,6 +217,96 @@ func TestIsPinnable(t *testing.T) {
 		if got := IsPinnable(kind); got != want {
 			t.Errorf("IsPinnable(%q) = %v, want %v", kind, got, want)
 		}
+	}
+}
+
+func TestIsLocalKind(t *testing.T) {
+	cases := map[string]bool{
+		"whiteboard": true,
+		"task":       true,
+		"job":        true,
+		"batch":      true,
+		"channel":    true,
+		"project":    false,
+		"folder":     false,
+		"design":     false,
+		"":           false,
+	}
+	for kind, want := range cases {
+		if got := IsLocalKind(kind); got != want {
+			t.Errorf("IsLocalKind(%q) = %v, want %v", kind, got, want)
+		}
+	}
+}
+
+// Validate is the only guard between a client body and the store, so the
+// APS/local split is checked in both directions.
+func TestValidate(t *testing.T) {
+	const wbRef = "fls:whiteboard?projectId=p1&boardId=w3"
+	cases := []struct {
+		name string
+		pin  Pin
+		want error
+	}{
+		{"aps document", Pin{ID: "urn:item:1", Kind: "design", ProjectID: "p1"}, nil},
+		{"aps project needs no project id", Pin{ID: "p1", Kind: "project"}, nil},
+		{"local whiteboard", Pin{ID: wbRef, Kind: "whiteboard", ProjectID: "p1", Ref: wbRef}, nil},
+		{"missing id", Pin{Kind: "design"}, ErrNoID},
+		{"hub not pinnable", Pin{ID: "h", Kind: "hub"}, ErrNotPinnable},
+		{"unknown kind", Pin{ID: "x", Kind: "sandwich"}, ErrNotPinnable},
+		{"aps item carrying a ref", Pin{ID: "urn:item:1", Kind: "design", ProjectID: "p1", Ref: wbRef}, ErrRefUnexpected},
+		{"local without ref", Pin{ID: "w3", Kind: "whiteboard", ProjectID: "p1"}, ErrRefRequired},
+		{"local with non-fls ref", Pin{ID: "http://x", Kind: "whiteboard", ProjectID: "p1", Ref: "http://x"}, ErrRefRequired},
+		{"local without project", Pin{ID: wbRef, Kind: "whiteboard", Ref: wbRef}, ErrRefRequired},
+		{"local id diverging from ref", Pin{ID: "w3", Kind: "whiteboard", ProjectID: "p1", Ref: wbRef}, ErrRefMismatch},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Validate(tc.pin)
+			if tc.want == nil {
+				if err != nil {
+					t.Fatalf("Validate = %v, want nil", err)
+				}
+				return
+			}
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("Validate = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+// A local pin round-trips its ref/project hints through the envelope — the
+// fields a stale-free navigation depends on.
+func TestSave_LoadLocalRecordPin(t *testing.T) {
+	withTempConfigDir(t)
+	const hubID = "hub_local"
+	const ref = "fls:batch?projectId=p1&jobId=j2&batchId=b7"
+	in := []Pin{{
+		ID:          ref,
+		Name:        "Run 7",
+		Kind:        "batch",
+		HubID:       hubID,
+		ProjectID:   "p1",
+		ProjectName: "Acme",
+		Ref:         ref,
+	}}
+	if err := Save(hubID, in); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := Load(hubID)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("Load = %v, %v", got, err)
+	}
+	if got[0].Ref != ref || got[0].ProjectName != "Acme" || got[0].Kind != "batch" {
+		t.Errorf("local pin round-trip lost fields: %+v", got[0])
+	}
+	// Ref-keyed identity means the ordinary id helpers work unchanged.
+	if !IsPinned(got, ref) {
+		t.Error("IsPinned should find a local pin by its ref")
+	}
+	if len(Remove(got, ref)) != 0 {
+		t.Error("Remove should drop a local pin by its ref")
 	}
 }
 

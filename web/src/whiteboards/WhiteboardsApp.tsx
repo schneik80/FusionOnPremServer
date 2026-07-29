@@ -16,8 +16,11 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthMe, useWhiteboardMutations, useWhiteboards } from '../api/queries'
 import { APP_RAIL_WIDTH } from '../components/Column'
+import { PinStar } from '../components/PinStar'
 import { RailHeader } from '../components/RailHeader'
+import { encodeWhiteboardRef, whiteboardRefFromBoard } from '../components/whiteboardcard/wbref'
 import { useNav } from '../state/nav'
+import { useLocalPin } from '../state/pins'
 import { LazyBoardCanvas } from './LazyBoardCanvas'
 import { boardDisplayId } from './types'
 import type { Whiteboard } from './types'
@@ -124,6 +127,7 @@ function BoardRail({
 }) {
   const { t } = useTranslation('whiteboards')
   const { create, rename, remove } = useWhiteboardMutations(projectId)
+  const pin = useLocalPin()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -216,6 +220,10 @@ function BoardRail({
           <List dense disablePadding>
             {boards.map((b) => {
               const canDelete = canModerate || b.createdBy.id === myId
+              // The board's own fls: token is its pin identity — the same one
+              // an fls:whiteboard card in a chat message carries.
+              const token = encodeWhiteboardRef(whiteboardRefFromBoard(b))
+              const pinned = pin.isPinned(token)
               return (
                 <ListItemButton
                   key={b.id}
@@ -232,6 +240,10 @@ function BoardRail({
                     transition: 'background-color .1s',
                     '&.Mui-selected': { bgcolor: (t) => alpha(t.palette.primary.main, 0.12) },
                     '&:hover .wb-del': { opacity: 1 },
+                    // Same posture as an ItemRow's star: quiet until hovered,
+                    // permanent once the board is pinned.
+                    '& .pin-star': { opacity: pinned ? 1 : 0, transition: 'opacity .1s' },
+                    '&:hover .pin-star, &:focus-within .pin-star': { opacity: 1 },
                   }}
                 >
                   <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -261,6 +273,19 @@ function BoardRail({
                       {b.updatedBy.name ? ` · ${b.updatedBy.name}` : ''}
                     </Typography>
                   </Box>
+                  <PinStar
+                    pinned={pinned}
+                    onToggle={() =>
+                      pin.toggle({
+                        ref: token,
+                        kind: 'whiteboard',
+                        name: b.name,
+                        projectId: b.projectId,
+                        projectName: b.projectName,
+                      })
+                    }
+                    fontSize={11}
+                  />
                   {canDelete && (
                     <Tooltip title={t('list.deleteTooltip')}>
                       <IconButton

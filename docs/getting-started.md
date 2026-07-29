@@ -478,10 +478,18 @@ Two rail apps aggregate across every project in the hub:
 
 ## 11. Pins
 
-The star on any project, folder or document row bookmarks it. The rail's
-**Pins** dialog lists your pins grouped by kind — projects, folders,
-documents — with navigate and remove actions. Pins are per hub and stored on
-the server, so they follow you between browsers.
+The star on any project, folder or document row bookmarks it. The same star
+also appears on the things the server owns itself — a whiteboard in the board
+rail, a task's header, a job or a batch header, and the channel header in
+Chat — so the record you actually work in is bookmarkable, not just the
+document it came from.
+
+The rail's **Pins** dialog lists your pins grouped by kind — projects,
+folders, documents, whiteboards, tasks, production, channels — with navigate
+and remove actions. Navigating a whiteboard or a channel takes you to it;
+a task, job or batch opens its detail dialog over the list, so you can work
+through several without reopening the dialog each time. Pins are per hub and
+stored on the server, so they follow you between browsers.
 
 ---
 

@@ -19,23 +19,36 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useProjects } from '../api/queries'
 import { usePinMutations, usePins } from '../api/queries'
 import type { Item, Pin } from '../api/types'
 import { useNav } from '../state/nav'
 import { ItemIcon } from './entityIcons'
+import { RefTokenDialog, useRefTokenNavigate } from './RefTokenDialog'
 
-// Groups for display, in order. Anything that isn't a project or folder is a
-// document.
+// Groups for display, in order. The local-record kinds are matched BEFORE the
+// document catch-all, which buckets "anything that isn't a project or folder"
+// and would otherwise swallow every one of them.
+const LOCAL_KINDS = new Set(['whiteboard', 'task', 'job', 'batch', 'channel'])
+
 const GROUPS: Array<{ key: string; labelKey: string; match: (p: Pin) => boolean }> = [
   { key: 'project', labelKey: 'pins.groupProjects', match: (p) => p.kind === 'project' },
   { key: 'folder', labelKey: 'pins.groupFolders', match: (p) => p.kind === 'folder' },
   {
     key: 'document',
     labelKey: 'pins.groupDocuments',
-    match: (p) => p.kind !== 'project' && p.kind !== 'folder',
+    match: (p) => p.kind !== 'project' && p.kind !== 'folder' && !LOCAL_KINDS.has(p.kind),
   },
+  { key: 'whiteboard', labelKey: 'pins.groupWhiteboards', match: (p) => p.kind === 'whiteboard' },
+  { key: 'task', labelKey: 'pins.groupTasks', match: (p) => p.kind === 'task' },
+  {
+    key: 'production',
+    labelKey: 'pins.groupProduction',
+    match: (p) => p.kind === 'job' || p.kind === 'batch',
+  },
+  { key: 'channel', labelKey: 'pins.groupChannels', match: (p) => p.kind === 'channel' },
 ]
 
 export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -45,8 +58,26 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const projectsQ = useProjects(nav.hubId)
   const { remove } = usePinMutations(nav.hubId)
   const pins = pinsQ.data ?? []
+  const navigateToken = useRefTokenNavigate()
+  // A task/job/batch pin opens a dialog rather than moving the browser, so the
+  // Pins dialog stays open behind it — closing it would drop the list the user
+  // is working through.
+  const [openToken, setOpenToken] = useState<string | null>(null)
 
   const navigateToPin = (pin: Pin) => {
+    // A local record is addressed by its fls: token, so it reuses the same
+    // two-step every other token host does — try the navigating schemes
+    // (whiteboard, channel), fall back to the dialog ones (task, job, batch).
+    // Nothing here knows which is which; RefTokenDialog owns that mapping.
+    if (pin.ref) {
+      if (!navigateToken(pin.ref)) {
+        setOpenToken(pin.ref)
+        return
+      }
+      onClose()
+      return
+    }
+
     const lookupId = pin.kind === 'project' ? pin.id : pin.project_id
     const real = projectsQ.data?.find((p) => p.id === lookupId)
 
@@ -156,7 +187,13 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                         </ListItemIcon>
                         <ListItemText
                           primary={pin.name}
+                          // A local record's project is the only thing that
+                          // separates two boards or two channels named the
+                          // same in different projects; an APS pin gets that
+                          // context from the breadcrumb it navigates to.
+                          secondary={pin.ref ? pin.project_name : undefined}
                           primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                          secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
                           sx={{ pr: 10 }}
                         />
                       </ListItem>
@@ -168,6 +205,11 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
           </List>
         )}
       </DialogContent>
+      {/* Rendered inside the pin list rather than beside it: MUI portals a
+          Dialog to the body either way, and being a child means closing the
+          pin list also dismisses the record it raised — which is what a user
+          who dismissed the list expects. */}
+      {openToken && <RefTokenDialog token={openToken} onClose={() => setOpenToken(null)} />}
     </Dialog>
   )
 }

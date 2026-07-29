@@ -3,8 +3,11 @@ import { usePinMutations, usePins } from '../api/queries'
 import type { Item } from '../api/types'
 import { useNav } from './nav'
 
-// Kinds that may be pinned — mirrors pins.IsPinnable in the Go backend
-// (hubs and unknown items are excluded).
+// APS item kinds that may be pinned — mirrors pins.IsPinnable in the Go
+// backend (hubs and unknown items are excluded). The LOCAL record kinds
+// (whiteboard, task, job, batch, channel) are pinnable too but never arrive
+// as an Item, so they are deliberately not in this set: isPinnable answers
+// "may this browser row show a star", and useLocalPin below is their path.
 const PINNABLE = new Set([
   'project',
   'folder',
@@ -18,6 +21,18 @@ const PINNABLE = new Set([
 
 export function isPinnable(kind: string): boolean {
   return PINNABLE.has(kind)
+}
+
+// LocalPinTarget is everything needed to bookmark a record owned by one of
+// the per-project stores. The ref is an fls: token — the same one the inline
+// cards use — and doubles as the pin's id, so nothing else has to agree on an
+// identity scheme (see pins.Validate, which enforces id === ref).
+export interface LocalPinTarget {
+  ref: string
+  kind: 'whiteboard' | 'task' | 'job' | 'batch' | 'channel'
+  name: string
+  projectId: string
+  projectName?: string
 }
 
 // usePinToggle exposes the current hub's pinned-id set plus a toggle that
@@ -62,4 +77,44 @@ export function usePinToggle() {
   )
 
   return { pinnedIds, toggle }
+}
+
+// useLocalPin is usePinToggle's counterpart for local records. It cannot share
+// the same entry point: a board or a batch is not an Item, has no folder
+// stack, and — unlike a browser row, which is always inside the project the
+// user has open — may be shown from anywhere (a task card's dialog references
+// a task in another project), so its project must come from the record itself
+// rather than from nav.
+export function useLocalPin() {
+  const nav = useNav()
+  const pinsQ = usePins(nav.hubId)
+  const { add, remove } = usePinMutations(nav.hubId)
+
+  const pinnedRefs = useMemo(
+    () => new Set((pinsQ.data ?? []).map((p) => p.id)),
+    [pinsQ.data],
+  )
+
+  const isPinned = useCallback((ref: string) => pinnedRefs.has(ref), [pinnedRefs])
+
+  const toggle = useCallback(
+    (target: LocalPinTarget) => {
+      if (!nav.hubId || !target.ref || !target.projectId) return
+      if (pinnedRefs.has(target.ref)) {
+        remove.mutate(target.ref)
+        return
+      }
+      add.mutate({
+        id: target.ref,
+        ref: target.ref,
+        kind: target.kind,
+        name: target.name,
+        project_id: target.projectId,
+        project_name: target.projectName,
+      })
+    },
+    [nav.hubId, pinnedRefs, add, remove],
+  )
+
+  return { isPinned, toggle }
 }

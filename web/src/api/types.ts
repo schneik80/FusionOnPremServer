@@ -573,6 +573,10 @@ export interface UploadJob {
 }
 
 // Pin mirrors pins.Pin (snake_case json tags, unlike the camelCase DTOs).
+// Two families share the record: APS items (project/folder/document), which
+// carry project + folder ancestry, and local records (whiteboard, task, job,
+// batch, channel), which instead carry the fls: token that addresses them —
+// see pins.Validate for the split the server enforces.
 export interface Pin {
   id: string
   name: string
@@ -581,5 +585,9 @@ export interface Pin {
   project_id?: string
   project_alt_id?: string
   folder_path?: FolderRef[]
+  /** fls: token for a local record; also that pin's id. Absent for APS items. */
+  ref?: string
+  /** the local record's project name, captured at pin time */
+  project_name?: string
   pinned_at?: string
 }

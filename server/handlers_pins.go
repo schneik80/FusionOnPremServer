@@ -37,8 +37,10 @@ func (s *Server) handlePinsList(w http.ResponseWriter, r *http.Request) {
 
 // handlePinsAdd validates and adds a pin (body: pin record). The body mirrors
 // the TUI's pin capture — id, name, kind, project_id, project_alt_id,
-// folder_path — so the bookmark stays navigable without an API call. The hub
-// scope always comes from the session, never from the body.
+// folder_path — so the bookmark stays navigable without an API call. A local
+// record (whiteboard, task, job, batch, channel) instead carries its fls: ref
+// as both id and address; pins.Validate enforces the split. The hub scope
+// always comes from the session, never from the body.
 func (s *Server) handlePinsAdd(w http.ResponseWriter, r *http.Request) {
 	set, ok := reqStores(w, r)
 	if !ok {
@@ -50,12 +52,8 @@ func (s *Server) handlePinsAdd(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid pin body")
 		return
 	}
-	if pin.ID == "" {
-		writeError(w, http.StatusBadRequest, "pin id is required")
-		return
-	}
-	if !pins.IsPinnable(pin.Kind) {
-		writeError(w, http.StatusBadRequest, "items of kind "+pin.Kind+" cannot be pinned")
+	if err := pins.Validate(pin); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	pin.HubID = set.hubID

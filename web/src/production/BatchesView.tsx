@@ -21,6 +21,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useBatchMutations } from '../api/queries'
 import { batchKindLabel } from '../i18n/enums'
+import { jobRefFromJob } from '../components/productioncard/prodref'
 import { BatchDetail } from './BatchDetail'
 import { BatchTimeline } from './BatchTimeline'
 import type { Job } from './types'
@@ -145,6 +146,10 @@ export function BatchesView({
             projectId={projectId}
             jobId={jobId}
             jobName={job.name}
+            // The job's own ref, so a batch can address itself without
+            // re-deriving hub/project context from nav — which would be the
+            // WRONG project on the cross-project Production screen.
+            jobRef={jobRefFromJob(job)}
             batch={selected}
             canWrite={canWrite}
             canModerate={canModerate}

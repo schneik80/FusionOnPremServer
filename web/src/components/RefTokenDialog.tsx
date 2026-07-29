@@ -1,9 +1,10 @@
 import { useCallback } from 'react'
+import { parseChannelRef } from './chatcard/chanref'
 import { ProductionViewDialog } from './productioncard/ProductionViewDialog'
 import { parseBatchRef, parseJobRef } from './productioncard/prodref'
 import { parseTaskRef } from './taskcard/taskref'
 import { parseWhiteboardRef } from './whiteboardcard/wbref'
-import { useGoToWhiteboard } from '../state/goto'
+import { useGoToChannel, useGoToWhiteboard } from '../state/goto'
 import { TaskViewDialog } from '../tasks/TaskViewDialog'
 
 // RefTokenDialog opens an fls: token's record directly, skipping the card.
@@ -14,9 +15,9 @@ import { TaskViewDialog } from '../tasks/TaskViewDialog'
 //
 // Like RefCard it is the single place the mapping lives, so a new token scheme
 // only has to be added once. Not every scheme has a dialog: a document
-// (fls:doc) and a whiteboard (fls:whiteboard) are NAVIGATED to, and those
-// render nothing here — see useRefTokenNavigate below, which a host must try
-// first.
+// (fls:doc), a whiteboard (fls:whiteboard) and a chat channel (fls:channel)
+// are NAVIGATED to, and those render nothing here — see useRefTokenNavigate
+// below, which a host must try first.
 export function RefTokenDialog({ token, onClose }: { token: string; onClose: () => void }) {
   const task = parseTaskRef(token)
   if (task) return <TaskViewDialog open projectId={task.projectId} taskId={task.taskId} onClose={onClose} />
@@ -39,6 +40,7 @@ export function RefTokenDialog({ token, onClose }: { token: string; onClose: () 
 // editing one module.
 export function useRefTokenNavigate(): (token: string) => boolean {
   const goToBoard = useGoToWhiteboard()
+  const goToChannel = useGoToChannel()
   return useCallback(
     (token: string) => {
       const whiteboard = parseWhiteboardRef(token)
@@ -46,8 +48,13 @@ export function useRefTokenNavigate(): (token: string) => boolean {
         goToBoard(whiteboard)
         return true
       }
+      const channel = parseChannelRef(token)
+      if (channel) {
+        goToChannel(channel)
+        return true
+      }
       return false
     },
-    [goToBoard],
+    [goToBoard, goToChannel],
   )
 }

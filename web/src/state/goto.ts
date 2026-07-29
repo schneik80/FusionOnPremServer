@@ -75,3 +75,22 @@ export function useGoToWhiteboard() {
     [nav],
   )
 }
+
+// useGoToChannel is the chat equivalent of useGoToWhiteboard: move the browser
+// to the channel's project, open the Chat tab, and select it. Used by a pinned
+// channel; the token already carries its project, so like a board there is
+// nothing to resolve first.
+export function useGoToChannel() {
+  const nav = useNav()
+  return useCallback(
+    (ref: { projectId: string; projectName: string; channelId: string }) => {
+      if (!ref.projectId || !ref.channelId) return
+      nav.openProjectApp(
+        { id: ref.projectId, name: ref.projectName, kind: 'project', isContainer: true },
+        'chat',
+        { channelId: ref.channelId },
+      )
+    },
+    [nav],
+  )
+}

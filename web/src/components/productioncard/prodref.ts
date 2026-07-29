@@ -76,6 +76,29 @@ export function parseBatchRef(url: string): BatchRef | null {
   }
 }
 
+// jobRefFromJob / batchRefFromBatch are the taskRefFromTask siblings: a job
+// already carries its hub + project, so anything holding one can address it
+// without re-deriving the context. A batch is addressed relative to its job.
+export function jobRefFromJob(j: {
+  hubId: string
+  projectId: string
+  projectName: string
+  id: string
+  name: string
+}): JobRef {
+  return {
+    hubId: j.hubId,
+    projectId: j.projectId,
+    projectName: j.projectName,
+    jobId: j.id,
+    jobName: j.name,
+  }
+}
+
+export function batchRefFromBatch(job: JobRef, b: { id: string; name: string }): BatchRef {
+  return { ...job, batchId: b.id, batchName: b.name }
+}
+
 // Markdown forms for the wiki: a link whose href is the token, degrading to a
 // plain named link in any other markdown renderer.
 export function jobRefMarkdown(ref: JobRef): string {

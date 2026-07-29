@@ -43,6 +43,7 @@ export function iconForItem(item: Pick<Item, 'kind' | 'subtype'>): IconDefinitio
     case 'task':
       return faListCheck
     case 'chat':
+    case 'channel':
       return faComments
     case 'whiteboard':
       return faChalkboard

@@ -11,7 +11,10 @@ import {
   useChatUnreads,
   useMarkChatRead,
 } from '../api/queries'
+import { channelRefFrom, encodeChannelRef } from '../components/chatcard/chanref'
+import { PinStar } from '../components/PinStar'
 import { useNav } from '../state/nav'
+import { useLocalPin } from '../state/pins'
 import { ChannelMenu } from './ChannelMenu'
 import { ChannelSidebar } from './ChannelSidebar'
 import { MessageComposer } from './MessageComposer'
@@ -40,13 +43,12 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
   const channels = channelsQ.data?.channels ?? []
   const caps = channelsQ.data?.capabilities ?? NO_CAPS
 
-  // The selection lives in nav, not here — the same move the Whiteboards tab
-  // made: it makes a channel permalinkable (?ptab=chat&chan=c2), and anything
-  // that wants to send the user to a channel can do it by putting an id there.
-  // Nav already clears it when the project changes, so no reset effect is
-  // needed.
+  // The selection lives in nav, not here — same move the Whiteboards tab
+  // made: a pinned channel opens one by putting its id there, and it makes a
+  // channel permalinkable (?ptab=chat&chan=c2). Nav already clears it when the
+  // project changes, so no reset effect is needed.
   //
-  // An id that isn't in the list (a deleted channel, a stale link) falls back
+  // An id that isn't in the list (a deleted channel, a stale pin) falls back
   // to the root channel, exactly as an unset selection does.
   const [threadRoot, setThreadRoot] = useState<number | null>(null)
   const current =
@@ -89,6 +91,18 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
 
   const typingNames = useTypingNames(projectId, current?.id ?? null, meId)
   const onTyping = useTypingPing(projectId, current?.id ?? null)
+
+  // The pin star sits in the header rather than in ChannelMenu: that menu
+  // hides itself entirely for a member with no management rights, and anyone
+  // who can read a channel should be able to bookmark it.
+  const pin = useLocalPin()
+  const projectName = nav.project?.name ?? ''
+  const channelToken =
+    projectId && current
+      ? encodeChannelRef(
+          channelRefFrom({ hubId: nav.hubId ?? '', projectId, projectName }, current),
+        )
+      : null
 
   const doDelete = (seq: number) => void remove.mutateAsync(seq).catch(() => {})
   const doToggleReaction = (seq: number, emoji: string, on: boolean) =>
@@ -151,6 +165,21 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
               <Typography variant="caption" color="text.disabled">
                 {t('header.reconnecting')}
               </Typography>
+            )}
+            {channelToken && projectId && (
+              <PinStar
+                pinned={pin.isPinned(channelToken)}
+                onToggle={() =>
+                  pin.toggle({
+                    ref: channelToken,
+                    kind: 'channel',
+                    name: current.name,
+                    projectId,
+                    projectName,
+                  })
+                }
+                fontSize={12}
+              />
             )}
             <ChannelMenu projectId={projectId} channel={current} caps={caps} meId={meId} />
           </Stack>

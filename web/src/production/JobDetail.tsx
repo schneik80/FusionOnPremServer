@@ -27,6 +27,9 @@ import {
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthMe, useJob, useJobGraphMutations, useProductionMutations } from '../api/queries'
+import { PinStar } from '../components/PinStar'
+import { encodeJobRef, jobRefFromJob } from '../components/productioncard/prodref'
+import { useLocalPin } from '../state/pins'
 import { BatchesView } from './BatchesView'
 import { PlaceholderChip, StepNumBadge } from './chips'
 import { JobCanvas } from './JobCanvas'
@@ -58,6 +61,9 @@ export function JobDetail({
   const { updateJob, removeJob } = useProductionMutations(projectId)
   const g = useJobGraphMutations(projectId, jobId)
   const myId = useAuthMe().data?.user?.id ?? ''
+  // Called before the loading/not-found early returns below — hooks can't sit
+  // behind them.
+  const pin = useLocalPin()
 
   const [newStep, setNewStep] = useState('')
   const [view, setView] = useState<'flow' | 'list' | 'batches'>('flow')
@@ -86,6 +92,7 @@ export function JobDetail({
 
   const canDelete = canModerate || job.createdBy.id === myId
   const stepName = (id: string) => job.steps.find((s) => s.id === id)?.title ?? id
+  const jobToken = encodeJobRef(jobRefFromJob(job))
 
   const saveName = () => {
     const trimmed = (nameDraft ?? '').trim()
@@ -144,6 +151,19 @@ export function JobDetail({
         <Typography variant="caption" color="text.secondary">
           {jobDisplayId(job)}
         </Typography>
+        <PinStar
+          pinned={pin.isPinned(jobToken)}
+          onToggle={() =>
+            pin.toggle({
+              ref: jobToken,
+              kind: 'job',
+              name: job.name,
+              projectId: job.projectId,
+              projectName: job.projectName,
+            })
+          }
+          fontSize={12}
+        />
         <Box sx={{ flex: 1 }} />
         <ToggleButtonGroup
           size="small"

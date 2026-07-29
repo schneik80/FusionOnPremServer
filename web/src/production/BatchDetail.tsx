@@ -24,7 +24,10 @@ import { RefCard } from '../components/RefCard'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
 import { docRefFromItem, encodeDocRef } from '../components/doccard/docref'
 import { encodeTaskRef, taskRefFromTask } from '../components/taskcard/taskref'
+import { PinStar } from '../components/PinStar'
+import { batchRefFromBatch, encodeBatchRef, type JobRef } from '../components/productioncard/prodref'
 import { useNav } from '../state/nav'
+import { useLocalPin } from '../state/pins'
 import { AttachTaskDialog } from '../tasks/AttachTaskDialog'
 import { DocSourceButton } from './DocSourceButton'
 import { StepNumBadge } from './chips'
@@ -41,6 +44,7 @@ export function BatchDetail({
   projectId,
   jobId,
   jobName,
+  jobRef,
   batch,
   canWrite,
   canModerate,
@@ -51,6 +55,8 @@ export function BatchDetail({
   jobId: string
   /** owning job, for filing uploads under Jobs/<job>/<batch> */
   jobName: string
+  /** owning job's fls: ref — the base a batch's own token is built on */
+  jobRef: JobRef
   batch: ProdBatch
   canWrite: boolean
   canModerate: boolean
@@ -59,6 +65,8 @@ export function BatchDetail({
 }) {
   const { t } = useTranslation('production')
   const nav = useNav()
+  const pin = useLocalPin()
+  const batchToken = encodeBatchRef(batchRefFromBatch(jobRef, batch))
   const { updateBatch, removeBatch, addFulfillment, removeFulfillment, addRef, removeRef } =
     useBatchMutations(projectId, jobId)
   // Draft-while-editing buffer for the name: null renders the server value, a
@@ -136,6 +144,19 @@ export function BatchDetail({
         <Typography variant="caption" color="text.secondary">
           {new Date(batch.runAt).toLocaleString()}
         </Typography>
+        <PinStar
+          pinned={pin.isPinned(batchToken)}
+          onToggle={() =>
+            pin.toggle({
+              ref: batchToken,
+              kind: 'batch',
+              name: batch.name,
+              projectId: jobRef.projectId,
+              projectName: jobRef.projectName,
+            })
+          }
+          fontSize={12}
+        />
         {allPlaceholders.length > 0 && (
           <Tooltip title={t('batchDetail.placeholdersSupplied', { filled, count: allPlaceholders.length })}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: 1 }}>

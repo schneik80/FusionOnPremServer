@@ -23,6 +23,9 @@ import { docRefFromItem, encodeDocRef } from '../components/doccard/docref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
 import { RefCard } from '../components/RefCard'
 import { encodeWhiteboardRef, whiteboardRefFromBoard } from '../components/whiteboardcard/wbref'
+import { PinStar } from '../components/PinStar'
+import { encodeTaskRef, taskRefFromTask } from '../components/taskcard/taskref'
+import { useLocalPin } from '../state/pins'
 import { ProductionRefDialog } from '../production/ProductionRefDialog'
 import { AttachWhiteboardDialog } from '../whiteboards/AttachWhiteboardDialog'
 import { Markdown } from '../wiki/Markdown'
@@ -50,6 +53,8 @@ export function TaskDetails({
   const { t } = useTranslation('tasks')
   const me = useAuthMe().data?.user
   const muts = useTaskMutations(task.projectId)
+  const pin = useLocalPin()
+  const taskToken = encodeTaskRef(taskRefFromTask(task))
   const [editOpen, setEditOpen] = useState(false)
   const [attachOpen, setAttachOpen] = useState(false)
   const [prodPickOpen, setProdPickOpen] = useState(false)
@@ -84,6 +89,19 @@ export function TaskDetails({
         <Typography variant="h6" sx={{ flex: 1, minWidth: 0, lineHeight: 1.3, wordBreak: 'break-word' }}>
           {task.title}
         </Typography>
+        <PinStar
+          pinned={pin.isPinned(taskToken)}
+          onToggle={() =>
+            pin.toggle({
+              ref: taskToken,
+              kind: 'task',
+              name: task.title,
+              projectId: task.projectId,
+              projectName: task.projectName,
+            })
+          }
+          fontSize={14}
+        />
         {canWrite && (
           <Tooltip title={t('details.editTask')}>
             <IconButton size="small" onClick={() => setEditOpen(true)} aria-label={t('details.editTask')}>
