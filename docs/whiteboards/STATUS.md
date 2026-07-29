@@ -404,6 +404,20 @@ is inherent to last-write-wins, and tldraw's own sync behaves the same way.
   the disagreement from becoming a write-per-client. If a ping-pong is ever
   observed, the next guard is suppressing the measure write briefly after a
   remote patch touches that shape.
+
+  **This path corrupted a board once, and the lesson is worth keeping.** tldraw
+  culls off-screen shapes by setting `display: none` on the shape container
+  rather than unmounting them (`useShapeCulling`), so a card that leaves the
+  viewport measures 0x0 and `ResizeObserver` reports it. The reject test ran on
+  the size *after* the halo inset was added, by which point 0x0 had become 7x7
+  and passed a `!w || !h` check — so every card panned out of view wrote 7x7
+  into the shared document and shifted itself by half the delta. Only boards
+  big enough to cull were affected, which made it look like one bad board
+  rather than a bug. The guard now lives in the pure, tested
+  `shapeSizeForMeasurement`, which validates the RAW measurement and also
+  rejects anything narrower than the thumbnail — a card whose chrome laid out
+  but whose content had not. **Anything writing to the shared document from a
+  DOM measurement needs to assume the DOM will hand it zeroes.**
 - The whole-document `PUT` remains as the import/overwrite path. The canvas
   never calls it: falling back to it on a bad connection would reinstate
   exactly the silent clobber patches replaced. Offline edits queue in the

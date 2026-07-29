@@ -1,7 +1,12 @@
 import { useLayoutEffect, useRef } from 'react'
 import { HTMLContainer, Rectangle2d, ShapeUtil, useValue, type Editor, type TLShape } from 'tldraw'
 import { RefCard } from '../components/RefCard'
-import { CARD_FACE_CLASS, CARD_HALO_INSET, CardHostContext } from '../components/entitycard/EntityCard'
+import {
+	CARD_FACE_CLASS,
+	CARD_HALO_INSET,
+	CARD_THUMB,
+	CardHostContext,
+} from '../components/entitycard/EntityCard'
 
 // The whiteboard's own shape: a live app card pinned to the canvas. Its only
 // state is an fls: token — the same compact reference chat, the wiki and task
@@ -38,6 +43,37 @@ export const CARD_H = 96
 // back. Wide enough to absorb the difference between two machines' font
 // rendering, narrow enough that a real content change still resizes the card.
 const MEASURE_SLOP = 3
+
+// The narrowest a REAL card can measure. EntityCard's front face is a border
+// (1px each side), 8px of padding each side, and a CARD_THUMB-wide thumbnail
+// that never shrinks (`flexShrink: 0`); only the text column can collapse. So
+// anything at or below the thumbnail's own width is not a card that rendered —
+// it is a card that was not laid out when we looked.
+const MIN_MEASURED_W = CARD_THUMB
+
+// shapeSizeForMeasurement turns a raw front-face measurement into the geometry
+// to store, or null when the measurement must be IGNORED.
+//
+// Pure and exported because it is the one piece of this file that can quietly
+// corrupt a shared document, and it did: the reject test used to run on the
+// inset-inclusive numbers, where a 0x0 measurement had already become 7x7
+// (CARD_HALO_INSET * 2) and sailed through a `!w || !h` check.
+//
+// 0x0 is not an exotic input. tldraw culls off-screen shapes by setting
+// `display: none` on the shape container rather than unmounting them, so every
+// card that leaves the viewport measures 0x0 and ResizeObserver reports it.
+// A board large enough for that to happen would take itself apart as it was
+// panned; a board that fits on screen never culls and looked perfectly fine,
+// which is what disguised this as one corrupted board.
+export function shapeSizeForMeasurement(
+	rawW: number,
+	rawH: number,
+): { w: number; h: number } | null {
+	if (!Number.isFinite(rawW) || !Number.isFinite(rawH)) return null
+	if (rawW < MIN_MEASURED_W || rawH <= 0) return null
+	const inset = CARD_HALO_INSET * 2
+	return { w: Math.min(CARD_W, Math.ceil(rawW + inset)), h: Math.ceil(rawH + inset) }
+}
 
 // The mounted card DOM, by shape id. CardBody keeps this current; the shape
 // util's onClick below is the only reader.
@@ -161,10 +197,12 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 			// each keep overwriting the other's size.
 			const faceEl = el.querySelector(`.${CARD_FACE_CLASS}`)
 			const face = faceEl instanceof HTMLElement ? faceEl : el
-			const inset = CARD_HALO_INSET * 2
-			const w = Math.min(CARD_W, Math.ceil(face.offsetWidth + inset))
-			const h = Math.ceil(face.offsetHeight + inset)
-			if (!w || !h) return
+
+			// A measurement taken while the card is not laid out (culled, mid-mount)
+			// must never be written — see shapeSizeForMeasurement.
+			const size = shapeSizeForMeasurement(face.offsetWidth, face.offsetHeight)
+			if (!size) return
+			const { w, h } = size
 			// Close enough is a match — don't churn the store on rounding.
 			//
 			// The tolerance is MEASURE_SLOP rather than a pixel because the measured
