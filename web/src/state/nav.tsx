@@ -149,9 +149,17 @@ function reducer(state: NavState, action: Action): NavState {
         selected: null,
         selectedTab: null,
       }
-    case 'navigate':
+    case 'navigate': {
       // Cross-document jumps (document cards, where-used, …) land in the
       // browser regardless of which app issued them.
+      //
+      // Crossing INTO another project drops the board selection for the same
+      // reason selectProject does — a board id is per-project sequential
+      // (w1, w2, …), so carrying one across would not read as "no board
+      // selected", it would silently open a DIFFERENT board that happens to
+      // share the number. Staying inside the project keeps it, so stepping
+      // into a document and back to the tab returns to the same board.
+      const crossed = state.project?.id !== action.project.id
       return {
         ...state,
         app: 'browser',
@@ -159,7 +167,9 @@ function reducer(state: NavState, action: Action): NavState {
         folderStack: action.folderStack,
         selected: action.selected,
         selectedTab: action.tab ?? null,
+        boardId: crossed ? null : state.boardId,
       }
+    }
     case 'openProjectApp':
       // Land on a project's app tab: the browser, at the project ROOT with
       // nothing selected, because that is the only place ProjectPanel shows
