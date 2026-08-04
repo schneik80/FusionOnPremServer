@@ -206,8 +206,15 @@ sequenceDiagram
 - **`HttpOnly`** — the cookie is never readable from JavaScript; APS tokens stay
   server-side. This is the whole point of the BFF pattern.
 - **`SameSite=Lax`** (not `Strict`) — required: the OAuth callback is a top-level
-  cross-site navigation from `autodesk.com`, which `Strict` would drop.
-- **`Secure`** — set from `r.TLS` (or `X-Forwarded-Proto: https`). Over plain HTTP
+  cross-site navigation from `autodesk.com`, which `Strict` would drop. Lax is
+  backed up by `requireSameOrigin` (`server/middleware.go`), which refuses any
+  `POST`/`PUT`/`PATCH`/`DELETE` whose `Origin` (or `Referer`, when `Origin` is
+  absent) names a different site.
+- **`Secure`** — set from `r.TLS`, or from `X-Forwarded-Proto: https` when the
+  request came from a **trusted proxy** — loopback, or a `-trusted-proxy` CIDR
+  (`server/proxy.go`). An untrusted client sending that header itself is
+  ignored, so it cannot force a `Secure` cookie the browser would then refuse to
+  send back. Over plain HTTP
   it is therefore **off**, because browsers refuse to store `Secure` cookies on
   `http://`. Run with **`-tls`** (or behind a TLS-terminating proxy) and the same
   binary auto-hardens — the cookie becomes `Secure` and the redirect_uri scheme
@@ -264,12 +271,20 @@ The server detects which to use automatically:
 - Pending logins are single-use and short-lived (~5 min); a replayed callback
   finds no entry and is rejected, and APS also rejects a reused authorization code.
 - Verbose tracing (`-v`) logs API request/response bodies but never tokens —
-  `Authorization` headers aren't traced, and `signedUrl` values are redacted.
+  `Authorization` headers aren't traced, `signedUrl` values are redacted, and
+  the per-request log line redacts the OAuth `code`/`state` (and any
+  token-shaped query parameter) via `redactQuery`.
+- The pre-session auth routes are rate limited per client IP (`perIP` in
+  `server/routes.go`): login/callback/logout at a 10 burst refilling one per
+  2 s, `/api/auth/me` far more generously. Behind a reverse proxy the key comes
+  from `X-Forwarded-For`, which is only read from a trusted peer — so one user
+  cannot spend another's budget by forging the header.
 - Tokens never reach the browser or any plaintext file: they live in server
   memory and are persisted only encrypted at rest (`sessions.enc`, AES-256-GCM,
   key in `session.key` mode 0600 — see [Sessions and token refresh](#sessions-and-token-refresh)).
 
-TLS/`Secure` cookie (`-tls` on by default) and encrypted session persistence
-have both shipped; [`SECURITY-TODO.md`](../SECURITY-TODO.md) tracks the history
-and the remaining items (e.g. OS-keychain key storage, APS callback
-registration notes).
+TLS/`Secure` cookie (`-tls` on by default), encrypted session persistence, log
+redaction, the trusted-proxy boundary, the same-origin CSRF backstop and the
+auth rate limiter have all shipped; [`SECURITY-TODO.md`](../SECURITY-TODO.md)
+tracks the history and the two remaining (operator/platform) items: OS-keychain
+key storage and APS callback registration.

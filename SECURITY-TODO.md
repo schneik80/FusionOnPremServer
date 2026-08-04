@@ -29,6 +29,29 @@ obviated most of the rest. This file tracks what remains.
   `~/.config/fusionlocalserver/sessions.enc`, AES-256-GCM encrypted under a key
   file (`session.key`, 0600). This is encryption-at-rest of the refresh tokens,
   not OS-keychain storage (see below).
+- [x] **L1 (2026-06). OAuth `code`/`state` in `-v` request logs.** `logRequest`
+  runs the query string through `redactQuery` (`server/middleware.go`), which
+  blanks `code`, `state`, `code_verifier`, and the token/secret parameter names
+  and redacts an unparseable query whole. Benign params still log verbatim.
+- [x] **L2 (2026-06). `X-Forwarded-*` trusted from any client.** A trusted-proxy
+  boundary (`server/proxy.go`): forwarded proto/host/for are honored only when
+  the immediate peer is loopback or inside a `-trusted-proxy` CIDR. Loopback is
+  always trusted, so the Caddy deployment (`deploy/Caddyfile.example`) needs no
+  configuration, while a LAN client can no longer force the `Secure` cookie flag
+  or HSTS. `clientIP` reads `X-Forwarded-For` under the same rule — right to
+  left, skipping trusted hops — which is what gives the auth limiter below a
+  real per-user key behind a proxy.
+- [x] **L3 (2026-06). CSRF rested on `SameSite=Lax` alone.** `requireSameOrigin`
+  (`server/middleware.go`, in the chain after `canonicalRedirect`) refuses
+  `POST`/`PUT`/`PATCH`/`DELETE` whose `Origin` — or `Referer`, when `Origin` is
+  absent — is a different site. A request carrying neither header is allowed:
+  browsers always send `Origin` on cross-site mutations, so nothing exploitable
+  passes, and non-browser clients keep working. No-op under `-dev`.
+- [x] **Rate limiter on `/api/auth/*`.** The pre-session routes are metered per
+  client IP (`perIP` in `server/routes.go`) using the same `chat.Limiter` bucket
+  the app routes use per session: login/callback/logout at 10 burst refilling
+  one per 2 s, `/api/auth/me` generously (5/s, burst 60) because the SPA
+  re-probes it on every window focus. `/api/meta` stays unmetered on purpose.
 
 ## Obviated by the architecture change
 
@@ -54,9 +77,11 @@ obviated most of the rest. This file tracks what remains.
 
 ## Open items from the 2026-06 review
 
-Tracked in [`docs/security/SECURITY-REVIEW-2026-06.md`](docs/security/SECURITY-REVIEW-2026-06.md)
-(see its status addendum): L1 OAuth `code`/`state` appear in `-v` request
-logs (`RawQuery` unredacted), L2 `X-Forwarded-Proto` trusted without a
-trusted-proxy list, L3 CSRF rests on `SameSite=Lax` alone (no Origin check
-on mutating verbs), and there is still no rate limiter on `/api/auth/*`
-(chat/tasks/production/whiteboard mutations are limited per session).
+**All closed** (see *Resolved* above): L1 log redaction, L2 the trusted-proxy
+boundary, L3 the same-origin CSRF backstop, and the `/api/auth/*` rate limiter.
+The review's own open-items table in
+[`docs/security/SECURITY-REVIEW-2026-06.md`](docs/security/SECURITY-REVIEW-2026-06.md)
+is annotated accordingly; M3 (non-`Secure` cookie over plain-HTTP LAN) remains
+the documented trade-off it always was, mitigated by TLS being the default
+posture. What is left in this file is the two deferred items above — both
+operator/platform work rather than code.

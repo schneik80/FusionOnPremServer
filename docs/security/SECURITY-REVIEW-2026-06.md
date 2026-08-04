@@ -21,6 +21,30 @@ Branch: `feature/activity-reports`. Primary commit: `cd1adf2`
 > - **Still open**: L1 (OAuth `code`/`state` in `-v` request logs), L2
 >   (`X-Forwarded-Proto` trusted unconditionally), L3 (CSRF rests on
 >   `SameSite=Lax` alone). Tracked in [`SECURITY-TODO.md`](../../SECURITY-TODO.md).
+>
+> **Second addendum (2026-08).** L1, L2, L3 and the missing auth rate limiter
+> are now **closed**:
+> - **L1** — `logRequest` logs `redactQuery(r.URL.RawQuery)`
+>   (`server/middleware.go`): `code`, `state`, `code_verifier` and the
+>   token/secret parameter names are blanked, an unparseable query is redacted
+>   whole, benign params still log verbatim.
+> - **L2** — `server/proxy.go` adds a trusted-proxy boundary. `X-Forwarded-Proto`
+>   / `-Host` / `-For` are honored only when the immediate peer is loopback or
+>   inside a `-trusted-proxy` CIDR. Loopback is always trusted, so the Caddy
+>   deployment needs no flag; a LAN client can no longer force the `Secure`
+>   cookie flag or HSTS. `clientIP` resolves `X-Forwarded-For` under the same
+>   rule (right to left, skipping trusted hops).
+> - **L3** — `requireSameOrigin` (`server/middleware.go`) refuses mutating verbs
+>   whose `Origin`, or `Referer` when `Origin` is absent, names another site.
+>   Header-less requests are allowed by design (browsers always send `Origin` on
+>   cross-site mutations); no-op under `-dev`.
+> - **Rate limiting** — the pre-session auth routes are metered per client IP
+>   (`perIP`, `server/routes.go`); the characterization probes in
+>   `server/integration_security_test.go` and `web/test/api-security.test.ts`
+>   have been flipped into real assertions, as their comments anticipated.
+>
+> **M3** stays as recorded: a documented trade-off, mitigated by TLS being the
+> default posture.
 
 A work breakdown of a security review performed across four prompts. Each
 section records **the prompt that actioned it**, **what was reviewed**, **what
@@ -49,7 +73,7 @@ to make them appear to.
 | Missing security headers / CSP | **Fixed** | `securityHeaders` middleware (CSP, XFO, nosniff, HSTS) |
 | Unbounded request bodies | **Fixed** | `MaxBytesReader` + fan-out cap on rollup/pins |
 | CORS | **OK** — dev-only wildcard, never in prod | None |
-| Rate limiting | **Absent (by design today)** | Documented; not implemented |
+| Rate limiting | **Absent at review time** | Since implemented: per-session on app mutations, per-IP on `/api/auth/*` (see the 2026-08 addendum) |
 | Session cookie `Secure` over plain-HTTP LAN | **Accepted trade-off** | Documented (M3, open) |
 
 No **Critical** or **High** findings were identified. All actioned items were
@@ -267,11 +291,11 @@ All Go: `gofmt` clean, `go build ./...` ok, `go test ./...` green.
 | ID | Item | Severity | Why deferred |
 |---|---|---|---|
 | **M3** | Session cookie `Secure` flag is request-derived; over plain-HTTP LAN (bind `0.0.0.0`) the token is sniffable | Medium | Documented trade-off; default `make run` is TLS. Fix = refuse non-loopback HTTP, or bind loopback, or require a TLS proxy. |
-| **L1** | OAuth `code`/`state` logged via `RawQuery` under `-v` | Low | Single-use, PKCE-bound code; redact `code`/`state` in `logRequest`. |
-| **L2** | `X-Forwarded-Proto` trusted from any client | Low | Low impact (mostly over-hardens); gate on a trusted-proxy flag. |
-| **L3** | CSRF rests on `SameSite=Lax` only (no token / Origin check) | Low | Lax blocks cross-site cookie POSTs; add an `Origin` check on mutating verbs as a backstop. |
+| **L1** | OAuth `code`/`state` logged via `RawQuery` under `-v` | Low | **Closed 2026-08** — `redactQuery` in `logRequest`. |
+| **L2** | `X-Forwarded-Proto` trusted from any client | Low | **Closed 2026-08** — trusted-proxy boundary (`server/proxy.go`), loopback trusted by default, `-trusted-proxy` for off-host proxies. |
+| **L3** | CSRF rests on `SameSite=Lax` only (no token / Origin check) | Low | **Closed 2026-08** — `requireSameOrigin` on mutating verbs. |
 | **L4** | Dev CORS wildcard | Info | `-dev`-only, no credentials; acceptable. |
-| — | **No rate limiter** | — | Not a regression; offered as a follow-up (per-IP limiter on `/api/auth/*` + mutating routes, then convert the characterization probes to real assertions). |
+| — | **No rate limiter** | — | **Closed 2026-08** — per-IP limiter on `/api/auth/*` (app mutations were already per-session); characterization probes converted to assertions. |
 
 ## Methodology note
 
