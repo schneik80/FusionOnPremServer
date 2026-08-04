@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -61,13 +63,56 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 		s.logger.Debug("request",
 			"method", r.Method,
 			"path", r.URL.Path,
-			"query", r.URL.RawQuery,
+			"query", redactQuery(r.URL.RawQuery),
 			"status", rec.status,
 			"bytes", rec.bytes,
 			"dur_ms", time.Since(start).Milliseconds(),
 			"remote", s.clientIP(r),
 		)
 	})
+}
+
+// secretQueryParams are the query parameters whose values never belong in a
+// log line. The OAuth callback carries `code` and `state` — single-use and
+// PKCE-bound, but still credentials — and the rest are here so a future route
+// can't leak one by accident.
+var secretQueryParams = map[string]bool{
+	"code":          true,
+	"state":         true,
+	"code_verifier": true,
+	"access_token":  true,
+	"refresh_token": true,
+	"id_token":      true,
+	"token":         true,
+	"client_secret": true,
+}
+
+// redactQuery replaces the values of sensitive query parameters with REDACTED,
+// leaving the rest of the query readable for debugging. A query that won't
+// parse is redacted whole rather than logged on the chance it holds a secret.
+// Same posture as redactSignedURLs in api/debug.go.
+func redactQuery(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	vals, err := url.ParseQuery(raw)
+	if err != nil {
+		return "REDACTED"
+	}
+	touched := false
+	for k, vs := range vals {
+		if !secretQueryParams[strings.ToLower(k)] {
+			continue
+		}
+		for i := range vs {
+			vs[i] = "REDACTED"
+		}
+		touched = true
+	}
+	if !touched {
+		return raw // untouched queries keep their original ordering
+	}
+	return vals.Encode()
 }
 
 // recoverPanic converts a panic in any downstream handler into a 500 JSON
