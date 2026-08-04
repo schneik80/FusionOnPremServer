@@ -106,6 +106,7 @@
       "incomplete": "Autodesk did not complete the sign-in. Please try again.",
       "session": "The server could not start a session. Please try again.",
       "denied": "Sign-in was cancelled or access was denied.",
+      "notAllowed": "Your Autodesk account is not authorized on this server. Ask the server owner to add you.",
       "generic": "Sign-in failed ({{reason}})."
     },
     "logoAlt": "Logo"

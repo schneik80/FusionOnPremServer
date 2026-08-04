@@ -106,6 +106,7 @@
       "incomplete": "Autodesk non ha completato l'accesso. Riprova.",
       "session": "Il server non è riuscito ad avviare una sessione. Riprova.",
       "denied": "L'accesso è stato annullato o negato.",
+      "notAllowed": "Il tuo account Autodesk non è autorizzato su questo server. Chiedi al proprietario del server di aggiungerti.",
       "generic": "Accesso non riuscito ({{reason}})."
     },
     "logoAlt": "Logo"

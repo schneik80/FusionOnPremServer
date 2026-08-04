@@ -92,6 +92,14 @@ type SessionStore struct {
 	persistPath string
 	keyPath     string
 	saveMu      sync.Mutex
+
+	// allowed, when set, is the admin-whitelist predicate (Server.userAllowed):
+	// persisted sessions whose profile fails it are dropped on load instead of
+	// restored — the restore path never re-enters the OAuth callback, so
+	// without this a removed user's session would survive every restart.
+	// Live-session revocation happens in requireAuth, not here. Must be wired
+	// before EnablePersistence.
+	allowed func(p auth.UserProfile) bool
 }
 
 func NewSessionStore(idle, abs time.Duration, logger *slog.Logger) *SessionStore {

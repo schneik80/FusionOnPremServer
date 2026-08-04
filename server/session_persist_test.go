@@ -70,6 +70,36 @@ func TestSessionPersistence_DropsExpired(t *testing.T) {
 	}
 }
 
+// TestSessionPersistence_DropsNotAllowed: the restore path never re-enters the
+// OAuth callback, so the whitelist predicate must filter on load — otherwise a
+// user removed from admin_users keeps a working session across every restart.
+func TestSessionPersistence_DropsNotAllowed(t *testing.T) {
+	dir := t.TempDir()
+
+	a := newPersistentStore(t, dir)
+	ada, _ := a.Create(
+		&auth.TokenData{AccessToken: "AT", ExpiresAt: time.Now().Add(time.Hour)},
+		auth.UserProfile{Sub: "sub-ada", Email: "ada@x.io"},
+	)
+	bob, _ := a.Create(
+		&auth.TokenData{AccessToken: "AT", ExpiresAt: time.Now().Add(time.Hour)},
+		auth.UserProfile{Sub: "sub-bob", Email: "bob@x.io"},
+	)
+
+	// Restart with a whitelist that no longer includes bob.
+	b := NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger())
+	b.allowed = func(p auth.UserProfile) bool { return p.Email == "ada@x.io" }
+	if err := b.EnablePersistence(dir); err != nil {
+		t.Fatalf("EnablePersistence: %v", err)
+	}
+	if _, ok := b.Get(ada.ID); !ok {
+		t.Error("whitelisted session was not restored")
+	}
+	if _, ok := b.Get(bob.ID); ok {
+		t.Error("removed user's session was restored from disk")
+	}
+}
+
 func TestSessionPersistence_DisabledIsNoOp(t *testing.T) {
 	// A store without EnablePersistence must not touch the filesystem.
 	st := NewSessionStore(sessionIdleTTL, sessionAbsTTL, quietLogger())

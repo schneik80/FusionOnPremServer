@@ -111,7 +111,27 @@ POST   /api/settings/port                {port} → {restarting} + listener rebi
 - **Any authenticated session is an admin.** That is the settled single-user
   posture, but on a shared deployment every project member who can log in can
   read logs, delete local project data, and trigger restores (each destructive
-  step still needs its typed confirmation).
+  step still needs its typed confirmation). The interim mitigation for public
+  deployments is the **`admin_users` sign-in whitelist** (see
+  [`authentication.md`](../authentication.md)): non-listed users cannot sign
+  in at all.
+
+## Future work: restricted role for non-whitelisted users
+
+Planned relaxation of the `admin_users` gate (not yet built): whitelisted
+emails stay full admins; everyone else may sign in with a **restricted role**.
+
+- Session carries `isAdmin`, resolved from the whitelist at creation (and
+  re-checked in `requireAuth`, so removal demotes live sessions).
+- Server-side gating of the admin-only surfaces for non-admins: settings/port,
+  admin status + log tail, backups/verify/restore, per-project data deletion,
+  `fs/dirs` browsing, branding writes (see the `protHub` admin routes in
+  `server/routes.go`).
+- The SPA hides the corresponding Settings tools for non-admins.
+- Project data needs no new gating — `chat.Authorizer` already maps the APS
+  project role to capabilities, so a signed-in non-member sees nothing.
+- `admin_users` keeps its name and shape — the relaxation is additive, no
+  config migration.
 - `GET /api/admin/fs/dirs` browses the server's filesystem (directory names
   only, no files) from any authenticated session — inherent to picking a
   backup folder, same trust model as above.

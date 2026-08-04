@@ -3,17 +3,28 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-// clearEnv unsets all three APS_* environment variables for the duration of the test.
-// Load() treats empty strings as unset (it checks `id != ""`), so this works correctly.
+// clearEnv unsets the APS_* and FLS_* environment variables for the duration
+// of the test. Load() treats empty strings as unset (it checks `!= ""`), so
+// this works correctly.
 func clearEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("APS_CLIENT_ID", "")
 	t.Setenv("APS_CLIENT_SECRET", "")
 	t.Setenv("APS_REGION", "")
+	t.Setenv("FLS_ADMIN_USERS", "")
+}
+
+// setHome points the config dir at a temp home on every platform —
+// os.UserHomeDir reads HOME on Unix and USERPROFILE on Windows.
+func setHome(t *testing.T, home string) {
+	t.Helper()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 }
 
 // writeConfigFile creates ~/.config/fusionlocalserver/config.json under the given home dir.
@@ -42,7 +53,7 @@ func saveDefaults(t *testing.T) {
 
 func TestLoad_EnvVarsTakePrecedence(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	saveDefaults(t)
 	DefaultClientID = "ld-id"
 	DefaultRegion = "EMEA"
@@ -72,7 +83,7 @@ func TestLoad_EnvVarsTakePrecedence(t *testing.T) {
 func TestLoad_FileFallback(t *testing.T) {
 	clearEnv(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	saveDefaults(t)
 	DefaultClientID = ""
 	DefaultRegion = ""
@@ -94,7 +105,7 @@ func TestLoad_FileFallback(t *testing.T) {
 func TestLoad_FileFallback_RegionEnvOverride(t *testing.T) {
 	clearEnv(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	saveDefaults(t)
 	DefaultClientID = ""
 	DefaultRegion = ""
@@ -117,7 +128,7 @@ func TestLoad_FileFallback_RegionEnvOverride(t *testing.T) {
 func TestLoad_LdflagsFallback(t *testing.T) {
 	clearEnv(t)
 	home := t.TempDir() // empty — no config file
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	saveDefaults(t)
 	DefaultClientID = "ld-id"
 	DefaultRegion = "EMEA"
@@ -137,7 +148,7 @@ func TestLoad_LdflagsFallback(t *testing.T) {
 func TestLoad_NoneConfigured_Errors(t *testing.T) {
 	clearEnv(t)
 	home := t.TempDir() // empty — no config file
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	saveDefaults(t)
 	DefaultClientID = ""
 	DefaultRegion = ""
@@ -154,7 +165,7 @@ func TestLoad_NoneConfigured_Errors(t *testing.T) {
 func TestLoad_MalformedFile_Errors(t *testing.T) {
 	clearEnv(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	saveDefaults(t)
 	DefaultClientID = ""
 	DefaultRegion = ""
@@ -173,7 +184,7 @@ func TestLoad_MalformedFile_Errors(t *testing.T) {
 func TestLoad_EmptyClientIDInFile_Errors(t *testing.T) {
 	clearEnv(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	saveDefaults(t)
 	DefaultClientID = ""
 	DefaultRegion = ""
@@ -189,9 +200,97 @@ func TestLoad_EmptyClientIDInFile_Errors(t *testing.T) {
 	}
 }
 
+func TestLoad_AdminUsersFromFile(t *testing.T) {
+	clearEnv(t)
+	home := t.TempDir()
+	setHome(t, home)
+	saveDefaults(t)
+	DefaultClientID = ""
+
+	writeConfigFile(t, home, `{"client_id":"file-id","admin_users":["ada@x.io","sub-123"]}`)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.AdminUsers) != 2 || cfg.AdminUsers[0] != "ada@x.io" || cfg.AdminUsers[1] != "sub-123" {
+		t.Errorf("AdminUsers = %v, want [ada@x.io sub-123]", cfg.AdminUsers)
+	}
+}
+
+func TestLoad_AdminUsersEnvOverride(t *testing.T) {
+	clearEnv(t)
+	home := t.TempDir()
+	setHome(t, home)
+	saveDefaults(t)
+	DefaultClientID = ""
+
+	writeConfigFile(t, home, `{"client_id":"file-id","admin_users":["file@x.io"]}`)
+	// Messy value: spaces trimmed, empty entries dropped.
+	t.Setenv("FLS_ADMIN_USERS", " env@x.io ,, sub-9 ,")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.AdminUsers) != 2 || cfg.AdminUsers[0] != "env@x.io" || cfg.AdminUsers[1] != "sub-9" {
+		t.Errorf("AdminUsers = %v, want [env@x.io sub-9] (env override)", cfg.AdminUsers)
+	}
+}
+
+// TestLoad_EnvCreds_AdminUsersStillFromFile guards the layer-1 trap: with
+// credentials from APS_CLIENT_ID, the file's whitelist must still load —
+// silently dropping it would fail open on a security setting.
+func TestLoad_EnvCreds_AdminUsersStillFromFile(t *testing.T) {
+	clearEnv(t)
+	home := t.TempDir()
+	setHome(t, home)
+	saveDefaults(t)
+	DefaultClientID = ""
+
+	// The file carries only the whitelist; client_id comes from the env.
+	writeConfigFile(t, home, `{"admin_users":["ada@x.io"]}`)
+	t.Setenv("APS_CLIENT_ID", "env-id")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ClientID != "env-id" {
+		t.Errorf("ClientID = %q, want env-id", cfg.ClientID)
+	}
+	if len(cfg.AdminUsers) != 1 || cfg.AdminUsers[0] != "ada@x.io" {
+		t.Errorf("AdminUsers = %v, want [ada@x.io]", cfg.AdminUsers)
+	}
+}
+
+// TestLoad_AdminUsersOnlyFile_LdflagsCreds: a published binary (baked-in
+// client id) plus a config.json created solely to hold admin_users.
+func TestLoad_AdminUsersOnlyFile_LdflagsCreds(t *testing.T) {
+	clearEnv(t)
+	home := t.TempDir()
+	setHome(t, home)
+	saveDefaults(t)
+	DefaultClientID = "ld-id"
+	DefaultRegion = "EMEA"
+
+	writeConfigFile(t, home, `{"admin_users":["ada@x.io"]}`)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ClientID != "ld-id" || cfg.Region != "EMEA" {
+		t.Errorf("cfg = %+v, want ld-id/EMEA", cfg)
+	}
+	if len(cfg.AdminUsers) != 1 || cfg.AdminUsers[0] != "ada@x.io" {
+		t.Errorf("AdminUsers = %v, want [ada@x.io]", cfg.AdminUsers)
+	}
+}
+
 func TestDir_CreatesWithMode0700(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 
 	dir, err := Dir()
 	if err != nil {
@@ -208,14 +307,17 @@ func TestDir_CreatesWithMode0700(t *testing.T) {
 	if !info.IsDir() {
 		t.Errorf("%s is not a directory", dir)
 	}
-	if perm := info.Mode().Perm(); perm != 0700 {
-		t.Errorf("perm = %o, want %o", perm, 0700)
+	// Unix permission bits don't map onto Windows (Go reports 0777 there).
+	if runtime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0700 {
+			t.Errorf("perm = %o, want %o", perm, 0700)
+		}
 	}
 }
 
 func TestPath_ReturnsExpected(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 
 	got := Path()
 	want := filepath.Join(home, ".config", "fusionlocalserver", "config.json")

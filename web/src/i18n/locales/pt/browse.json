@@ -106,6 +106,7 @@
       "incomplete": "A Autodesk não concluiu o início de sessão. Tente novamente.",
       "session": "O servidor não conseguiu iniciar uma sessão. Tente novamente.",
       "denied": "O início de sessão foi cancelado ou o acesso foi negado.",
+      "notAllowed": "A sua conta Autodesk não está autorizada neste servidor. Peça ao proprietário do servidor para o adicionar.",
       "generic": "Falha no início de sessão ({{reason}})."
     },
     "logoAlt": "Logótipo"

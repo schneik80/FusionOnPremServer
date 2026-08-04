@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -281,5 +282,149 @@ func assertAuthErrorRedirect(t *testing.T, rec *httptest.ResponseRecorder, wantR
 	loc := rec.Header().Get("Location")
 	if !strings.HasPrefix(loc, "/?auth_error=") || !strings.Contains(loc, wantReason) {
 		t.Errorf("Location = %q, want /?auth_error=...%s", loc, wantReason)
+	}
+}
+
+func TestUserAllowed(t *testing.T) {
+	cases := []struct {
+		name    string
+		list    []string
+		profile auth.UserProfile
+		want    bool
+	}{
+		{"empty list allows anyone", nil, auth.UserProfile{Email: "x@y.z"}, true},
+		{"empty list allows empty profile", nil, auth.UserProfile{}, true},
+		{"sub matches exactly", []string{"sub-1"}, auth.UserProfile{Sub: "sub-1"}, true},
+		{"email matches case-insensitively", []string{"Ada@X.io"}, auth.UserProfile{Email: "ada@x.io"}, true},
+		{"unlisted user denied", []string{"ada@x.io"}, auth.UserProfile{Sub: "s", Email: "bob@x.io"}, false},
+		{"empty profile fails closed", []string{"ada@x.io"}, auth.UserProfile{}, false},
+		{"blank entry never matches empty sub", []string{""}, auth.UserProfile{}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newAuthTestServer()
+			s.adminUsers = tc.list
+			if got := s.userAllowed(tc.profile); got != tc.want {
+				t.Errorf("userAllowed(%+v) with list %v = %v, want %v", tc.profile, tc.list, got, tc.want)
+			}
+		})
+	}
+}
+
+// runCallback drives a full callback round-trip with stubbed exchange and
+// userinfo. A non-nil profileErr simulates a userinfo outage, in which case
+// the callback sees the zero profile — exactly like production.
+func runCallback(t *testing.T, s *Server, profile auth.UserProfile, profileErr error) *httptest.ResponseRecorder {
+	t.Helper()
+	const state = "wl-state"
+	s.pending.Put(state, pendingEntry{verifier: "v", redirectURI: "http://h/api/auth/callback", createdAt: time.Now()})
+	prevEx, prevUI := authExchange, authUserInfo
+	t.Cleanup(func() { authExchange, authUserInfo = prevEx, prevUI })
+	authExchange = func(context.Context, string, string, string, string, string) (*auth.TokenData, error) {
+		return &auth.TokenData{AccessToken: "AT", RefreshToken: "RT", ExpiresAt: time.Now().Add(time.Hour)}, nil
+	}
+	authUserInfo = func(context.Context, string) (auth.UserProfile, error) {
+		return profile, profileErr
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/callback?code=c&state="+state, nil)
+	req.AddCookie(&http.Cookie{Name: pendingCookieName, Value: state})
+	rec := httptest.NewRecorder()
+	s.handleAuthCallback(rec, req)
+	return rec
+}
+
+// sessionCookieValue returns the value of the session cookie set on rec, or ""
+// when none was set (cleared cookies have an empty value, so they read as none).
+func sessionCookieValue(rec *httptest.ResponseRecorder) string {
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == sessionCookieName {
+			return c.Value
+		}
+	}
+	return ""
+}
+
+func TestHandleAuthCallback_WhitelistDenied(t *testing.T) {
+	s := newAuthTestServer()
+	s.adminUsers = []string{"ada@x.io"}
+	rec := runCallback(t, s, auth.UserProfile{Sub: "sub-bob", Email: "bob@x.io"}, nil)
+	assertAuthErrorRedirect(t, rec, "not_allowed")
+	if sid := sessionCookieValue(rec); sid != "" {
+		t.Errorf("denied sign-in still set a session cookie %q", sid)
+	}
+}
+
+func TestHandleAuthCallback_WhitelistAllowed(t *testing.T) {
+	s := newAuthTestServer()
+	// Email listed with different casing plus an unrelated sub entry.
+	s.adminUsers = []string{"sub-someone-else", "ADA@X.IO"}
+	rec := runCallback(t, s, auth.UserProfile{Sub: "sub-ada", Email: "ada@x.io"}, nil)
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/" {
+		t.Fatalf("allowed sign-in: status=%d location=%q", rec.Code, rec.Header().Get("Location"))
+	}
+	if sid := sessionCookieValue(rec); sid == "" {
+		t.Error("allowed sign-in did not set a session cookie")
+	}
+}
+
+// TestHandleAuthCallback_WhitelistFailsClosed: with a whitelist active, a
+// failed userinfo fetch (zero profile) must deny — otherwise a userinfo outage
+// becomes an auth bypass.
+func TestHandleAuthCallback_WhitelistFailsClosed(t *testing.T) {
+	s := newAuthTestServer()
+	s.adminUsers = []string{"ada@x.io"}
+	rec := runCallback(t, s, auth.UserProfile{}, errors.New("userinfo down"))
+	assertAuthErrorRedirect(t, rec, "not_allowed")
+	if sid := sessionCookieValue(rec); sid != "" {
+		t.Errorf("fail-closed sign-in still set a session cookie %q", sid)
+	}
+}
+
+// TestRequireAuth_WhitelistRevocation: an existing session whose user is no
+// longer listed is deleted and answered 401 at the requireAuth choke point.
+func TestRequireAuth_WhitelistRevocation(t *testing.T) {
+	s := newAuthTestServer()
+	sess, _ := s.sessions.Create(
+		&auth.TokenData{AccessToken: "tok", ExpiresAt: time.Now().Add(time.Hour)},
+		auth.UserProfile{Sub: "sub-bob", Email: "bob@x.io"},
+	)
+	s.adminUsers = []string{"ada@x.io"}
+
+	h := s.requireAuth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("next handler must not run for a revoked user")
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/api/hubs", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: sess.ID})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", rec.Code)
+	}
+	if _, ok := s.sessions.Get(sess.ID); ok {
+		t.Error("revoked session was not deleted")
+	}
+}
+
+// TestHandleAuthMe_WhitelistRevocation: /api/auth/me sits outside requireAuth,
+// so it must apply the same revocation instead of reporting authenticated:true.
+func TestHandleAuthMe_WhitelistRevocation(t *testing.T) {
+	s := newAuthTestServer()
+	sess, _ := s.sessions.Create(
+		&auth.TokenData{AccessToken: "tok", ExpiresAt: time.Now().Add(time.Hour)},
+		auth.UserProfile{Sub: "sub-bob", Email: "bob@x.io"},
+	)
+	s.adminUsers = []string{"ada@x.io"}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: sess.ID})
+	rec := httptest.NewRecorder()
+	s.handleAuthMe(rec, req)
+
+	if !strings.Contains(rec.Body.String(), `"authenticated":false`) {
+		t.Errorf("revoked me body = %q, want authenticated:false", rec.Body.String())
+	}
+	if _, ok := s.sessions.Get(sess.ID); ok {
+		t.Error("revoked session was not deleted by the me probe")
 	}
 }

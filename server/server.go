@@ -68,6 +68,12 @@ type Server struct {
 	clientID     string
 	clientSecret string
 
+	// adminUsers is the sign-in whitelist (config admin_users / FLS_ADMIN_USERS):
+	// OIDC subs matched exactly, emails case-insensitively. Empty means open
+	// access — the local/LAN posture. Immutable after Run wires it, so handlers
+	// read it without locking. See userAllowed in auth.go.
+	adminUsers []string
+
 	// sessions holds one logged-in identity per browser user; pending holds
 	// in-flight logins between the authorize redirect and the callback.
 	sessions *SessionStore
@@ -172,10 +178,12 @@ func Run(opts Options) error {
 	defer closeLog()
 
 	var clientID, clientSecret, region string
+	var adminUsers []string
 	if opts.Config != nil {
 		clientID = opts.Config.ClientID
 		clientSecret = opts.Config.ClientSecret
 		region = opts.Config.Region
+		adminUsers = opts.Config.AdminUsers
 	} else if opts.CfgErr != nil {
 		logger.Warn("config load failed", "err", opts.CfgErr)
 	}
@@ -192,6 +200,7 @@ func Run(opts Options) error {
 		clientID:         clientID,
 		clientSecret:     clientSecret,
 		region:           region,
+		adminUsers:       adminUsers,
 		sessions:         NewSessionStore(sessionIdleTTL, sessionAbsTTL, logger),
 		pending:          NewPendingStore(pendingTTL),
 		portConfigurable: !opts.Dev,
@@ -214,7 +223,14 @@ func Run(opts Options) error {
 		logger.Info("public URL set: OAuth callback is fixed and other hosts are redirected here", "public_url", s.publicURL)
 	}
 
+	if len(adminUsers) > 0 {
+		logger.Info("admin whitelist active: sign-in restricted to listed users", "entries", len(adminUsers))
+	}
+
 	// Restore sessions from the last run so a restart doesn't log everyone out.
+	// The whitelist predicate must be wired before the load so sessions of
+	// since-removed users are dropped rather than restored.
+	s.sessions.allowed = s.userAllowed
 	if dir, derr := config.Dir(); derr != nil {
 		logger.Warn("sessions: persistence disabled (config dir unavailable)", "err", derr)
 	} else if lerr := s.sessions.EnablePersistence(dir); lerr != nil {

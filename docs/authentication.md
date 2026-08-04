@@ -109,6 +109,57 @@ names a different hub; see [`hubs/STATUS.md`](hubs/STATUS.md)).
 
 ---
 
+## Admin whitelist (`admin_users`)
+
+For shared or public deployments, sign-in can be restricted to a whitelist.
+Every authenticated session currently has full (admin) powers, so a server
+reachable beyond a trusted LAN must not accept arbitrary Autodesk accounts.
+
+**Configuration** — `admin_users` in
+`~/.config/fusionlocalserver/config.json`, or the `FLS_ADMIN_USERS` env var
+(comma-separated; it overrides the file). Entries are Autodesk OIDC subject
+ids (matched exactly) and/or emails (matched case-insensitively — emails
+arrive unnormalized from userinfo, sometimes via the legacy `emailId` claim).
+The whitelist loads regardless of which layer supplied the APS credentials —
+a `config.json` holding only `admin_users` is valid alongside env- or
+build-time credentials.
+
+```json
+{ "admin_users": ["you@example.com", "teammate@example.com"] }
+```
+
+**Semantics**
+
+- **Empty / absent list — open access.** The historical local/LAN posture;
+  existing setups are unaffected.
+- **Non-empty list — only listed users may hold a session.** Enforced at four
+  points, because each is reachable without the others:
+  1. the **OAuth callback** — a non-listed user is denied before a session or
+     cookie exists, and lands back on the login screen with a
+     "not authorized on this server" message (`?auth_error=not_allowed`);
+  2. **`requireAuth`** — a live session whose user was since removed from the
+     list is deleted and answered 401 (the SPA bounces to login);
+  3. **session restore** — persisted sessions of removed users are dropped at
+     startup (the restore path never re-enters the callback);
+  4. **`/api/auth/me`** — sits outside `requireAuth`, so it repeats the check
+     and reports `authenticated: false` for a revoked user.
+- **Fail closed.** The userinfo fetch is best-effort; with a whitelist active,
+  a login whose profile could not be fetched (empty sub + email) is **denied**
+  — otherwise a userinfo outage would bypass the gate.
+
+The list is read at startup only; edit the file (or env) and restart. It is
+deliberately **not** editable from the settings UI: there are no admin roles
+yet, so a UI editor would let any signed-in user edit the list, and the file
+on disk is the recovery path if you lock yourself out.
+
+**Planned relaxation** — a future *restricted role* will let non-listed users
+sign in with the admin-only surfaces (settings, logs, backups/restore, data
+deletion) gated to whitelisted users; see the future-work note in
+[`admin/STATUS.md`](admin/STATUS.md). The `admin_users` name anticipates that
+change — relaxing the gate will be additive, with no config migration.
+
+---
+
 ## Sessions and token refresh
 
 - **Session store** (`server/session.go`) — an in-memory map keyed by an opaque

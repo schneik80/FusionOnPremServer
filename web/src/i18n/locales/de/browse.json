@@ -106,6 +106,7 @@
       "incomplete": "Autodesk hat die Anmeldung nicht abgeschlossen. Bitte versuchen Sie es erneut.",
       "session": "Der Server konnte keine Sitzung starten. Bitte versuchen Sie es erneut.",
       "denied": "Die Anmeldung wurde abgebrochen oder der Zugriff verweigert.",
+      "notAllowed": "Ihr Autodesk-Konto ist auf diesem Server nicht berechtigt. Bitten Sie den Serverbetreiber, Sie hinzuzufügen.",
       "generic": "Anmeldung fehlgeschlagen ({{reason}})."
     },
     "logoAlt": "Logo"

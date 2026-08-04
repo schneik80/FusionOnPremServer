@@ -30,6 +30,8 @@ function authErrorKey(reason: string): string {
       return 'login.errors.session'
     case 'access_denied':
       return 'login.errors.denied'
+    case 'not_allowed':
+      return 'login.errors.notAllowed'
     default:
       return 'login.errors.generic'
   }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/auth"
@@ -67,6 +68,30 @@ type UserDTO struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+// userAllowed reports whether the profile may hold a session under the
+// admin_users whitelist. An empty whitelist means open access (the local/LAN
+// posture). With a whitelist active, an empty profile is denied: the userinfo
+// fetch is best-effort, and treating "unknown user" as allowed would turn a
+// userinfo outage into an auth bypass. Subs match exactly (opaque ids), emails
+// case-insensitively (they arrive unnormalized, sometimes from legacy emailId).
+func (s *Server) userAllowed(p auth.UserProfile) bool {
+	if len(s.adminUsers) == 0 {
+		return true
+	}
+	for _, entry := range s.adminUsers {
+		if entry == "" {
+			continue // never let a blank config entry match an empty profile
+		}
+		if entry == p.Sub {
+			return true
+		}
+		if p.Email != "" && strings.EqualFold(entry, p.Email) {
+			return true
+		}
+	}
+	return false
 }
 
 // isSecure reports whether the request arrived over TLS (directly or via a
@@ -184,6 +209,14 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 		s.logger.Warn("auth: user profile fetch failed (continuing)", "err", perr)
 	}
 
+	// Whitelist gate. Runs after the profile fetch so the deny decision sees
+	// the identity, and before Create so a denied user never gets a cookie.
+	if !s.userAllowed(profile) {
+		s.logger.Warn("auth: sign-in denied (not in admin whitelist)", "sub", profile.Sub, "email", profile.Email)
+		s.redirectAuthError(w, r, "not_allowed")
+		return
+	}
+
 	sess, err := s.sessions.Create(td, profile)
 	if err != nil {
 		s.logger.Error("auth: session creation failed", "err", err)
@@ -214,6 +247,15 @@ func (s *Server) handleAuthMe(w http.ResponseWriter, r *http.Request) {
 	}
 	sess, ok := s.sessions.Get(c.Value)
 	if !ok {
+		writeJSON(w, http.StatusOK, AuthMeDTO{Authenticated: false})
+		return
+	}
+	// This route sits outside requireAuth, so the whitelist revocation check
+	// must be repeated here — otherwise a removed user's SPA still boots as
+	// "authenticated". Same delete-and-clear as requireAuth, minus the 401.
+	if !s.userAllowed(sess.Profile) {
+		s.sessions.Delete(c.Value)
+		clearCookie(w, sessionCookieName, isSecure(r))
 		writeJSON(w, http.StatusOK, AuthMeDTO{Authenticated: false})
 		return
 	}
@@ -250,6 +292,16 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		if !ok {
 			clearCookie(w, sessionCookieName, isSecure(r))
 			writeError(w, http.StatusUnauthorized, "session expired or unknown")
+			return
+		}
+		// A live session whose user was removed from the whitelist is revoked
+		// here — the choke point every data route passes through. 401 (not 403)
+		// so the SPA bounces to the login screen, where a re-login attempt gets
+		// the explained not_allowed denial.
+		if !s.userAllowed(sess.Profile) {
+			s.sessions.Delete(c.Value)
+			clearCookie(w, sessionCookieName, isSecure(r))
+			writeError(w, http.StatusUnauthorized, "access revoked")
 			return
 		}
 		tok, err := s.sessionToken(r.Context(), sess)

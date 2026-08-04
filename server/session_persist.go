@@ -132,6 +132,11 @@ func (s *SessionStore) load() error {
 	now := time.Now()
 	s.mu.Lock()
 	for _, ps := range snap {
+		if s.allowed != nil && !s.allowed(ps.Profile) {
+			s.logger.Info("sessions: dropping persisted session (not in admin whitelist)",
+				"sub", ps.Profile.Sub, "email", ps.Profile.Email)
+			continue
+		}
 		sess := &Session{ID: ps.ID, Profile: ps.Profile, CreatedAt: ps.CreatedAt, lastSeen: ps.LastSeen}
 		sess.setSelectedHub(ps.SelectedHubID, ps.SelectedHubName)
 		sess.token.Store(ps.Token)

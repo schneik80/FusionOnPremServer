@@ -106,6 +106,7 @@
       "incomplete": "Autodesk n'a pas finalisé la connexion. Veuillez réessayer.",
       "session": "Le serveur n'a pas pu démarrer de session. Veuillez réessayer.",
       "denied": "La connexion a été annulée ou l'accès a été refusé.",
+      "notAllowed": "Votre compte Autodesk n'est pas autorisé sur ce serveur. Demandez au propriétaire du serveur de vous ajouter.",
       "generic": "Échec de la connexion ({{reason}})."
     },
     "logoAlt": "Logo"
