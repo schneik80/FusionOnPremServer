@@ -163,6 +163,13 @@ type Server struct {
 	whiteboardPatchLim *chat.Limiter
 	notifOpLim         *chat.Limiter
 
+	// authLim / authMeLim meter the pre-session auth routes. Keyed by client
+	// IP rather than session id — there is no session yet at login — which is
+	// why the X-Forwarded-For half of the trusted-proxy work matters: behind a
+	// reverse proxy every RemoteAddr is the proxy's.
+	authLim   *chat.Limiter
+	authMeLim *chat.Limiter
+
 	// uploads tracks background file-upload jobs (per-session; see uploads.go).
 	uploads *uploadManager
 
@@ -285,6 +292,7 @@ func Run(opts Options) error {
 	// generous 2/s burst 10 as the other app op limiters. Reads (the polled
 	// list) are unmetered here — react-query paces them.
 	s.notifOpLim = chat.NewLimiter(2, 10)
+	s.ensureAuthLimiters()
 
 	// Per-hub store sets, rooted under <config>/hubs/<slug>/ and built
 	// lazily when a session locks to a hub. Nil (all local-data endpoints

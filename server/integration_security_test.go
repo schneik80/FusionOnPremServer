@@ -163,6 +163,66 @@ func TestIntegration_OAuthCallbackRejectsForgedState(t *testing.T) {
 	}
 }
 
+// The pre-session auth routes are metered per client IP (routes.go perIP).
+// There is still no password / password-reset endpoint to brute-force — auth is
+// delegated OAuth — so what this bounds is login-flow churn: repeated
+// /api/auth/login mints PKCE state, and repeated /api/auth/callback would drive
+// token exchanges. A burst must start getting 429s; the app routes behind them
+// stay session-limited as before.
+func TestIntegration_AuthRoutesAreRateLimited(t *testing.T) {
+	srv := httptest.NewServer(newIntegrationServer().routes())
+	defer srv.Close()
+
+	// Don't follow the login redirect out to Autodesk.
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+
+	const burst = 30
+	throttled, served := 0, 0
+	for i := 0; i < burst; i++ {
+		res, err := client.Get(srv.URL + "/api/auth/login")
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		switch res.StatusCode {
+		case http.StatusTooManyRequests:
+			throttled++
+		case http.StatusFound:
+			served++
+		default:
+			t.Fatalf("unexpected status %d from /api/auth/login", res.StatusCode)
+		}
+	}
+	if throttled == 0 {
+		t.Errorf("no request in a burst of %d was throttled; the auth limiter is not wired", burst)
+	}
+	if served == 0 {
+		t.Error("every request was throttled; the limiter's burst is too tight for a real login")
+	}
+	t.Logf("auth limiter: %d/%d served, %d throttled", served, burst, throttled)
+}
+
+// /api/meta stays deliberately unmetered: it is the SPA's server-description
+// probe, cheap and session-free, and metering it would only add a way to lock
+// a shared NAT out of the login screen.
+func TestIntegration_MetaIsNotRateLimited(t *testing.T) {
+	srv := httptest.NewServer(newIntegrationServer().routes())
+	defer srv.Close()
+
+	for i := 0; i < 60; i++ {
+		res, err := http.Get(srv.URL + "/api/meta")
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode == http.StatusTooManyRequests {
+			t.Fatalf("/api/meta throttled after %d requests", i+1)
+		}
+	}
+}
+
 // TestIntegration_CrossSiteMutationBlocked is the CSRF backstop end-to-end: a
 // mutating request carrying a foreign Origin is refused by the middleware,
 // before the auth gate — so it can't even probe which routes exist.
@@ -192,34 +252,4 @@ func TestIntegration_CrossSiteMutationBlocked(t *testing.T) {
 	if body.Code != "forbidden" {
 		t.Errorf("error code = %q, want forbidden", body.Code)
 	}
-}
-
-// CHARACTERIZATION (not a pass/fail security assertion): the server currently
-// has NO application-level rate limiter on any endpoint, and there is no
-// password / password-reset endpoint to brute-force (auth is delegated OAuth).
-// This test documents that reality: a burst of requests all succeed, none are
-// throttled (429). It is the harness where a real limiter test would live — once
-// a limiter is added, flip the expectation to require a 429 within the burst.
-func TestIntegration_NoRateLimiterPresent_Characterization(t *testing.T) {
-	srv := httptest.NewServer(newIntegrationServer().routes())
-	defer srv.Close()
-
-	const burst = 60
-	throttled := 0
-	for i := 0; i < burst; i++ {
-		res, err := http.Get(srv.URL + "/api/meta")
-		if err != nil {
-			t.Fatal(err)
-		}
-		res.Body.Close()
-		if res.StatusCode == http.StatusTooManyRequests {
-			throttled++
-		}
-	}
-	// Today: zero throttling. We assert the *current* contract so the test is
-	// honest and green; the t.Logf flags the gap for whoever reads the output.
-	if throttled != 0 {
-		t.Errorf("a rate limiter now triggers (%d/%d throttled) — update this test to assert the limiter's policy", throttled, burst)
-	}
-	t.Logf("characterization: %d/%d requests served, 0 throttled — no app-level rate limiter exists", burst, burst)
 }

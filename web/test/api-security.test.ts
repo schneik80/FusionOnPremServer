@@ -18,9 +18,8 @@
  * Notes on scope, stated honestly:
  *  - There is NO password or password-reset endpoint (auth is delegated OAuth),
  *    so there is nothing to brute-force with credentials.
- *  - There is NO application-level rate limiter. The rate-limit block below is a
- *    CHARACTERIZATION probe: it reports how many of a burst were throttled and
- *    currently expects zero. When a limiter is added, flip the expectation.
+ *  - The pre-session auth routes ARE rate limited per client IP, and app
+ *    mutations per session. /api/meta is deliberately left unmetered.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest'
@@ -142,10 +141,41 @@ describe('boundary values', () => {
   }
 })
 
-// (3) Rate limiting / brute force — CHARACTERIZATION ONLY.
-// No password endpoint exists and no limiter is configured. We burst the public
-// meta route and report throttling. Currently expect zero 429s; this is the
-// hook to tighten once a limiter ships.
+// (3) Rate limiting / brute force. There is still no password endpoint to
+// brute-force (auth is delegated OAuth), so what is bounded here is login-flow
+// churn: the pre-session auth routes are metered per client IP, while the
+// public meta probe stays unmetered.
+describe('rate limiting', () => {
+  it('throttles a burst on the pre-session auth routes', async () => {
+    if (!serverUp) return
+    const burst = 30
+    const statuses = await Promise.all(
+      Array.from({ length: burst }, () =>
+        agent()
+          .get('/api/auth/login')
+          .redirects(0)
+          .then((r) => r.status)
+          .catch((e) => e.status ?? 0),
+      ),
+    )
+    const throttled = statuses.filter((s) => s === 429).length
+    // eslint-disable-next-line no-console
+    console.warn(`auth rate limit: ${throttled}/${burst} throttled`)
+    expect(throttled).toBeGreaterThan(0)
+    expect(statuses.some((s) => s === 302)).toBe(true) // a real login still gets through
+    expect(statuses.every((s) => s < 500)).toBe(true)
+  })
+
+  it('leaves /api/meta unmetered', async () => {
+    if (!serverUp) return
+    const statuses = await Promise.all(
+      Array.from({ length: 60 }, () => agent().get('/api/meta').then((r) => r.status)),
+    )
+    expect(statuses.filter((s) => s === 429)).toHaveLength(0)
+    expect(statuses.every((s) => s < 500)).toBe(true)
+  })
+})
+
 describe('CSRF backstop', () => {
   it('blocks a mutating request carrying a foreign Origin', async () => {
     if (!serverUp) return
@@ -154,20 +184,5 @@ describe('CSRF backstop', () => {
       .send({ id: 'x', kind: 'design' })
     expect(res.status).toBe(403)
     expect(res.body?.code).toBe('forbidden')
-  })
-})
-
-describe('rate limiting (characterization — no limiter present today)', () => {
-  it('documents that a burst is not throttled', async () => {
-    if (!serverUp) return
-    const burst = 60
-    const statuses = await Promise.all(
-      Array.from({ length: burst }, () => agent().get('/api/meta').then((r) => r.status)),
-    )
-    const throttled = statuses.filter((s) => s === 429).length
-    // eslint-disable-next-line no-console
-    console.warn(`rate-limit characterization: ${throttled}/${burst} throttled (no limiter ⇒ expect 0)`)
-    expect(throttled).toBe(0)
-    expect(statuses.every((s) => s < 500)).toBe(true)
   })
 })

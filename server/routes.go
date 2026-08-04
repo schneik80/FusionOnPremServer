@@ -1,6 +1,10 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/schneik80/fusionlocalserver/chat"
+)
 
 // routes builds the full HTTP handler: the /api/* JSON endpoints plus the
 // static SPA catch-all, wrapped in the middleware chain. The Go 1.22 ServeMux
@@ -8,15 +12,24 @@ import "net/http"
 // over the "/" catch-all, and "/api/" backstops any unmatched API path with a
 // JSON 404 rather than letting it fall through to the SPA shell.
 func (s *Server) routes() http.Handler {
+	// The auth routes are metered below, so their buckets must exist before
+	// they are wired. Run builds them with the rest; doing it here too means a
+	// hand-built Server (tests) is metered rather than dereferencing nil.
+	s.ensureAuthLimiters()
+
 	mux := http.NewServeMux()
 
 	// Public: server self-description, the auth flow, and the /api 404
 	// backstop. These must be reachable before a user has a session.
+	//
+	// The auth routes are the one place a caller acts without a session, so
+	// they are metered per client IP (perIP) rather than per session like the
+	// app routes. Everything behind them is already limited that way.
 	mux.HandleFunc("GET /api/meta", s.handleMeta)
-	mux.HandleFunc("GET /api/auth/login", s.handleAuthLogin)
-	mux.HandleFunc("GET /api/auth/callback", s.handleAuthCallback)
-	mux.HandleFunc("GET /api/auth/me", s.handleAuthMe)
-	mux.HandleFunc("POST /api/auth/logout", s.handleAuthLogout)
+	mux.HandleFunc("GET /api/auth/login", s.perIP(s.authLim, s.handleAuthLogin))
+	mux.HandleFunc("GET /api/auth/callback", s.perIP(s.authLim, s.handleAuthCallback))
+	mux.HandleFunc("GET /api/auth/me", s.perIP(s.authMeLim, s.handleAuthMe))
+	mux.HandleFunc("POST /api/auth/logout", s.perIP(s.authLim, s.handleAuthLogout))
 	// The sign-in logo. Public because the screen that shows it renders before
 	// anyone has a session — see branding.go for why this is server-wide
 	// branding rather than hub data, and why nothing confidential belongs in
@@ -239,4 +252,32 @@ func (s *Server) routes() http.Handler {
 	// check sits after the canonical redirect so an off-host client is bounced
 	// to the canonical origin before being judged against it.
 	return s.recoverPanic(s.logRequest(s.securityHeaders(s.canonicalRedirect(s.requireSameOrigin(s.devCORS(mux))))))
+}
+
+// ensureAuthLimiters builds the pre-session auth buckets if they aren't set.
+// Keyed by client IP (there is no session yet at login): starting a login or
+// logging out is a human action, so 10 burst refilling one per 2s sits far
+// above a real user and far below a scripted flood. /api/auth/me gets its own
+// generous bucket — useAuthMe (web/src/api/queries.ts) sets staleTime 0, so
+// the SPA re-probes it on every window focus.
+func (s *Server) ensureAuthLimiters() {
+	if s.authLim == nil {
+		s.authLim = chat.NewLimiter(0.5, 10)
+	}
+	if s.authMeLim == nil {
+		s.authMeLim = chat.NewLimiter(5, 60)
+	}
+}
+
+// perIP meters a handler with a client-IP-keyed token bucket, replying 429
+// (code rate_limited) when the bucket is dry. Used for the pre-session auth
+// routes; session-keyed limiting inside the handlers covers everything else.
+func (s *Server) perIP(l *chat.Limiter, h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !l.Allow(s.clientIP(r)) {
+			writeError(w, http.StatusTooManyRequests, "too many requests")
+			return
+		}
+		h(w, r)
+	}
 }
