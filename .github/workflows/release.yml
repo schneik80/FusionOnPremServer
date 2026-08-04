@@ -196,3 +196,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${GITHUB_REF_NAME}" "${PKG_NAME}" --clobber
+
+  # Deploy the freshly released linux binary to the production server. Stable
+  # tags only: prerelease tags (v1.2.3-rc.1) contain '-' — the same semver
+  # heuristic GoReleaser's `prerelease: auto` uses. Redeploy or roll back any
+  # tag by hand from the Deploy workflow's "Run workflow" button. Deliberately
+  # not gated on mac-installer — a notarization flake must not block the
+  # server deploy. `needs: release` guarantees the linux archive and
+  # checksums.txt are already uploaded before the deploy job downloads them.
+  deploy:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit

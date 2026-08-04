@@ -1,0 +1,122 @@
+name: Deploy
+
+# Deploys a released binary to the production server over SSH. Called from
+# release.yml on every stable tag, and runnable by hand ("Run workflow") to
+# redeploy or roll back any released tag.
+#
+# Repo configuration it needs:
+#   secret   DEPLOY_SSH_KEY     — private key for the server's `deploy` user
+#   variable DEPLOY_HOST        — the server's hostname (e.g. fls.example.com)
+#   variable DEPLOY_KNOWN_HOSTS — pinned host keys (`ssh-keyscan <host>` output)
+#
+# Server-side contract (deploy/bootstrap.sh): the `deploy` user owns
+# /opt/fusionlocalserver/bin and may `sudo systemctl restart
+# fusionlocalserver.service` — nothing else.
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to deploy (e.g. v1.4.2)"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to deploy (e.g. v1.4.2). Deploying an older tag is the rollback path — read docs/deploy/production-server.md#rollback first: local stores use forward-only schema migrations."
+        required: true
+        type: string
+
+permissions:
+  contents: read # gh release download from this repo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Serialize deploys: a second one queues instead of interleaving with a
+    # running one. Never cancel an in-flight deploy.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      TAG: ${{ inputs.tag }}
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+    steps:
+      - name: Check configuration and resolve version
+        env:
+          HAVE_KEY: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+          HAVE_HOSTKEYS: ${{ vars.DEPLOY_KNOWN_HOSTS != '' }}
+        run: |
+          fail=0
+          [ -n "${DEPLOY_HOST}" ] || { echo "::error::Actions variable DEPLOY_HOST is not set (the server's hostname)."; fail=1; }
+          [ "${HAVE_KEY}" = "true" ] || { echo "::error::Secret DEPLOY_SSH_KEY is not set (the deploy user's private key)."; fail=1; }
+          [ "${HAVE_HOSTKEYS}" = "true" ] || { echo "::error::Actions variable DEPLOY_KNOWN_HOSTS is not set (ssh-keyscan output)."; fail=1; }
+          [ "${fail}" = 0 ] || exit 1
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Download release asset and verify checksum
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "fusionlocalserver-${VERSION}-linux-amd64.tar.gz" \
+            --pattern "checksums.txt"
+          # --check errors out if the listed file is missing, so a rename in
+          # .goreleaser.yaml cannot slip through unverified.
+          sha256sum --check --ignore-missing checksums.txt
+          tar -xzf "fusionlocalserver-${VERSION}-linux-amd64.tar.gz" fusionlocalserver
+
+      - name: Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pinned host keys: StrictHostKeyChecking=yes below means a
+          # mismatching server identity fails the deploy instead of trusting
+          # whatever answers on the public internet.
+          printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+
+      - name: Copy binary to server
+        run: |
+          scp -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o BatchMode=yes \
+            fusionlocalserver \
+            "deploy@${DEPLOY_HOST}:/opt/fusionlocalserver/bin/fusionlocalserver.new"
+
+      - name: Install atomically and restart service
+        run: |
+          ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o BatchMode=yes \
+            "deploy@${DEPLOY_HOST}" /bin/bash <<'EOF'
+          set -euo pipefail
+          cd /opt/fusionlocalserver/bin
+          chmod 0755 fusionlocalserver.new
+          # Keep the running binary's inode reachable as .prev for emergency
+          # manual rollback (see the runbook's schema-migration warning).
+          if [ -f fusionlocalserver ]; then
+            ln -f fusionlocalserver fusionlocalserver.prev
+          fi
+          mv -f fusionlocalserver.new fusionlocalserver   # atomic: same filesystem
+          sudo systemctl restart fusionlocalserver.service
+          EOF
+
+      - name: Smoke test
+        run: |
+          # /api/meta is public by design and reports main.version, which
+          # GoReleaser sets to the tag without the leading v — so this proves
+          # the NEW binary is live behind the real TLS path, not merely that
+          # something answered.
+          for i in $(seq 1 15); do
+            got="$(curl -fsS --max-time 5 "https://${DEPLOY_HOST}/api/meta" | jq -r .version || true)"
+            if [ "${got}" = "${VERSION}" ]; then
+              echo "Deployed: /api/meta reports version ${got}."
+              exit 0
+            fi
+            echo "attempt ${i}/15: got '${got:-<no response>}', want '${VERSION}'; retrying in 2s..."
+            sleep 2
+          done
+          echo "::error::Smoke test failed: https://${DEPLOY_HOST}/api/meta never reported ${VERSION}."
+          echo "::error::Inspect with: ssh into the server, 'sudo journalctl -u fusionlocalserver -n 100' (needs an admin account; the deploy user's sudo is restart-only). The previous binary is kept at /opt/fusionlocalserver/bin/fusionlocalserver.prev — see docs/deploy/production-server.md#rollback before swapping back."
+          exit 1

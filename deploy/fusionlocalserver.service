@@ -1,0 +1,29 @@
+# fusionlocalserver systemd unit — install to /etc/systemd/system/ (bootstrap.sh
+# does this). The service runs as the unprivileged `fls` system user; all app
+# data (local stores, encrypted sessions, logs) lives under
+# /var/lib/fusionlocalserver/.config/fusionlocalserver.
+#
+# /etc/fusionlocalserver/env is root:root 0600 — systemd reads it before
+# dropping privileges, so neither `fls` nor the `deploy` user can read the APS
+# client secret at rest.
+
+[Unit]
+Description=Fusion Local Server (APS BFF)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=fls
+Group=fls
+EnvironmentFile=/etc/fusionlocalserver/env
+ExecStart=/opt/fusionlocalserver/bin/fusionlocalserver -public-url ${PUBLIC_URL}
+Restart=on-failure
+RestartSec=2
+# The server drains SSE streams and shuts down within 10s of SIGTERM; give it
+# a little margin before systemd escalates to SIGKILL.
+TimeoutStopSec=15
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+# The deploy user's single privilege: restarting the service after a release
+# install. Installed by bootstrap.sh to /etc/sudoers.d/deploy-fusionlocalserver
+# (mode 0440, after a visudo -cf syntax check). Everything else the deploy user
+# does — the atomic binary swap in /opt/fusionlocalserver/bin — needs no root,
+# because that directory is owned by the deploy user.
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart fusionlocalserver.service

@@ -1,0 +1,16 @@
+# Caddy site block for fusionlocalserver — merge into /etc/caddy/Caddyfile and
+# replace the hostname with your real subdomain (the same one in PUBLIC_URL and
+# the APS callback registration).
+#
+# Caddy obtains and renews the Let's Encrypt certificate automatically (the DNS
+# A record must already point here and ports 80/443 must be open), redirects
+# HTTP to HTTPS, preserves the Host header, and sets X-Forwarded-Proto — which
+# the app uses to mark its session cookie Secure and emit HSTS. The app itself
+# listens on plain-HTTP :8080 (no -tls) and stays firewalled from the internet.
+#
+# If you change the app's port in Settings, update the target here too —
+# otherwise Caddy keeps proxying to a port nothing listens on.
+
+fls.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
