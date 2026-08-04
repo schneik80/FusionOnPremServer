@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/signal"
@@ -47,9 +48,14 @@ type Options struct {
 	// from it (so only one callback need be registered with APS) and requests
 	// arriving via any other host are redirected to it.
 	PublicURL string
-	Config    *config.Config
-	CfgErr    error
-	Version   string
+	// TrustedProxies lists IPs/CIDRs of reverse proxies whose X-Forwarded-*
+	// headers may be believed. Loopback is always trusted (the same-host Caddy
+	// deployment), so this is only needed when the proxy is another machine.
+	// See server/proxy.go.
+	TrustedProxies []string
+	Config         *config.Config
+	CfgErr         error
+	Version        string
 }
 
 // Server holds the runtime state shared across handlers.
@@ -91,6 +97,11 @@ type Server struct {
 	// (the callback is then derived per request from r.Host).
 	publicURL    string
 	publicOrigin string
+
+	// trustedProxies are the reverse-proxy prefixes whose X-Forwarded-*
+	// headers are honored, on top of loopback which is always trusted.
+	// Resolved once in Run from Options.TrustedProxies; see proxy.go.
+	trustedProxies []netip.Prefix
 
 	// portConfigurable gates the runtime port-change endpoint. The server owns
 	// the port (and so derives the bind address from server.json) unless it is
@@ -221,6 +232,18 @@ func Run(opts Options) error {
 		s.publicOrigin = u.Scheme + "://" + u.Host
 		s.publicURL = s.publicOrigin
 		logger.Info("public URL set: OAuth callback is fixed and other hosts are redirected here", "public_url", s.publicURL)
+	}
+
+	// Reverse proxies whose X-Forwarded-* headers we believe. Loopback is
+	// trusted unconditionally (the same-host Caddy front end), so this only
+	// needs setting when the proxy runs elsewhere.
+	trusted, terr := parseTrustedProxies(opts.TrustedProxies)
+	if terr != nil {
+		return terr
+	}
+	s.trustedProxies = trusted
+	if len(trusted) > 0 {
+		logger.Info("trusting X-Forwarded-* headers from configured proxies", "prefixes", len(trusted))
 	}
 
 	if len(adminUsers) > 0 {

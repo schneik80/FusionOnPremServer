@@ -94,23 +94,6 @@ func (s *Server) userAllowed(p auth.UserProfile) bool {
 	return false
 }
 
-// isSecure reports whether the request arrived over TLS (directly or via a
-// terminating proxy). The session cookie's Secure flag is set from this, so the
-// same binary works over plain-HTTP LAN today and auto-hardens behind TLS.
-func isSecure(r *http.Request) bool {
-	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
-}
-
-// requestOrigin is the external scheme://host the client used to reach the
-// server, honoring a TLS-terminating proxy via X-Forwarded-Proto.
-func requestOrigin(r *http.Request) string {
-	scheme := "http"
-	if isSecure(r) {
-		scheme = "https"
-	}
-	return scheme + "://" + r.Host
-}
-
 // callbackURI returns the OAuth redirect_uri. With a canonical public URL
 // configured it is fixed — so only that one callback need be registered on the
 // APS app, regardless of how each client connects. Otherwise it is derived from
@@ -118,7 +101,7 @@ func requestOrigin(r *http.Request) string {
 func (s *Server) callbackURI(r *http.Request) string {
 	base := s.publicURL
 	if base == "" {
-		base = requestOrigin(r)
+		base = s.requestOrigin(r)
 	}
 	return base + "/api/auth/callback"
 }
@@ -158,7 +141,7 @@ func (s *Server) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	redirectURI := s.callbackURI(r)
 	s.pending.Put(state, pendingEntry{verifier: verifier, redirectURI: redirectURI, createdAt: time.Now()})
-	setCookie(w, pendingCookieName, state, int(pendingTTL.Seconds()), isSecure(r))
+	setCookie(w, pendingCookieName, state, int(pendingTTL.Seconds()), s.isSecure(r))
 	http.Redirect(w, r, auth.BuildAuthURL(s.clientID, challenge, redirectURI, state), http.StatusFound)
 }
 
@@ -178,7 +161,7 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// pending cookie regardless.
 	state := q.Get("state")
 	pc, cerr := r.Cookie(pendingCookieName)
-	clearCookie(w, pendingCookieName, isSecure(r))
+	clearCookie(w, pendingCookieName, s.isSecure(r))
 	if cerr != nil || state == "" || pc.Value != state {
 		s.redirectAuthError(w, r, "state_mismatch")
 		return
@@ -223,7 +206,7 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 		s.redirectAuthError(w, r, "session_failed")
 		return
 	}
-	setCookie(w, sessionCookieName, sess.ID, int(sessionAbsTTL.Seconds()), isSecure(r))
+	setCookie(w, sessionCookieName, sess.ID, int(sessionAbsTTL.Seconds()), s.isSecure(r))
 	s.logger.Info("auth: login complete", "user", profile.Email)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
@@ -233,7 +216,7 @@ func (s *Server) handleAuthLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookieName); err == nil {
 		s.sessions.Delete(c.Value)
 	}
-	clearCookie(w, sessionCookieName, isSecure(r))
+	clearCookie(w, sessionCookieName, s.isSecure(r))
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -255,7 +238,7 @@ func (s *Server) handleAuthMe(w http.ResponseWriter, r *http.Request) {
 	// "authenticated". Same delete-and-clear as requireAuth, minus the 401.
 	if !s.userAllowed(sess.Profile) {
 		s.sessions.Delete(c.Value)
-		clearCookie(w, sessionCookieName, isSecure(r))
+		clearCookie(w, sessionCookieName, s.isSecure(r))
 		writeJSON(w, http.StatusOK, AuthMeDTO{Authenticated: false})
 		return
 	}
@@ -290,7 +273,7 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		}
 		sess, ok := s.sessions.Get(c.Value)
 		if !ok {
-			clearCookie(w, sessionCookieName, isSecure(r))
+			clearCookie(w, sessionCookieName, s.isSecure(r))
 			writeError(w, http.StatusUnauthorized, "session expired or unknown")
 			return
 		}
@@ -300,14 +283,14 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		// the explained not_allowed denial.
 		if !s.userAllowed(sess.Profile) {
 			s.sessions.Delete(c.Value)
-			clearCookie(w, sessionCookieName, isSecure(r))
+			clearCookie(w, sessionCookieName, s.isSecure(r))
 			writeError(w, http.StatusUnauthorized, "access revoked")
 			return
 		}
 		tok, err := s.sessionToken(r.Context(), sess)
 		if err != nil {
 			s.sessions.Delete(c.Value)
-			clearCookie(w, sessionCookieName, isSecure(r))
+			clearCookie(w, sessionCookieName, s.isSecure(r))
 			writeError(w, http.StatusUnauthorized, "re-authentication required")
 			return
 		}

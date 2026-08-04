@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/schneik80/fusionlocalserver/config"
 	"github.com/schneik80/fusionlocalserver/internal/appver"
@@ -24,6 +25,7 @@ func main() {
 		tlsCert   = flag.String("tls-cert", "", "path to a TLS certificate (PEM); requires -tls and -tls-key")
 		tlsKey    = flag.String("tls-key", "", "path to the TLS private key (PEM); requires -tls and -tls-cert")
 		publicURL = flag.String("public-url", "", "canonical external base URL clients use, e.g. https://fusion.lan:8080; when set, the OAuth redirect_uri is built from it (register just that one callback) and requests to other hosts are redirected to it")
+		trustedPx = flag.String("trusted-proxy", "", "comma-separated IPs/CIDRs of reverse proxies whose X-Forwarded-Proto/-Host/-For headers are trusted; loopback is always trusted, so a same-host proxy (see deploy/Caddyfile.example) needs nothing here")
 	)
 	flag.Parse()
 
@@ -37,17 +39,29 @@ func main() {
 	cfg, cfgErr := config.Load()
 
 	if err := server.Run(server.Options{
-		Verbose:   *verbose,
-		Dev:       *dev,
-		TLS:       *tls,
-		TLSCert:   *tlsCert,
-		TLSKey:    *tlsKey,
-		PublicURL: *publicURL,
-		Config:    cfg,
-		CfgErr:    cfgErr,
-		Version:   version,
+		Verbose:        *verbose,
+		Dev:            *dev,
+		TLS:            *tls,
+		TLSCert:        *tlsCert,
+		TLSKey:         *tlsKey,
+		PublicURL:      *publicURL,
+		TrustedProxies: splitList(*trustedPx),
+		Config:         cfg,
+		CfgErr:         cfgErr,
+		Version:        version,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// splitList turns a comma-separated flag value into a slice, dropping empties.
+func splitList(v string) []string {
+	var out []string
+	for _, p := range strings.Split(v, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

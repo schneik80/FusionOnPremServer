@@ -134,6 +134,13 @@ schema guard makes a blind rollback worse than a loud failure.
   their next request; sessions of removed users are also dropped at restart.
 - **Port**: keep the app on 8080. Changing it in Settings breaks Caddy's
   `reverse_proxy 127.0.0.1:8080` target until the Caddyfile is updated.
+- **Reverse proxy on another host**: the app believes `X-Forwarded-Proto` /
+  `-Host` / `-For` only from a trusted peer, and loopback is always trusted —
+  so the standard same-VM Caddy needs no configuration. If the proxy ever moves
+  to a different machine, add `-trusted-proxy <ip-or-cidr>` (comma-separated) to
+  the systemd unit's `ExecStart`; without it the session cookie loses its
+  `Secure` flag, HSTS stops being emitted, and every user shares one
+  rate-limiter bucket (the proxy's address).
 - **Monitoring**: `GET /api/meta` is the health probe (there is no dedicated
   health endpoint). `sudo journalctl -u fusionlocalserver` for logs; the app
   also rotates its own `server.log` in the data dir.

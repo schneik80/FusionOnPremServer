@@ -110,21 +110,44 @@ func TestEnsureSelfSignedCert_CoversExtraHostAndRegenerates(t *testing.T) {
 }
 
 func TestIsSecure(t *testing.T) {
+	s := newAuthTestServer()
+
 	plain := httptest.NewRequest(http.MethodGet, "/", nil)
-	if isSecure(plain) {
+	if s.isSecure(plain) {
 		t.Error("plain HTTP request reported secure")
 	}
 
 	tlsReq := httptest.NewRequest(http.MethodGet, "/", nil)
 	tlsReq.TLS = &tls.ConnectionState{}
-	if !isSecure(tlsReq) {
+	if !s.isSecure(tlsReq) {
 		t.Error("TLS request reported not secure")
 	}
 
+	// X-Forwarded-Proto is honored only from a trusted hop. httptest's default
+	// peer (192.0.2.1) is a stranger: believing it would let any LAN client
+	// force the Secure cookie flag and HSTS.
+	spoofed := httptest.NewRequest(http.MethodGet, "/", nil)
+	spoofed.Header.Set("X-Forwarded-Proto", "https")
+	if s.isSecure(spoofed) {
+		t.Error("X-Forwarded-Proto from an untrusted peer reported secure")
+	}
+
+	// The real deployment: Caddy terminates TLS and proxies from loopback.
 	fwd := httptest.NewRequest(http.MethodGet, "/", nil)
+	fwd.RemoteAddr = "127.0.0.1:34567"
 	fwd.Header.Set("X-Forwarded-Proto", "https")
-	if !isSecure(fwd) {
-		t.Error("X-Forwarded-Proto=https request reported not secure")
+	if !s.isSecure(fwd) {
+		t.Error("X-Forwarded-Proto from a loopback proxy reported not secure")
+	}
+
+	// An explicitly configured off-host proxy is trusted too.
+	cfg := newAuthTestServer()
+	cfg.trustedProxies = mustPrefixes(t, "10.1.2.0/24")
+	viaLAN := httptest.NewRequest(http.MethodGet, "/", nil)
+	viaLAN.RemoteAddr = "10.1.2.9:5000"
+	viaLAN.Header.Set("X-Forwarded-Proto", "https")
+	if !cfg.isSecure(viaLAN) {
+		t.Error("X-Forwarded-Proto from a configured trusted proxy reported not secure")
 	}
 }
 

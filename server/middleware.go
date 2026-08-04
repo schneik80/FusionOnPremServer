@@ -65,7 +65,7 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 			"status", rec.status,
 			"bytes", rec.bytes,
 			"dur_ms", time.Since(start).Milliseconds(),
-			"remote", clientIP(r),
+			"remote", s.clientIP(r),
 		)
 	})
 }
@@ -116,7 +116,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Content-Security-Policy", csp)
-		if isSecure(r) {
+		if s.isSecure(r) {
 			h.Set("Strict-Transport-Security", "max-age=31536000")
 		}
 		next.ServeHTTP(w, r)
@@ -132,7 +132,7 @@ func (s *Server) canonicalRedirect(next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if requestOrigin(r) != s.publicOrigin {
+		if s.requestOrigin(r) != s.publicOrigin {
 			http.Redirect(w, r, s.publicURL+r.URL.RequestURI(), http.StatusFound)
 			return
 		}
@@ -157,13 +157,4 @@ func (s *Server) devCORS(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-// clientIP returns the remote host without the ephemeral port.
-func clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }

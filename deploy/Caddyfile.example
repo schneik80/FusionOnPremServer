@@ -4,9 +4,15 @@
 #
 # Caddy obtains and renews the Let's Encrypt certificate automatically (the DNS
 # A record must already point here and ports 80/443 must be open), redirects
-# HTTP to HTTPS, preserves the Host header, and sets X-Forwarded-Proto — which
-# the app uses to mark its session cookie Secure and emit HSTS. The app itself
-# listens on plain-HTTP :8080 (no -tls) and stays firewalled from the internet.
+# HTTP to HTTPS, preserves the Host header, and sets X-Forwarded-Proto/-For —
+# which the app uses to mark its session cookie Secure, emit HSTS, and key its
+# per-IP auth rate limiter on the real client rather than on the proxy. The app
+# itself listens on plain-HTTP :8080 (no -tls) and stays firewalled from the
+# internet.
+#
+# Those forwarded headers are honored only from a trusted peer, and loopback is
+# always trusted — so proxying from this same VM needs nothing extra. A proxy on
+# another host must be named with the app's -trusted-proxy flag.
 #
 # If you change the app's port in Settings, update the target here too —
 # otherwise Caddy keeps proxying to a port nothing listens on.
