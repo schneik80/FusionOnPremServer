@@ -146,6 +146,17 @@ describe('boundary values', () => {
 // No password endpoint exists and no limiter is configured. We burst the public
 // meta route and report throttling. Currently expect zero 429s; this is the
 // hook to tighten once a limiter ships.
+describe('CSRF backstop', () => {
+  it('blocks a mutating request carrying a foreign Origin', async () => {
+    if (!serverUp) return
+    const res = await authed(agent().post('/api/pins'))
+      .set('Origin', 'http://evil.example')
+      .send({ id: 'x', kind: 'design' })
+    expect(res.status).toBe(403)
+    expect(res.body?.code).toBe('forbidden')
+  })
+})
+
 describe('rate limiting (characterization — no limiter present today)', () => {
   it('documents that a burst is not throttled', async () => {
     if (!serverUp) return

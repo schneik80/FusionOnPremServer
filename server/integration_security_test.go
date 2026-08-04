@@ -1,7 +1,8 @@
 package server
 
 // QA security: black-box integration tests through the full middleware stack
-// (recover -> log -> securityHeaders -> canonicalRedirect -> devCORS -> mux).
+// (recover -> log -> securityHeaders -> canonicalRedirect -> requireSameOrigin
+// -> devCORS -> mux).
 // Each test drives a real httptest.Server built from s.routes(), so it exercises
 // routing, auth gating, headers, and the OAuth callback exactly as a client hits
 // them. No live APS calls are made: the data routes are tested unauthenticated
@@ -159,6 +160,37 @@ func TestIntegration_OAuthCallbackRejectsForgedState(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestIntegration_CrossSiteMutationBlocked is the CSRF backstop end-to-end: a
+// mutating request carrying a foreign Origin is refused by the middleware,
+// before the auth gate — so it can't even probe which routes exist.
+func TestIntegration_CrossSiteMutationBlocked(t *testing.T) {
+	srv := httptest.NewServer(newIntegrationServer().routes())
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/api/pins", strings.NewReader(`{"id":"x","kind":"design"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://evil.example")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusForbidden {
+		t.Errorf("status = %d, want 403 for a cross-site mutation", res.StatusCode)
+	}
+	var body errorResponse
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		t.Fatalf("decoding error envelope: %v", err)
+	}
+	if body.Code != "forbidden" {
+		t.Errorf("error code = %q, want forbidden", body.Code)
 	}
 }
 

@@ -235,6 +235,8 @@ func (s *Server) routes() http.Handler {
 	mux.Handle("/", s.staticHandler())
 
 	// Middleware chain (outermost first): recover -> log -> security headers ->
-	// canonical-host redirect -> dev CORS.
-	return s.recoverPanic(s.logRequest(s.securityHeaders(s.canonicalRedirect(s.devCORS(mux)))))
+	// canonical-host redirect -> same-origin (CSRF) -> dev CORS. The origin
+	// check sits after the canonical redirect so an off-host client is bounced
+	// to the canonical origin before being judged against it.
+	return s.recoverPanic(s.logRequest(s.securityHeaders(s.canonicalRedirect(s.requireSameOrigin(s.devCORS(mux))))))
 }

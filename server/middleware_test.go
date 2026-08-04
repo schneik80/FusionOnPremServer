@@ -110,6 +110,75 @@ func TestLogRequestRedactsOAuthSecrets(t *testing.T) {
 	}
 }
 
+func TestSameOriginBlocksCrossSiteMutations(t *testing.T) {
+	s := &Server{logger: quietLogger()} // opts.Dev == false
+	h := s.requireSameOrigin(okHandler())
+
+	cases := []struct {
+		name   string
+		method string
+		origin string
+		refer  string
+		want   int
+	}{
+		{"same-origin POST allowed", http.MethodPost, "http://example.test", "", http.StatusOK},
+		{"cross-site POST blocked", http.MethodPost, "http://evil.example", "", http.StatusForbidden},
+		{"cross-site DELETE blocked", http.MethodDelete, "http://evil.example", "", http.StatusForbidden},
+		{"scheme mismatch blocked", http.MethodPatch, "https://example.test", "", http.StatusForbidden},
+		// A sandboxed/opaque origin claims nothing checkable; SameSite=Lax
+		// still stops it carrying the session cookie.
+		{"opaque origin falls through", http.MethodPost, "null", "", http.StatusOK},
+		{"referer fallback, same site", http.MethodPost, "", "http://example.test/app", http.StatusOK},
+		{"referer fallback, cross site", http.MethodPost, "", "http://evil.example/x", http.StatusForbidden},
+		{"header-less POST allowed", http.MethodPost, "", "", http.StatusOK},
+		{"cross-site GET untouched", http.MethodGet, "http://evil.example", "", http.StatusOK},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, "http://example.test/api/pins", nil)
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			if tc.refer != "" {
+				req.Header.Set("Referer", tc.refer)
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Errorf("status = %d, want %d", rec.Code, tc.want)
+			}
+		})
+	}
+}
+
+// The canonical public origin is accepted even when the request reached the
+// server another way (e.g. Caddy proxying to 127.0.0.1 without rewriting Host).
+func TestSameOriginAcceptsPublicOrigin(t *testing.T) {
+	s := &Server{logger: quietLogger(), publicOrigin: "https://fls.example.com"}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/api/pins", nil)
+	req.Header.Set("Origin", "https://fls.example.com")
+	rec := httptest.NewRecorder()
+
+	s.requireSameOrigin(okHandler()).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200 — the canonical origin must be allowed", rec.Code)
+	}
+}
+
+func TestSameOriginDevNoOp(t *testing.T) {
+	s := &Server{logger: quietLogger(), opts: Options{Dev: true}}
+	req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/pins", nil)
+	req.Header.Set("Origin", "http://localhost:5173") // the Vite dev server
+	rec := httptest.NewRecorder()
+
+	s.requireSameOrigin(okHandler()).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200 — dev must not block the Vite origin", rec.Code)
+	}
+}
+
 func TestSecurityHeadersDevNoOp(t *testing.T) {
 	s := &Server{logger: quietLogger(), opts: Options{Dev: true}}
 	rec := httptest.NewRecorder()

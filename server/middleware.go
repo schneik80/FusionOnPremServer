@@ -185,6 +185,68 @@ func (s *Server) canonicalRedirect(next http.Handler) http.Handler {
 	})
 }
 
+// requireSameOrigin is the CSRF backstop behind the session cookie's
+// SameSite=Lax: a mutating request whose Origin (or, failing that, Referer)
+// names a different site is refused before it reaches a handler. Lax already
+// blocks cross-site cookie POSTs in current browsers; this catches the cases it
+// doesn't (a browser that mis-implements Lax, a same-site-but-different-origin
+// page) without a token round-trip.
+//
+// Deliberately lenient when a request carries neither header: browsers always
+// send Origin on cross-site mutations, so nothing exploitable slips through,
+// while curl, scripts, and the standalone web/test/api-security.test.ts suite
+// keep working. Disabled under -dev, where the Vite dev server is a different
+// origin by design (same carve-out as securityHeaders and devCORS).
+func (s *Server) requireSameOrigin(next http.Handler) http.Handler {
+	if s.opts.Dev {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		default:
+			// Safe verbs, and the OAuth callback and SSE streams with them.
+			next.ServeHTTP(w, r)
+			return
+		}
+		if claimed, ok := claimedOrigin(r); ok && !s.originAllowed(r, claimed) {
+			s.logger.Warn("blocked cross-site request",
+				"method", r.Method, "path", r.URL.Path,
+				"origin", claimed, "remote", s.clientIP(r))
+			writeError(w, http.StatusForbidden, "cross-site request blocked")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// originAllowed reports whether an origin the request claims is this server:
+// the origin it actually arrived on, or the configured canonical public one.
+func (s *Server) originAllowed(r *http.Request, origin string) bool {
+	if strings.EqualFold(origin, s.requestOrigin(r)) {
+		return true
+	}
+	return s.publicOrigin != "" && strings.EqualFold(origin, s.publicOrigin)
+}
+
+// claimedOrigin is the scheme://host the request says it came from — the Origin
+// header, or the Referer's origin when Origin is absent. ok is false when the
+// request claims nothing parseable.
+func claimedOrigin(r *http.Request) (string, bool) {
+	if o := r.Header.Get("Origin"); o != "" && o != "null" {
+		return o, true
+	}
+	ref := r.Header.Get("Referer")
+	if ref == "" {
+		return "", false
+	}
+	u, err := url.Parse(ref)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", false
+	}
+	return u.Scheme + "://" + u.Host, true
+}
+
 // devCORS adds permissive CORS headers, but only in -dev mode. It lets a
 // Vite dev server running on a different origin (e.g. :5173) call the API on
 // :8080 directly. Production serves the SPA same-origin, so no CORS is emitted.
