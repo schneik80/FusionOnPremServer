@@ -91,5 +91,15 @@
   "mention": {
     "unknown": "qualcuno",
     "at": "@{{name}}"
+  },
+  "markup": {
+    "title": "Annota la schermata",
+    "pen": "Disegna",
+    "arrow": "Freccia",
+    "rect": "Rettangolo",
+    "undo": "Annulla",
+    "clear": "Cancella tutto",
+    "attach": "Allega",
+    "cancel": "Annulla"
   }
 }

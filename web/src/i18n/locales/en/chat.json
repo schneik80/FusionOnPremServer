@@ -91,5 +91,15 @@
   "mention": {
     "unknown": "someone",
     "at": "@{{name}}"
+  },
+  "markup": {
+    "title": "Mark up screenshot",
+    "pen": "Draw",
+    "arrow": "Arrow",
+    "rect": "Rectangle",
+    "undo": "Undo",
+    "clear": "Clear all",
+    "attach": "Attach",
+    "cancel": "Cancel"
   }
 }

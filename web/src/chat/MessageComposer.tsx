@@ -26,6 +26,7 @@ import { api } from '../api/client'
 import { encodeDocRef, docRefFromItem } from '../components/doccard/docref'
 import { encodeImgRef } from '../components/imgcard/imgref'
 import { captureFusionScreenshot, hasFusionBridge } from '../components/imgcard/fusionCapture'
+import { MarkupDialog } from '../components/imgcard/MarkupDialog'
 import { encodeTaskRef, taskRefFromTask } from '../components/taskcard/taskref'
 import { encodeWhiteboardRef, whiteboardRefFromBoard } from '../components/whiteboardcard/wbref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
@@ -167,6 +168,9 @@ export function MessageComposer({
       setAttaching(false)
     }
   }
+  // A capture opens the markup dialog first (redlines over the screenshot);
+  // the upload happens on the dialog's Attach with the blended PNG.
+  const [markupFile, setMarkupFile] = useState<File | null>(null)
   const captureShot = async () => {
     setError(null)
     const file = await captureFusionScreenshot()
@@ -174,7 +178,7 @@ export function MessageComposer({
       setError(t('composer.captureFailed'))
       return
     }
-    await attachImage(file)
+    setMarkupFile(file)
   }
 
   const send = async () => {
@@ -359,6 +363,16 @@ export function MessageComposer({
 
   return (
     <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+      {markupFile && (
+        <MarkupDialog
+          file={markupFile}
+          onClose={() => setMarkupFile(null)}
+          onAttach={(f) => {
+            setMarkupFile(null)
+            void attachImage(f)
+          }}
+        />
+      )}
       <input
         ref={fileInputRef}
         type="file"

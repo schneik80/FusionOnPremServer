@@ -91,5 +91,15 @@
   "mention": {
     "unknown": "quelqu'un",
     "at": "@{{name}}"
+  },
+  "markup": {
+    "title": "Annoter la capture d'écran",
+    "pen": "Dessiner",
+    "arrow": "Flèche",
+    "rect": "Rectangle",
+    "undo": "Annuler",
+    "clear": "Tout effacer",
+    "attach": "Joindre",
+    "cancel": "Annuler"
   }
 }
