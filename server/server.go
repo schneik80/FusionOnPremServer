@@ -148,6 +148,7 @@ type Server struct {
 	chatMsgLim    *chat.Limiter
 	chatOpLim     *chat.Limiter
 	chatSyncLim   *chat.Limiter
+	chatImgLim    *chat.Limiter
 	chatKeepalive time.Duration
 
 	taskOpLim       *chat.Limiter
@@ -277,6 +278,10 @@ func Run(opts Options) error {
 	s.chatMsgLim = chat.NewLimiter(2, 5)
 	s.chatOpLim = chat.NewLimiter(10.0/60.0, 10)
 	s.chatSyncLim = chat.NewLimiter(2, 20)
+	// Image attachments run a chatty APS folder/upload sequence per call and
+	// buffer the body in RAM — an unmetered multi-MiB POST is the stated
+	// anti-pattern (see the whiteboard doc limiter). 1 per 2s, small burst.
+	s.chatImgLim = chat.NewLimiter(0.5, 3)
 	s.chatKeepalive = 25 * time.Second
 	s.taskOpLim = chat.NewLimiter(2, 10)
 	s.prodOpLim = chat.NewLimiter(2, 10)

@@ -181,3 +181,10 @@ func fmtTimePtr(t *time.Time) string {
 	}
 	return fmtTime(*t)
 }
+
+// ChatImageDTO is returned by POST /api/chat/image after an attachment
+// upload — the lineage urn the fls:img token references, plus the stored name.
+type ChatImageDTO struct {
+	ItemID string `json:"itemId"`
+	Name   string `json:"name"`
+}

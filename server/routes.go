@@ -119,6 +119,7 @@ func (s *Server) routes() http.Handler {
 	// event stream lands in phase 2. URN-style ids ride query params, per
 	// the repo-wide convention.
 	mux.HandleFunc("GET /api/chat/events", protHub(s.handleChatEvents))
+	mux.HandleFunc("POST /api/chat/image", protHub(s.handleChatImageUpload))
 	mux.HandleFunc("GET /api/chat/channels", protHub(s.handleChatChannels))
 	mux.HandleFunc("POST /api/chat/channels", protHub(s.handleChatChannelCreate))
 	mux.HandleFunc("PATCH /api/chat/channels", protHub(s.handleChatChannelUpdate))
