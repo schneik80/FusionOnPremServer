@@ -140,7 +140,8 @@ func (s *Server) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirectURI := s.callbackURI(r)
-	s.pending.Put(state, pendingEntry{verifier: verifier, redirectURI: redirectURI, createdAt: time.Now()})
+	next := sanitizeNext(r.URL.Query().Get("next"))
+	s.pending.Put(state, pendingEntry{verifier: verifier, redirectURI: redirectURI, next: next, createdAt: time.Now()})
 	setCookie(w, pendingCookieName, state, int(pendingTTL.Seconds()), s.isSecure(r))
 	http.Redirect(w, r, auth.BuildAuthURL(s.clientID, challenge, redirectURI, state), http.StatusFound)
 }
@@ -208,7 +209,43 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	setCookie(w, sessionCookieName, sess.ID, int(sessionAbsTTL.Seconds()), s.isSecure(r))
 	s.logger.Info("auth: login complete", "user", profile.Email)
-	http.Redirect(w, r, "/", http.StatusFound)
+	dest := pe.next
+	if dest == "" {
+		dest = "/"
+	}
+	http.Redirect(w, r, dest, http.StatusFound)
+}
+
+// sanitizeNext validates a caller-supplied post-login destination. Only a
+// same-origin absolute path survives; anything that could leave the origin
+// (absolute URLs, protocol-relative //host, backslash tricks, embedded
+// schemes) or loop back into the API collapses to "" — land on the SPA root.
+func sanitizeNext(v string) string {
+	if v == "" || len(v) > 512 {
+		return ""
+	}
+	if v[0] != '/' {
+		return ""
+	}
+	if strings.HasPrefix(v, "//") || strings.HasPrefix(v, "/\\") {
+		return ""
+	}
+	if strings.Contains(v, "\\") || strings.Contains(v, "://") {
+		return ""
+	}
+	for _, c := range v {
+		if c < 0x20 || c == 0x7f {
+			return ""
+		}
+	}
+	u, err := url.Parse(v)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil {
+		return ""
+	}
+	if strings.HasPrefix(v, "/api/") {
+		return ""
+	}
+	return v
 }
 
 // handleAuthLogout drops the server session and clears the cookie. Idempotent.

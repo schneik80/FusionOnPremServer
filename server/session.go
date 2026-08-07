@@ -213,10 +213,12 @@ func (s *SessionStore) sweep() {
 
 // pendingEntry is the per-login state held between the authorize redirect and
 // the callback: the PKCE verifier and the exact redirect_uri used (which the
-// token exchange must echo byte-for-byte).
+// token exchange must echo byte-for-byte), plus the sanitized same-origin
+// path the callback should land on ("" means the SPA root).
 type pendingEntry struct {
 	verifier    string
 	redirectURI string
+	next        string
 	createdAt   time.Time
 }
 

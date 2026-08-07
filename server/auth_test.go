@@ -428,3 +428,73 @@ func TestHandleAuthMe_WhitelistRevocation(t *testing.T) {
 		t.Error("revoked session was not deleted by the me probe")
 	}
 }
+
+func TestSanitizeNext(t *testing.T) {
+	cases := []struct {
+		name, in, want string
+	}{
+		{"embed path with params kept", "/embed.html?dmProjectId=a.p1&theme=dark", "/embed.html?dmProjectId=a.p1&theme=dark"},
+		{"root kept", "/", "/"},
+		{"empty collapses", "", ""},
+		{"absolute url rejected", "https://evil.example/x", ""},
+		{"protocol-relative rejected", "//evil.example", ""},
+		{"backslash prefix rejected", "/\\evil.example", ""},
+		{"embedded backslash rejected", "/a\\b", ""},
+		{"embedded scheme rejected", "/x://evil", ""},
+		{"javascript scheme rejected", "javascript:alert(1)", ""},
+		{"relative path rejected", "embed.html", ""},
+		{"api path rejected", "/api/auth/login", ""},
+		{"control char rejected", "/a\nb", ""},
+		{"overlong rejected", "/" + strings.Repeat("a", 600), ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sanitizeNext(tc.in); got != tc.want {
+				t.Errorf("sanitizeNext(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+// runCallbackWithNext is runCallback with a pending entry whose next was
+// produced by handleAuthLogin's sanitizeNext call.
+func runCallbackWithNext(t *testing.T, s *Server, next string) *httptest.ResponseRecorder {
+	t.Helper()
+	const state = "next-state"
+	s.pending.Put(state, pendingEntry{
+		verifier: "v", redirectURI: "http://h/api/auth/callback",
+		next: sanitizeNext(next), createdAt: time.Now(),
+	})
+	prevEx, prevUI := authExchange, authUserInfo
+	t.Cleanup(func() { authExchange, authUserInfo = prevEx, prevUI })
+	authExchange = func(context.Context, string, string, string, string, string) (*auth.TokenData, error) {
+		return &auth.TokenData{AccessToken: "AT", RefreshToken: "RT", ExpiresAt: time.Now().Add(time.Hour)}, nil
+	}
+	authUserInfo = func(context.Context, string) (auth.UserProfile, error) {
+		return auth.UserProfile{Sub: "sub-ada", Email: "ada@x.io"}, nil
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/callback?code=c&state="+state, nil)
+	req.AddCookie(&http.Cookie{Name: pendingCookieName, Value: state})
+	rec := httptest.NewRecorder()
+	s.handleAuthCallback(rec, req)
+	return rec
+}
+
+func TestHandleAuthCallback_RedirectsToNext(t *testing.T) {
+	s := newAuthTestServer()
+	rec := runCallbackWithNext(t, s, "/embed.html?dmProjectId=a.p1")
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/embed.html?dmProjectId=a.p1" {
+		t.Fatalf("status=%d location=%q, want 302 /embed.html?dmProjectId=a.p1", rec.Code, rec.Header().Get("Location"))
+	}
+	if sid := sessionCookieValue(rec); sid == "" {
+		t.Error("sign-in with next did not set a session cookie")
+	}
+}
+
+func TestHandleAuthCallback_MaliciousNextFallsBackToRoot(t *testing.T) {
+	s := newAuthTestServer()
+	rec := runCallbackWithNext(t, s, "https://evil.example/phish")
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/" {
+		t.Fatalf("status=%d location=%q, want 302 /", rec.Code, rec.Header().Get("Location"))
+	}
+}
