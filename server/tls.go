@@ -78,11 +78,19 @@ func ensureSelfSignedCert(certPath, keyPath string, extraHosts []string) error {
 	}
 
 	tmpl := x509.Certificate{
-		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: "fusionlocalserver"},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().AddDate(5, 0, 0),
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "fusionlocalserver"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().AddDate(5, 0, 0),
+		// IsCA marks the cert as its own trust anchor. Chromium-family
+		// verifiers (including the Fusion palette's embedded browser) refuse a
+		// CA:FALSE self-signed leaf even when it is imported into the OS trust
+		// store — ERR_CERT_AUTHORITY_INVALID with no interstitial — so the
+		// "trust this cert once per machine" install step only works when the
+		// cert can stand as an anchor. Scope stays tight: it signs nothing but
+		// itself, and ExtKeyUsage remains ServerAuth-only.
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		DNSNames:              dnsNames,
