@@ -122,3 +122,10 @@ export interface ChatTypingEvent {
   userId: string
   name: string
 }
+
+// ChatImage mirrors server ChatImageDTO (POST /api/chat/image): the uploaded
+// attachment's lineage urn + stored name, referenced by an fls:img token.
+export interface ChatImage {
+  itemId: string
+  name: string
+}

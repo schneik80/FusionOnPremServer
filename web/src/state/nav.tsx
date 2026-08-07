@@ -215,7 +215,7 @@ function reducer(state: NavState, action: Action): NavState {
   }
 }
 
-interface NavCtx extends NavState {
+export interface NavCtx extends NavState {
   setApp: (app: AppKind) => void
   selectHub: (id: string, name: string) => void
   selectProject: (project: Item) => void
@@ -235,6 +235,12 @@ interface NavCtx extends NavState {
 }
 
 const Ctx = createContext<NavCtx | null>(null)
+
+// The raw context, exported for entry points that provide a NavCtx without
+// NavProvider's URL round-trip (the Fusion palette's /embed.html supplies a
+// fixed project and must not let nav state rewrite its query string). Everything
+// inside the SPA should keep using NavProvider + useNav.
+export const NavContext = Ctx
 
 // initFromUrl seeds nav state from the current URL so a cold load / shared
 // permalink paints the right place immediately (from the encoded name hints).

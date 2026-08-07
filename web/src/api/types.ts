@@ -378,6 +378,19 @@ export interface Location {
   folderPath: FolderRef[]
 }
 
+// ResolvedProject mirrors server ResolveProjectDTO (GET /api/resolve/project):
+// the GraphQL ids for a hub/project named by Data Management ids, plus the
+// session's current hub lock so the embed can decide auto-lock vs consent.
+export interface ResolvedProject {
+  hubId: string
+  hubName: string
+  hubAltId: string
+  projectId: string
+  projectName: string
+  projectAltId: string
+  sessionHubId: string
+}
+
 export interface Classify {
   componentVersionId: string
   isAssembly: boolean

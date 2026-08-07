@@ -35,6 +35,7 @@ import type {
   Pin,
   ProjectDataDeleteResult,
   ProjectGroup,
+  ResolvedProject,
   SetPortResponse,
   Thumbnail,
   UploadJob,
@@ -45,6 +46,7 @@ import type {
 import type {
   ChatChannel,
   ChatChannelList,
+  ChatImage,
   ChatMember,
   ChatMessage,
   ChatMessageList,
@@ -119,6 +121,20 @@ function resetForHubGate() {
   window.location.assign('/')
 }
 
+// The 401/409 reactions above are full-page navigations into the SPA shell —
+// right for the app, wrong for any other entry point (the Fusion palette's
+// /embed.html must return to itself after login, not to '/'). Entry points
+// override them once at bootstrap; the defaults keep the SPA's behavior
+// without main.tsx doing anything.
+export interface GateHandlers {
+  onUnauthorized: () => void
+  onHubGate: () => void
+}
+let gate: GateHandlers = { onUnauthorized: redirectToLogin, onHubGate: resetForHubGate }
+export function setGateHandlers(h: GateHandlers) {
+  gate = h
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Let the browser set the multipart boundary for FormData bodies (image
   // uploads); JSON calls get the explicit content-type.
@@ -141,11 +157,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // A 401 on a data call means the session is gone; bounce to login. The
     // /api/auth/me probe never 401s (it returns 200 with authenticated:false),
     // so this can't loop on the login gate.
-    if (res.status === 401) redirectToLogin()
+    if (res.status === 401) gate.onUnauthorized()
     // 409 hub_not_selected means the session has no hub lock — tear down and
     // reload so the gate re-locks (mirrors the 401 posture). The code check
     // keeps ordinary 409s (wiki stale-overwrite) untouched.
-    if (res.status === 409 && code === 'hub_not_selected') resetForHubGate()
+    if (res.status === 409 && code === 'hub_not_selected') gate.onHubGate()
     throw new ApiError(res.status, msg, code)
   }
   // 204/empty bodies shouldn't happen on our GET endpoints, but guard anyway.
@@ -167,8 +183,8 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
     } catch {
       /* non-JSON error body — keep the generic message */
     }
-    if (res.status === 401) redirectToLogin()
-    if (res.status === 409 && code === 'hub_not_selected') resetForHubGate()
+    if (res.status === 401) gate.onUnauthorized()
+    if (res.status === 409 && code === 'hub_not_selected') gate.onHubGate()
     throw new ApiError(res.status, msg, code)
   }
   return res.text()
@@ -191,8 +207,8 @@ async function requestWithEtag<T>(path: string, init?: RequestInit): Promise<{ d
     } catch {
       /* non-JSON error body — keep the generic message */
     }
-    if (res.status === 401) redirectToLogin()
-    if (res.status === 409 && code === 'hub_not_selected') resetForHubGate()
+    if (res.status === 401) gate.onUnauthorized()
+    if (res.status === 409 && code === 'hub_not_selected') gate.onHubGate()
     throw new ApiError(res.status, msg, code)
   }
   return { data: (await res.json()) as T, etag: res.headers.get('ETag') }
@@ -231,6 +247,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ hubId }),
     }),
+
+  // resolveProject maps the Data Management ids a Fusion add-in reads from its
+  // Python API to the GraphQL ids every data route is keyed by. Deliberately
+  // pre-hub (works before /api/session/hub) — the embed page uses
+  // sessionHubId to decide auto-lock vs hub-switch consent.
+  resolveProject: (dmHubId: string, dmProjectId: string) =>
+    request<ResolvedProject>(`/api/resolve/project${qs({ dmHubId, dmProjectId })}`),
 
   // Admin console (Settings): process status + server log tail. The full log
   // downloads via /api/admin/log?download=1 (a navigation, not a fetch).
@@ -356,7 +379,7 @@ export const api = {
   ): Promise<{ text: string; tooLarge: boolean }> => {
     const res = await fetch(api.fileUrl(dmProjectId, itemId), { credentials: 'same-origin' })
     if (res.status === 401) {
-      redirectToLogin()
+      gate.onUnauthorized()
       throw new ApiError(401, 'not authenticated')
     }
     if (res.status === 413) return { text: '', tooLarge: true }
@@ -559,6 +582,19 @@ export const api = {
   // chatTyping is a fire-and-forget ephemeral ping (204, no body).
   chatTyping: (projectId: string, channelId: string) =>
     request<void>(`/api/chat/typing${qs({ projectId, channelId })}`, { method: 'POST' }),
+
+  // chatUploadImage stores an attachment image under the project's
+  // Chat/images/ folder (an ordinary Fusion Team item) and returns its item
+  // id; the composer references it with an fls:img token and wikiImageUrl
+  // serves the bytes.
+  chatUploadImage: (
+    ids: { projectId: string; hubId: string; dmProjectId: string },
+    file: File,
+  ) => {
+    const fd = new FormData()
+    fd.set('file', file)
+    return request<ChatImage>(`/api/chat/image${qs(ids)}`, { method: 'POST', body: fd })
+  },
 
   // Tasks: per-project task lists on the local store, chat-authz roles.
   // /api/tasks/get is the single-task fetch (fls:task card hydration);
