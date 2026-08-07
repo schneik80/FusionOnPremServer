@@ -90,6 +90,20 @@ type ItemDTO struct {
 	Slug string `json:"slug,omitempty"`
 }
 
+// ResolveProjectDTO answers GET /api/resolve/project: the GraphQL ids for a
+// hub/project pair named by Data Management ids. SessionHubID is the session's
+// current hub lock ("" when none) so the embed client can decide auto-lock vs
+// hub-switch consent in one round trip.
+type ResolveProjectDTO struct {
+	HubID        string `json:"hubId"`
+	HubName      string `json:"hubName"`
+	HubAltID     string `json:"hubAltId"`
+	ProjectID    string `json:"projectId"`
+	ProjectName  string `json:"projectName"`
+	ProjectAltID string `json:"projectAltId"`
+	SessionHubID string `json:"sessionHubId"`
+}
+
 // ContentsDTO is the combined folders+items payload for GET /api/projects/contents.
 type ContentsDTO struct {
 	Folders []ItemDTO `json:"folders"`

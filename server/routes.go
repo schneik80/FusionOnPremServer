@@ -55,6 +55,10 @@ func (s *Server) routes() http.Handler {
 
 	// Session hub lock (the only data routes valid before a hub is chosen).
 	mux.HandleFunc("POST /api/session/hub", prot(s.handleSessionHub))
+	// Deliberately pre-hub (bare prot): the Fusion palette resolves its DM ids
+	// to GraphQL ids before the session has (or to decide whether to switch)
+	// a hub lock. See handleResolveProject.
+	mux.HandleFunc("GET /api/resolve/project", prot(s.handleResolveProject))
 
 	// Navigation.
 	mux.HandleFunc("GET /api/hubs", prot(s.handleHubs))
