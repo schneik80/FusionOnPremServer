@@ -3,7 +3,8 @@
   "unknownError": "error",
   "header": {
     "archived": "archived",
-    "reconnecting": "reconnecting…"
+    "reconnecting": "reconnecting…",
+    "channels": "Channels"
   },
   "emptyState": {
     "noMessages": "No messages yet — start the conversation."
@@ -62,7 +63,11 @@
     "attachWhiteboard": "Attach a whiteboard card",
     "attach": "Attach",
     "send": "send message",
-    "sendFailed": "send failed"
+    "sendFailed": "send failed",
+    "attachImage": "Attach image",
+    "captureShot": "Attach Fusion screenshot",
+    "attachImageFailed": "Image upload failed",
+    "captureFailed": "Screenshot capture failed"
   },
   "message": {
     "unknownAuthor": "Unknown",

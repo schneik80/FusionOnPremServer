@@ -3,7 +3,8 @@
   "unknownError": "Fehler",
   "header": {
     "archived": "archiviert",
-    "reconnecting": "Verbindung wird wiederhergestellt…"
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "channels": "Kanäle"
   },
   "emptyState": {
     "noMessages": "Noch keine Nachrichten — beginnen Sie die Unterhaltung."
@@ -62,7 +63,11 @@
     "attachWhiteboard": "Whiteboard-Karte anhängen",
     "attach": "Anhängen",
     "send": "Nachricht senden",
-    "sendFailed": "Senden fehlgeschlagen"
+    "sendFailed": "Senden fehlgeschlagen",
+    "attachImage": "Bild anhängen",
+    "captureShot": "Fusion-Screenshot anhängen",
+    "attachImageFailed": "Bild-Upload fehlgeschlagen",
+    "captureFailed": "Screenshot-Aufnahme fehlgeschlagen"
   },
   "message": {
     "unknownAuthor": "Unbekannt",

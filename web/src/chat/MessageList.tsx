@@ -9,6 +9,7 @@ import { splitRefTokens } from '../components/reftokens'
 import { splitMentions } from '../notifications/mentions'
 import { TaskCard } from '../components/taskcard/TaskCard'
 import { WhiteboardCard } from '../components/whiteboardcard/WhiteboardCard'
+import { ImageCard } from '../components/imgcard/ImageCard'
 import { REACTION_EMOJI, type ChatCaps, type ChatMessage } from './types'
 import { fmtChatTime } from './fmt'
 import { firstGrapheme } from '../fmt/graphemes'
@@ -134,6 +135,8 @@ function ChatBody({ body }: { body: string }) {
           <ProductionCard key={i} jobRef={p.job} />
         ) : 'whiteboard' in p ? (
           <WhiteboardCard key={i} whiteboardRef={p.whiteboard} />
+        ) : 'img' in p ? (
+          <ImageCard key={i} imgRef={p.img} />
         ) : (
           <MentionText key={i} text={p.text} />
         ),

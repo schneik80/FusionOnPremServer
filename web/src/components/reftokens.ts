@@ -1,4 +1,5 @@
 import { parseDocRef, type DocRef } from './doccard/docref'
+import { parseImgRef, type ImgRef } from './imgcard/imgref'
 import { parseBatchRef, parseJobRef, type BatchRef, type JobRef } from './productioncard/prodref'
 import { parseTaskRef, type TaskRef } from './taskcard/taskref'
 import { parseWhiteboardRef, type WhiteboardRef } from './whiteboardcard/wbref'
@@ -10,7 +11,7 @@ import { parseWhiteboardRef, type WhiteboardRef } from './whiteboardcard/wbref'
 // application/x-www-form-urlencoded alphabet URLSearchParams emits, so trailing
 // punctuation ("token.", "token)") never sticks to a token. Malformed tokens
 // stay text.
-const TOKEN_RE = /fls:(?:doc|task|batch|job|whiteboard)\?[A-Za-z0-9*\-._%&=+]+/g
+const TOKEN_RE = /fls:(?:doc|task|batch|job|whiteboard|img)\?[A-Za-z0-9*\-._%&=+]+/g
 
 export type RefPart =
   | { text: string }
@@ -19,6 +20,7 @@ export type RefPart =
   | { job: JobRef }
   | { batch: BatchRef }
   | { whiteboard: WhiteboardRef }
+  | { img: ImgRef }
 
 export function splitRefTokens(text: string): RefPart[] {
   const parts: RefPart[] = []
@@ -45,6 +47,10 @@ export function splitRefTokens(text: string): RefPart[] {
     if (!part) {
       const whiteboard = parseWhiteboardRef(m[0])
       if (whiteboard) part = { whiteboard }
+    }
+    if (!part) {
+      const img = parseImgRef(m[0])
+      if (img) part = { img }
     }
     if (!part) continue // malformed token: leave it as text
     if (m.index! > last) parts.push({ text: text.slice(last, m.index) })

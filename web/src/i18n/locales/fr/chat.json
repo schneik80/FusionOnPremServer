@@ -3,7 +3,8 @@
   "unknownError": "erreur",
   "header": {
     "archived": "archivé",
-    "reconnecting": "reconnexion…"
+    "reconnecting": "reconnexion…",
+    "channels": "Canaux"
   },
   "emptyState": {
     "noMessages": "Aucun message pour l'instant — lancez la conversation."
@@ -62,7 +63,11 @@
     "attachWhiteboard": "Joindre une carte de tableau blanc",
     "attach": "Joindre",
     "send": "envoyer le message",
-    "sendFailed": "échec de l'envoi"
+    "sendFailed": "échec de l'envoi",
+    "attachImage": "Joindre une image",
+    "captureShot": "Joindre une capture Fusion",
+    "attachImageFailed": "Échec de l'envoi de l'image",
+    "captureFailed": "Échec de la capture d'écran"
   },
   "message": {
     "unknownAuthor": "Inconnu",

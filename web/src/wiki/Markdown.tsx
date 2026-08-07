@@ -10,6 +10,8 @@ import { parseBatchRef, parseJobRef } from '../components/productioncard/prodref
 import { TaskCard } from '../components/taskcard/TaskCard'
 import { parseTaskRef } from '../components/taskcard/taskref'
 import { WhiteboardCard } from '../components/whiteboardcard/WhiteboardCard'
+import { ImageCard } from '../components/imgcard/ImageCard'
+import { parseImgRef } from '../components/imgcard/imgref'
 import { parseWhiteboardRef } from '../components/whiteboardcard/wbref'
 // highlight.js token theme for fenced code blocks. Light-mode palette for now;
 // swapping to a dark variant under the app's dark theme is a follow-up polish
@@ -87,6 +89,8 @@ export function Markdown({ children }: { children: string }) {
             if (jobRef) return <ProductionCard jobRef={jobRef} />
             const boardRef = href ? parseWhiteboardRef(href) : null
             if (boardRef) return <WhiteboardCard whiteboardRef={boardRef} />
+            const imgRef = href ? parseImgRef(href) : null
+            if (imgRef) return <ImageCard imgRef={imgRef} />
             return (
               <a href={href} {...rest}>
                 {linkChildren}

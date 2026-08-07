@@ -1,7 +1,9 @@
 import {
+  faCamera,
   faChalkboard,
   faDiagramProject,
   faFileCirclePlus,
+  faImage,
   faListCheck,
   faPaperPlane,
   faSquarePlus,
@@ -20,7 +22,10 @@ import {
 } from '@mui/material'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { api } from '../api/client'
 import { encodeDocRef, docRefFromItem } from '../components/doccard/docref'
+import { encodeImgRef } from '../components/imgcard/imgref'
+import { captureFusionScreenshot, hasFusionBridge } from '../components/imgcard/fusionCapture'
 import { encodeTaskRef, taskRefFromTask } from '../components/taskcard/taskref'
 import { encodeWhiteboardRef, whiteboardRefFromBoard } from '../components/whiteboardcard/wbref'
 import { HubBrowserDialog } from '../components/hubbrowser/HubBrowserDialog'
@@ -138,6 +143,40 @@ export function MessageComposer({
     setText((t) => (t && !/\s$/.test(t) ? `${t} ` : t) + token + ' ')
   const appendTaskToken = (task: Task) => appendToken(encodeTaskRef(taskRefFromTask(task)))
 
+  // Image attachments upload to the project's Chat/images/ folder first (an
+  // ordinary Fusion Team item), then ride the draft as an fls:img token. Needs
+  // the project's altId (DM id) — absent for a beat on cold permalinks until
+  // the nav backstop fills it, so the buttons hide rather than half-work.
+  const [attaching, setAttaching] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const dmProjectId = nav.project?.altId ?? null
+  const canAttachImage = !!(nav.hubId && nav.project && dmProjectId)
+  const attachImage = async (file: File) => {
+    if (!canAttachImage || attaching) return
+    setError(null)
+    setAttaching(true)
+    try {
+      const res = await api.chatUploadImage(
+        { projectId: nav.project!.id, hubId: nav.hubId!, dmProjectId: dmProjectId! },
+        file,
+      )
+      appendToken(encodeImgRef({ dmProjectId: dmProjectId!, itemId: res.itemId, name: res.name }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('composer.attachImageFailed'))
+    } finally {
+      setAttaching(false)
+    }
+  }
+  const captureShot = async () => {
+    setError(null)
+    const file = await captureFusionScreenshot()
+    if (!file) {
+      setError(t('composer.captureFailed'))
+      return
+    }
+    await attachImage(file)
+  }
+
   const send = async () => {
     const body = text.trim()
     if (!body || sending) return
@@ -227,6 +266,36 @@ export function MessageComposer({
           </span>
         </Tooltip>
       )}
+      {canAttachImage && (
+        <Tooltip title={t('composer.attachImage')}>
+          <span>
+            <IconButton
+              size="small"
+              disabled={disabled || attaching}
+              onClick={() => fileInputRef.current?.click()}
+              aria-label={t('composer.attachImage')}
+              sx={{ color: 'text.secondary' }}
+            >
+              <FontAwesomeIcon icon={faImage} />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
+      {canAttachImage && hasFusionBridge() && (
+        <Tooltip title={t('composer.captureShot')}>
+          <span>
+            <IconButton
+              size="small"
+              disabled={disabled || attaching}
+              onClick={() => void captureShot()}
+              aria-label={t('composer.captureShot')}
+              sx={{ color: 'text.secondary' }}
+            >
+              <FontAwesomeIcon icon={faCamera} />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
       <TextField
         fullWidth
         size="small"
@@ -290,6 +359,17 @@ export function MessageComposer({
 
   return (
     <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (file) void attachImage(file)
+        }}
+      />
       {error && (
         <Typography variant="caption" color="error" sx={{ px: 1.5, pt: 0.5, display: 'block' }}>
           {error}

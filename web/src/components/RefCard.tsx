@@ -1,5 +1,7 @@
 import { DocumentCard } from './doccard/DocumentCard'
 import { parseDocRef } from './doccard/docref'
+import { ImageCard } from './imgcard/ImageCard'
+import { parseImgRef } from './imgcard/imgref'
 import { ProductionCard } from './productioncard/ProductionCard'
 import { parseBatchRef, parseJobRef } from './productioncard/prodref'
 import { TaskCard } from './taskcard/TaskCard'
@@ -22,5 +24,7 @@ export function RefCard({ token }: { token: string }) {
   if (job) return <ProductionCard jobRef={job} />
   const whiteboard = parseWhiteboardRef(token)
   if (whiteboard) return <WhiteboardCard whiteboardRef={whiteboard} />
+  const img = parseImgRef(token)
+  if (img) return <ImageCard imgRef={img} />
   return null
 }
