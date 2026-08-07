@@ -1,6 +1,15 @@
-import { faHashtag, faLock } from '@fortawesome/free-solid-svg-icons'
+import { faBars, faHashtag, faLock } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material'
+import {
+  Alert,
+  Badge,
+  Box,
+  CircularProgress,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -32,12 +41,23 @@ const NO_CAPS: ChatCaps = { post: false, createChannel: false, moderate: false }
 // stream (opened by ProjectPanel; `live` reports its health) writing into
 // the react-query caches; the 2s polling from phase 1 survives only as the
 // fallback while the stream is down. `active` gates fetching to the
-// visible tab.
-export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
+// visible tab. `collapsibleChannels` swaps the always-on sidebar for a
+// header toggle starting collapsed — for narrow hosts (the Fusion palette),
+// where the rail would eat most of the width.
+export function ChatApp({
+  active,
+  live,
+  collapsibleChannels = false,
+}: {
+  active: boolean
+  live: boolean
+  collapsibleChannels?: boolean
+}) {
   const { t } = useTranslation('chat')
   const nav = useNav()
   const projectId = nav.project?.id ?? null
   const meId = useAuthMe().data?.user?.id ?? ''
+  const [railOpen, setRailOpen] = useState(!collapsibleChannels)
 
   const channelsQ = useChatChannels(projectId, active, live)
   const channels = channelsQ.data?.channels ?? []
@@ -128,16 +148,26 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
     )
   }
 
+  // The badge on the collapsed-rail toggle: unread across OTHER channels
+  // (the viewed channel is already suppressed in the map above).
+  let unreadTotal = 0
+  for (const n of unread.values()) unreadTotal += n
+
   return (
     <Box sx={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0 }}>
-      <ChannelSidebar
-        projectId={projectId}
-        channels={channels}
-        currentId={current?.id ?? null}
-        caps={caps}
-        unread={unread}
-        onSelect={nav.selectChannel}
-      />
+      {railOpen && (
+        <ChannelSidebar
+          projectId={projectId}
+          channels={channels}
+          currentId={current?.id ?? null}
+          caps={caps}
+          unread={unread}
+          onSelect={(id) => {
+            nav.selectChannel(id)
+            if (collapsibleChannels) setRailOpen(false)
+          }}
+        />
+      )}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         {current && (
           <Stack
@@ -146,6 +176,23 @@ export function ChatApp({ active, live }: { active: boolean; live: boolean }) {
             alignItems="baseline"
             sx={{ px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider' }}
           >
+            {collapsibleChannels && (
+              <Tooltip title={t('header.channels')}>
+                <IconButton
+                  size="small"
+                  onClick={() => setRailOpen((v) => !v)}
+                  sx={{ alignSelf: 'center', fontSize: 14 }}
+                >
+                  <Badge
+                    color="primary"
+                    variant="dot"
+                    invisible={railOpen || unreadTotal === 0}
+                  >
+                    <FontAwesomeIcon icon={faBars} />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            )}
             <Typography variant="subtitle2" sx={{ fontSize: 12 }}>
               <FontAwesomeIcon icon={current.isPrivate ? faLock : faHashtag} />
             </Typography>
