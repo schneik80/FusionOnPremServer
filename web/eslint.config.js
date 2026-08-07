@@ -18,6 +18,7 @@ const RATCHETED = [
   'src/wiki/**/*.tsx',
   'src/production/**/*.tsx',
   'src/whiteboards/**/*.tsx',
+  'src/embed/**/*.tsx',
 ]
 
 export default tseslint.config({

@@ -1,0 +1,24 @@
+{
+  "connecting": "Conectando con {{name}}…",
+  "noContext": {
+    "title": "Sin contexto de proyecto",
+    "body": "Esta página se abre con el comando «Project Chat» de Fusion. Abra un diseño que pertenezca a un proyecto de Fusion Team y vuelva a ejecutar el comando."
+  },
+  "signIn": {
+    "title": "Inicio de sesión requerido",
+    "body": "Inicie sesión con su cuenta de Autodesk para unirse al chat de este proyecto.",
+    "button": "Iniciar sesión"
+  },
+  "hubConsent": {
+    "title": "¿Cambiar de hub?",
+    "body": "Este diseño está en el hub {{hub}}, pero su sesión está iniciada en {{sessionHub}}. Al cambiar, toda su sesión — incluidas las pestañas del navegador abiertas — pasa a {{hub}}.",
+    "confirm": "Cambiar a {{hub}}"
+  },
+  "error": {
+    "hubNotFound": "Ninguno de sus hubs coincide con el hub de este diseño. Compruebe que ha iniciado sesión con la cuenta de Autodesk correcta.",
+    "projectNotFound": "El proyecto {{name}} no es accesible con esta cuenta.",
+    "lockFailed": "No se pudo seleccionar este hub. Inténtelo de nuevo o revise los registros del servidor.",
+    "generic": "No se pudo contactar con el servidor.",
+    "retry": "Reintentar"
+  }
+}

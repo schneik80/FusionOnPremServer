@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -13,6 +14,15 @@ export default defineConfig({
   build: {
     outDir: '../server/webdist',
     emptyOutDir: true,
+    // Two real HTML entry points: the SPA and the Fusion palette's minimal
+    // chat page. embeddedHandler serves /embed.html by name (it's a real file
+    // in webdist); everything else still falls back to index.html.
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        embed: resolve(__dirname, 'embed.html'),
+      },
+    },
     // Never inline .json assets as `data:` URLs. Vite inlines small assets by
     // default, but tldraw *fetches* its translation files — and the app's CSP
     // is `connect-src 'self'`, which blocks fetching a data: URL. A 4-byte

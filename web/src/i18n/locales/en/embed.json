@@ -1,0 +1,24 @@
+{
+  "connecting": "Connecting to {{name}}…",
+  "noContext": {
+    "title": "No project context",
+    "body": "This page is opened by the Project Chat command in Fusion. Open a design that lives in a Fusion Team project, then run the command again."
+  },
+  "signIn": {
+    "title": "Sign in required",
+    "body": "Sign in to your Autodesk account to join this project's chat.",
+    "button": "Sign in"
+  },
+  "hubConsent": {
+    "title": "Switch hub?",
+    "body": "This design lives in the hub {{hub}}, but your session is signed in to {{sessionHub}}. Switching moves your whole session — including any open browser tabs — over to {{hub}}.",
+    "confirm": "Switch to {{hub}}"
+  },
+  "error": {
+    "hubNotFound": "None of your hubs matches this design's hub. Check that you signed in with the right Autodesk account.",
+    "projectNotFound": "The project {{name}} is not accessible with this account.",
+    "lockFailed": "Could not select this hub. Try again, or check the server logs.",
+    "generic": "Could not reach the server.",
+    "retry": "Retry"
+  }
+}
