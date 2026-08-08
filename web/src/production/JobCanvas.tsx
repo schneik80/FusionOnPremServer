@@ -5,7 +5,7 @@ import {
   faPlus,
 } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Box, IconButton, Tooltip, Typography } from '@mui/material'
+import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -27,6 +27,7 @@ const H = 74
 const PORT_R = 7
 const PAD = 80
 const MIN_VIEW_H = 320
+const GAP = 64 // horizontal gap when a new node is chained off the selection
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
@@ -76,6 +77,9 @@ export function JobCanvas({
   // Render-affecting drag state.
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null)
   const [edgeDraw, setEdgeDraw] = useState<{ from: string; lx: number; ly: number } | null>(null)
+  // The node being renamed in place. Only the id lives up here — the draft
+  // string is StepNode's own state, so typing re-renders one node.
+  const [renamingId, setRenamingId] = useState<string | null>(null)
 
   // Effective graph-space position of a step (drag override wins).
   const posOf = (st: ProdStep) => (dragPos?.id === st.id ? dragPos : { x: st.x, y: st.y })
@@ -204,15 +208,37 @@ export function JobCanvas({
     pan.current = null
   }
 
-  const addStepAtCenter = () => {
+  // addStep places a new node and, when a step is selected, chains it: the
+  // node lands to the right of the selection at the same height and the edge
+  // is drawn for you, so building a run is one click per step instead of
+  // add-then-drag-then-connect. With nothing selected it falls back to the
+  // viewport centre, unconnected — the original behaviour.
+  //
+  // `selected` is resolved against the live steps rather than trusted: the
+  // selection id outlives a delete (it is owned by JobDetail, which does not
+  // clear it), so a stale id would otherwise place the node relative to a
+  // node that is gone.
+  const addStep = () => {
     const vp = vpRef.current
     if (!vp) return
-    // View center in graph coords, offset so the node lands centered.
-    const gx = (vp.clientWidth / 2 - view.tx) / view.scale - ox - W / 2
-    const gy = (vp.clientHeight / 2 - view.ty) / view.scale - oy - H / 2
+    const from = job.steps.find((s) => s.id === selectedStepId) ?? null
+    const pos = from
+      ? { x: from.x + W + GAP, y: from.y }
+      : {
+          // View center in graph coords, offset so the node lands centered.
+          x: (vp.clientWidth / 2 - view.tx) / view.scale - ox - W / 2,
+          y: (vp.clientHeight / 2 - view.ty) / view.scale - oy - H / 2,
+        }
     graph.addStep.mutate(
-      { title: t('canvas.newStepTitle', { num: job.steps.length + 1 }), x: gx, y: gy },
-      { onSuccess: (j) => onSelectStep(j.steps[j.steps.length - 1]?.id ?? null) },
+      { title: t('canvas.newStepTitle', { num: job.steps.length + 1 }), x: pos.x, y: pos.y },
+      {
+        onSuccess: (j) => {
+          const created = j.steps[j.steps.length - 1]
+          if (!created) return
+          onSelectStep(created.id)
+          if (from) graph.addEdge.mutate({ from: from.id, to: created.id })
+        },
+      },
     )
   }
 
@@ -222,6 +248,8 @@ export function JobCanvas({
   // move one). They read live state through refs instead of closing over it.
   const liveRef = useRef({ job, dragPos, scale: view.scale, canWrite, onSelectStep })
   liveRef.current = { job, dragPos, scale: view.scale, canWrite, onSelectStep }
+  const graphRef = useRef(graph)
+  graphRef.current = graph
 
   const handleBodyDown = useCallback((e: React.MouseEvent, stepId: string) => {
     e.stopPropagation()
@@ -263,6 +291,25 @@ export function JobCanvas({
       })
       return v
     })
+  }, [])
+
+  const handleRenameStart = useCallback((stepId: string) => {
+    if (!liveRef.current.canWrite) return
+    // A drag may be half-started from the double-click's first mousedown;
+    // clear it so releasing over the input doesn't PATCH a position.
+    nodeDrag.current = null
+    setRenamingId(stepId)
+  }, [])
+
+  const handleRenameEnd = useCallback((stepId: string, next: string | null) => {
+    setRenamingId((cur) => (cur === stepId ? null : cur))
+    if (next === null) return // escaped
+    const trimmed = next.trim()
+    const st = liveRef.current.job.steps.find((s) => s.id === stepId)
+    // Blank reverts, unchanged is a no-op: a stray double-click must not bump
+    // the step's UpdatedAt.
+    if (!trimmed || !st || trimmed === st.title) return
+    graphRef.current.updateStep.mutate({ stepId, patch: { title: trimmed } })
   }, [])
 
   const handleEnter = useCallback((stepId: string) => {
@@ -361,10 +408,13 @@ export function JobCanvas({
               top={p.y + oy}
               accent={accent}
               selected={st.id === selectedStepId}
+              renaming={st.id === renamingId}
               canWrite={canWrite}
               onBodyDown={handleBodyDown}
               onBodyUp={handleBodyUp}
               onPortDown={handlePortDown}
+              onRenameStart={handleRenameStart}
+              onRenameEnd={handleRenameEnd}
               onEnter={handleEnter}
               onLeave={handleLeave}
             />
@@ -391,6 +441,24 @@ export function JobCanvas({
         </Box>
       )}
 
+      {/* Double-click-to-rename and chain-from-the-selection are both
+          invisible affordances; the hint is the only thing that surfaces them. */}
+      {canWrite && job.steps.length > 0 && (
+        <Typography
+          variant="caption"
+          sx={{
+            position: 'absolute',
+            left: 8,
+            bottom: 6,
+            color: 'text.disabled',
+            pointerEvents: 'none',
+            fontSize: 11,
+          }}
+        >
+          {selectedStepId ? t('canvas.hintChain') : t('canvas.hintRename')}
+        </Typography>
+      )}
+
       {/* toolbar */}
       <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5, alignItems: 'center' }}>
         {canWrite && (
@@ -398,7 +466,7 @@ export function JobCanvas({
             <IconButton
               size="small"
               onMouseDown={(e) => e.stopPropagation()}
-              onClick={addStepAtCenter}
+              onClick={addStep}
               sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', '&:hover': { bgcolor: 'primary.dark' } }}
             >
               <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} />
@@ -417,6 +485,49 @@ export function JobCanvas({
 }
 
 
+// StepNameInput is the in-place rename editor on a canvas node. It owns the
+// draft so typing re-renders one node rather than the canvas, and it carries
+// three guards the canvas forces on it:
+//
+//   - userSelect: 'text' — the viewport sets 'none' to keep drags from
+//     selecting labels, and that inherits into the input.
+//   - mousedown/dblclick stopPropagation — otherwise pressing into the input
+//     starts a node drag, and a double-click inside it restarts the rename.
+//   - escaped ref — blur fires after Escape, so without it every cancel would
+//     immediately commit on the way out.
+function StepNameInput({ title, onEnd }: { title: string; onEnd: (next: string | null) => void }) {
+  const { t } = useTranslation('production')
+  const [draft, setDraft] = useState(title)
+  const escaped = useRef(false)
+
+  return (
+    <TextField
+      autoFocus
+      variant="standard"
+      value={draft}
+      placeholder={t('stepCard.namePlaceholder')}
+      onChange={(e) => setDraft(e.target.value)}
+      onMouseDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onFocus={(e) => e.currentTarget.select()}
+      onBlur={() => onEnd(escaped.current ? null : draft)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        if (e.key === 'Escape') {
+          escaped.current = true
+          ;(e.target as HTMLInputElement).blur()
+        }
+      }}
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        userSelect: 'text',
+        '& input': { fontWeight: 600, fontSize: 14, py: 0, userSelect: 'text' },
+      }}
+    />
+  )
+}
+
 // memo matters here: pan and node-drag set state on every mousemove, so without
 // it every node in the job re-runs MUI's sx pipeline and its Tooltip ~60x/sec.
 // The handler props are identity-stable (see liveRef above), so the only nodes
@@ -427,10 +538,13 @@ const StepNode = memo(function StepNode({
   top,
   accent,
   selected,
+  renaming,
   canWrite,
   onBodyDown,
   onBodyUp,
   onPortDown,
+  onRenameStart,
+  onRenameEnd,
   onEnter,
   onLeave,
 }: {
@@ -439,10 +553,14 @@ const StepNode = memo(function StepNode({
   top: number
   accent: string
   selected: boolean
+  renaming: boolean
   canWrite: boolean
   onBodyDown: (e: React.MouseEvent, stepId: string) => void
   onBodyUp: (e: React.MouseEvent, stepId: string) => void
   onPortDown: (e: React.MouseEvent, stepId: string) => void
+  onRenameStart: (stepId: string) => void
+  /** next === null cancels; otherwise commit (blank and unchanged are no-ops) */
+  onRenameEnd: (stepId: string, next: string | null) => void
   onEnter: (stepId: string) => void
   onLeave: (stepId: string) => void
 }) {
@@ -463,6 +581,7 @@ const StepNode = memo(function StepNode({
       }}
       onMouseDown={(e) => onBodyDown(e, step.id)}
       onMouseUp={(e) => onBodyUp(e, step.id)}
+      onDoubleClick={() => onRenameStart(step.id)}
       sx={{
         position: 'absolute',
         left,
@@ -485,9 +604,13 @@ const StepNode = memo(function StepNode({
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
         <StepNumBadge num={step.num} size={20} />
-        <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }} title={step.title}>
-          {step.title}
-        </Typography>
+        {renaming ? (
+          <StepNameInput title={step.title} onEnd={(next) => onRenameEnd(step.id, next)} />
+        ) : (
+          <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }} title={step.title}>
+            {step.title}
+          </Typography>
+        )}
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10.5 }}>
         {t('counts.docs', { count: docCount })} · {t('counts.slots', { count: slotCount })}

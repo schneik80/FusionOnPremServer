@@ -43,7 +43,9 @@
     "zoomOut": "Verkleinern",
     "fitToView": "An Ansicht anpassen",
     "dragToConnect": "Zum Verbinden ziehen",
-    "newStepTitle": "Arbeitsschritt {{num}}"
+    "newStepTitle": "Arbeitsschritt {{num}}",
+    "hintRename": "Doppelklicken Sie auf einen Schritt, um ihn umzubenennen.",
+    "hintChain": "„Schritt hinzufügen“ verbindet mit dem ausgewählten Schritt."
   },
   "counts": {
     "steps_one": "{{count}} Arbeitsschritt",

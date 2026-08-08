@@ -43,7 +43,9 @@
     "zoomOut": "Alejar",
     "fitToView": "Ajustar a la vista",
     "dragToConnect": "Arrastre para conectar",
-    "newStepTitle": "Paso {{num}}"
+    "newStepTitle": "Paso {{num}}",
+    "hintRename": "Haga doble clic en un paso para cambiarle el nombre.",
+    "hintChain": "«Añadir paso» se conecta al paso seleccionado."
   },
   "counts": {
     "steps_one": "{{count}} paso",

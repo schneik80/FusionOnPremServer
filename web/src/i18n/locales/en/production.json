@@ -43,7 +43,9 @@
     "zoomOut": "Zoom out",
     "fitToView": "Fit to view",
     "dragToConnect": "Drag to connect",
-    "newStepTitle": "Step {{num}}"
+    "newStepTitle": "Step {{num}}",
+    "hintRename": "Double-click a step to rename it.",
+    "hintChain": "Add step connects to the selected step."
   },
   "counts": {
     "steps_one": "{{count}} step",

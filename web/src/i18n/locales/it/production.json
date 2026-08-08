@@ -43,7 +43,9 @@
     "zoomOut": "Zoom indietro",
     "fitToView": "Adatta alla vista",
     "dragToConnect": "Trascina per collegare",
-    "newStepTitle": "Fase di lavoro {{num}}"
+    "newStepTitle": "Fase di lavoro {{num}}",
+    "hintRename": "Fai doppio clic su un passaggio per rinominarlo.",
+    "hintChain": "«Aggiungi passaggio» si collega al passaggio selezionato."
   },
   "counts": {
     "steps_one": "{{count}} fase di lavoro",

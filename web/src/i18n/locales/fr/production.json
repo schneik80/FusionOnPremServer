@@ -43,7 +43,9 @@
     "zoomOut": "Zoom arrière",
     "fitToView": "Ajuster à la vue",
     "dragToConnect": "Glisser pour connecter",
-    "newStepTitle": "Étape {{num}}"
+    "newStepTitle": "Étape {{num}}",
+    "hintRename": "Double-cliquez sur une étape pour la renommer.",
+    "hintChain": "« Ajouter une étape » se connecte à l’étape sélectionnée."
   },
   "counts": {
     "steps_one": "{{count}} étape",
