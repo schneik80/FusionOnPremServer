@@ -273,7 +273,10 @@ export function JobDetail({
           myId={myId}
         />
       ) : (
-        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 1.5 }}>
+        // background.canvas is the same recessed surface the Flow view paints,
+        // so a step card reads as sitting ON the work surface in every view
+        // rather than only in Flow.
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 1.5, bgcolor: 'background.canvas' }}>
           {canWrite ? (
             <TextField
               variant="standard"

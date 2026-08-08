@@ -159,7 +159,7 @@ export function BatchesView({
             onDeleted={() => setSelectedId(null)}
           />
         ) : (
-          <Box sx={{ flex: 1, display: 'grid', placeItems: 'center', color: 'text.secondary', fontSize: 13, px: 3, textAlign: 'center' }}>
+          <Box sx={{ flex: 1, display: 'grid', placeItems: 'center', color: 'text.secondary', fontSize: 13, px: 3, textAlign: 'center', bgcolor: 'background.canvas' }}>
             {canWrite ? t('batchesView.emptyCanWrite') : t('batchesView.emptyReadOnly')}
           </Box>
         )}

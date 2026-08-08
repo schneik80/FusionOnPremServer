@@ -240,7 +240,7 @@ export function BatchDetail({
       </Stack>
 
       {/* per-step record — the FROZEN plan, not the live graph */}
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 1.5 }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 1.5, bgcolor: 'background.canvas' }}>
         {/* related tasks & documents (live references, not version-pinned) */}
         <Box sx={{ mb: 2 }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
