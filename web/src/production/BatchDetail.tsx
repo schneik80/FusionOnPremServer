@@ -1,4 +1,11 @@
-import { faListCheck, faPaperclip, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons'
+import {
+  faEye,
+  faEyeSlash,
+  faListCheck,
+  faPaperclip,
+  faPlus,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   Box,
@@ -30,7 +37,7 @@ import { useNav } from '../state/nav'
 import { useLocalPin } from '../state/pins'
 import { AttachTaskDialog } from '../tasks/AttachTaskDialog'
 import { DocSourceButton } from './DocSourceButton'
-import { StepNumBadge } from './chips'
+import { DecisionGlyph, StepNumBadge } from './chips'
 import { PinnedDocCard } from './PinnedDocCard'
 import { BATCH_STATUSES } from './types'
 import type { ProdBatch } from './types'
@@ -67,8 +74,18 @@ export function BatchDetail({
   const nav = useNav()
   const pin = useLocalPin()
   const batchToken = encodeBatchRef(batchRefFromBatch(jobRef, batch))
-  const { updateBatch, removeBatch, addFulfillment, removeFulfillment, addRef, removeRef } =
-    useBatchMutations(projectId, jobId)
+  const {
+    updateBatch,
+    removeBatch,
+    addFulfillment,
+    removeFulfillment,
+    setStepHidden,
+    addRef,
+    removeRef,
+  } = useBatchMutations(projectId, jobId)
+  // Whether hidden steps are revealed is a per-viewer preference, so it stays
+  // local — only WHICH steps are hidden is shared state on the batch.
+  const [showHidden, setShowHidden] = useState(false)
   // Draft-while-editing buffer for the name: null renders the server value, a
   // string means it's being edited (so refetches never clobber typing).
   const [nameDraft, setNameDraft] = useState<string | null>(null)
@@ -78,6 +95,9 @@ export function BatchDetail({
 
   const canDelete = canModerate || batch.createdBy.id === myId
   const isProd = batch.kind === 'production'
+  const hiddenIds = new Set(batch.hiddenSteps)
+  // Count only steps still in the frozen plan, so a stale id can't inflate it.
+  const hiddenCount = batch.steps.filter((s) => hiddenIds.has(s.stepId)).length
 
   const saveName = () => {
     const trimmed = (nameDraft ?? '').trim()
@@ -173,6 +193,21 @@ export function BatchDetail({
           </Tooltip>
         )}
         <Box sx={{ flex: 1 }} />
+        {hiddenCount > 0 && (
+          <Tooltip title={t(showHidden ? 'batchDetail.hideHidden' : 'batchDetail.showHidden', { count: hiddenCount })}>
+            <Button
+              size="small"
+              color="inherit"
+              onClick={() => setShowHidden((v) => !v)}
+              startIcon={
+                <FontAwesomeIcon icon={showHidden ? faEye : faEyeSlash} style={{ fontSize: 11 }} />
+              }
+              sx={{ textTransform: 'none', color: 'text.secondary', flexShrink: 0 }}
+            >
+              {t('batchDetail.hiddenCount', { count: hiddenCount })}
+            </Button>
+          </Tooltip>
+        )}
         <Select
           size="small"
           value={batch.status}
@@ -251,14 +286,60 @@ export function BatchDetail({
         <Stack spacing={1.5}>
           {batch.steps.map((step) => {
             const asRun = asRunForStep(step.stepId)
+            const hidden = hiddenIds.has(step.stepId)
+            const decision = step.kind === 'decision'
+            if (hidden && !showHidden) return null
             return (
-              <Paper key={step.stepId} variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+              <Paper
+                key={step.stepId}
+                variant="outlined"
+                sx={{
+                  p: 1.25,
+                  borderRadius: 1.5,
+                  ...(decision && { borderLeft: 3, borderLeftColor: 'primary.main' }),
+                  // A revealed hidden step stays visually set aside, so the
+                  // toggle reads as "show me these too", not "unhide them".
+                  ...(hidden && { opacity: 0.55, borderStyle: 'dashed' }),
+                }}
+              >
                 <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                   <StepNumBadge num={step.num} size={20} />
-                  <Typography variant="body2" fontWeight={600}>
+                  {decision && <DecisionGlyph color="primary.main" />}
+                  <Typography variant="body2" fontWeight={600} sx={{ flex: 1, minWidth: 0 }} noWrap>
                     {step.title}
                   </Typography>
+                  {canWrite && (
+                    <Tooltip title={t(hidden ? 'batchDetail.showStep' : 'batchDetail.hideStep')}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          aria-label={t(hidden ? 'batchDetail.showStep' : 'batchDetail.hideStep')}
+                          disabled={setStepHidden.isPending}
+                          onClick={() =>
+                            setStepHidden.mutate({
+                              batchId: batch.id,
+                              stepId: step.stepId,
+                              hidden: !hidden,
+                            })
+                          }
+                        >
+                          <FontAwesomeIcon
+                            icon={hidden ? faEyeSlash : faEye}
+                            style={{ fontSize: 12 }}
+                          />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
                 </Stack>
+
+                {/* A decision routed this run; it carries no documents, so the
+                    three document sections below are simply absent. */}
+                {decision && (
+                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block' }}>
+                    {t('batchDetail.decisionRow')}
+                  </Typography>
+                )}
 
                 {/* frozen plan documents */}
                 {step.planDocs.length > 0 && (
@@ -317,6 +398,7 @@ export function BatchDetail({
                 )}
 
                 {/* as-run artifacts */}
+                {!decision && (
                 <Box>
                   <SectionLabel>{t('batchDetail.asRunArtifacts')}</SectionLabel>
                   <ChipWrap>
@@ -355,6 +437,7 @@ export function BatchDetail({
                     </Box>
                   )}
                 </Box>
+                )}
               </Paper>
             )
           })}

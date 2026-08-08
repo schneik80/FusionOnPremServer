@@ -26,6 +26,16 @@ func newRegistry() *migrate.Registry {
 	r := migrate.NewRegistry("production", fileVersion)
 	// v1→v2: schema stamp joins the envelope; loader backfills it.
 	r.Register(1, func(raw map[string]any) (map[string]any, error) { return raw, nil })
+	// v2→v3: decision steps, result-bound edges and per-run hidden steps join
+	// the shape. Nothing to rewrite — every added field's zero value is
+	// already its legacy meaning ("" kind reads as "step", a nil result list
+	// is no results, an empty FromResultID is a plain edge, nothing hidden).
+	//
+	// The version still has to move. migrate.Apply does not persist what it
+	// migrates, so an older binary would decode a v3 file into its own structs,
+	// silently drop the new fields, and erase them for every job in the project
+	// on its next save. At v3 that binary refuses the file instead.
+	r.Register(2, func(raw map[string]any) (map[string]any, error) { return raw, nil })
 	return r
 }
 
@@ -489,6 +499,12 @@ func (s *Store) CreateStep(projectID, jobID string, d StepDraft) (Job, error) {
 	if err := validateDesc(d.Description); err != nil {
 		return Job{}, err
 	}
+	if d.Kind == "" {
+		d.Kind = "step"
+	}
+	if !validStepKind(d.Kind) {
+		return Job{}, fmt.Errorf("%w: unknown step kind %q", ErrInvalid, d.Kind)
+	}
 	return s.jobMutation(projectID, jobID, func(j *Job) error {
 		if len(j.Steps) >= MaxStepsPerJob {
 			return fmt.Errorf("%w: job already has %d steps", ErrInvalid, MaxStepsPerJob)
@@ -496,11 +512,13 @@ func (s *Store) CreateStep(projectID, jobID string, d StepDraft) (Job, error) {
 		now := time.Now().UTC()
 		st := &Step{
 			ID:           fmt.Sprintf("s%d", j.NextStepNum),
+			Kind:         d.Kind,
 			Num:          j.NextStepNum,
 			Title:        d.Title,
 			Description:  d.Description,
 			X:            d.X,
 			Y:            d.Y,
+			Results:      []DecisionResult{},
 			PlanDocs:     []PlanDoc{},
 			Placeholders: []Placeholder{},
 			CreatedAt:    now,
@@ -575,16 +593,36 @@ func (s *Store) DeleteStep(projectID, jobID, stepID string) (Job, error) {
 
 // AddEdge links two steps. Rejects self-loops, duplicates, unknown endpoints,
 // and any edge that would introduce a cycle (the graph stays a DAG).
-func (s *Store) AddEdge(projectID, jobID, from, to string) (Job, error) {
+//
+// fromResultID routes the edge out of one of a decision's results. It is
+// REQUIRED when `from` is a decision and must be empty otherwise: an unbound
+// branch off a decision has no port to leave from and no defined meaning, and
+// allowing both shapes on one node would make the duplicate key ambiguous.
+// The result must belong to `from` — child ids are unique job-wide, so a
+// result id copied from a different decision would otherwise resolve.
+func (s *Store) AddEdge(projectID, jobID, from, fromResultID, to string) (Job, error) {
 	return s.jobMutation(projectID, jobID, func(j *Job) error {
 		if from == to {
 			return fmt.Errorf("%w: an edge cannot loop a step to itself", ErrInvalid)
 		}
-		if findStep(j, from) == nil || findStep(j, to) == nil {
+		src := findStep(j, from)
+		if src == nil || findStep(j, to) == nil {
 			return fmt.Errorf("%w: both steps must exist", ErrInvalid)
 		}
+		if IsDecision(src.Kind) {
+			if fromResultID == "" {
+				return fmt.Errorf("%w: an edge from a decision must name the result it branches on", ErrInvalid)
+			}
+			if findResult(src, fromResultID) == nil {
+				return fmt.Errorf("%w: result %q is not on step %q", ErrInvalid, fromResultID, from)
+			}
+		} else if fromResultID != "" {
+			return fmt.Errorf("%w: only a decision step has results to branch on", ErrInvalid)
+		}
+		// Two results of one decision may legitimately converge on the same
+		// step, so the identity of an edge includes the result it leaves from.
 		for _, e := range j.Edges {
-			if e.From == from && e.To == to {
+			if e.From == from && e.FromResultID == fromResultID && e.To == to {
 				return fmt.Errorf("%w: that edge already exists", ErrInvalid)
 			}
 		}
@@ -592,10 +630,17 @@ func (s *Store) AddEdge(projectID, jobID, from, to string) (Job, error) {
 			return fmt.Errorf("%w: job already has %d edges", ErrInvalid, MaxEdgesPerJob)
 		}
 		// Adding from→to creates a cycle iff `to` can already reach `from`.
+		// The result binding is irrelevant here: every result leaves the same
+		// node, so reachability is the same graph either way.
 		if reaches(j, to, from) {
 			return fmt.Errorf("%w: that edge would create a cycle", ErrInvalid)
 		}
-		j.Edges = append(j.Edges, Edge{ID: fmt.Sprintf("e%d", j.NextChildNum), From: from, To: to})
+		j.Edges = append(j.Edges, Edge{
+			ID:           fmt.Sprintf("e%d", j.NextChildNum),
+			From:         from,
+			FromResultID: fromResultID,
+			To:           to,
+		})
 		j.NextChildNum++
 		return nil
 	})
@@ -631,6 +676,9 @@ func (s *Store) AttachPlanDoc(projectID, jobID, stepID string, doc DocSnapshot, 
 		st := findStep(j, stepID)
 		if st == nil {
 			return fmt.Errorf("%w: step %q", ErrNotFound, stepID)
+		}
+		if IsDecision(st.Kind) {
+			return fmt.Errorf("%w: a decision step carries no documents", ErrInvalid)
 		}
 		if len(st.PlanDocs) >= MaxPlanDocsPerStep {
 			return fmt.Errorf("%w: step already has %d plan documents", ErrInvalid, MaxPlanDocsPerStep)
@@ -670,6 +718,111 @@ func (s *Store) RemovePlanDoc(projectID, jobID, stepID, planDocID string) (Job, 
 	})
 }
 
+// ---- decision result mutations ----
+
+// AddResult appends an outcome to a decision step. Results are the branch
+// points of the graph, so each one becomes an out-port that edges leave from.
+func (s *Store) AddResult(projectID, jobID, stepID string, d ResultDraft) (Job, error) {
+	d.Label = strings.TrimSpace(d.Label)
+	if err := validateLabel(d.Label); err != nil {
+		return Job{}, err
+	}
+	if d.Color == "" {
+		d.Color = ResultColors[0]
+	}
+	if !validResultColor(d.Color) {
+		return Job{}, fmt.Errorf("%w: unknown result color %q", ErrInvalid, d.Color)
+	}
+	return s.jobMutation(projectID, jobID, func(j *Job) error {
+		st := findStep(j, stepID)
+		if st == nil {
+			return fmt.Errorf("%w: step %q", ErrNotFound, stepID)
+		}
+		if !IsDecision(st.Kind) {
+			return fmt.Errorf("%w: only a decision step has results", ErrInvalid)
+		}
+		if len(st.Results) >= MaxResultsPerStep {
+			return fmt.Errorf("%w: step already has %d results", ErrInvalid, MaxResultsPerStep)
+		}
+		st.Results = append(st.Results, DecisionResult{
+			ID:    fmt.Sprintf("dr%d", j.NextChildNum),
+			Label: d.Label,
+			Color: d.Color,
+		})
+		j.NextChildNum++
+		st.UpdatedAt = time.Now().UTC()
+		return nil
+	})
+}
+
+// UpdateResult patches a result's label or color.
+func (s *Store) UpdateResult(projectID, jobID, stepID, resultID string, p ResultPatch) (Job, error) {
+	if p.Label != nil {
+		*p.Label = strings.TrimSpace(*p.Label)
+		if err := validateLabel(*p.Label); err != nil {
+			return Job{}, err
+		}
+	}
+	if p.Color != nil && !validResultColor(*p.Color) {
+		return Job{}, fmt.Errorf("%w: unknown result color %q", ErrInvalid, *p.Color)
+	}
+	return s.jobMutation(projectID, jobID, func(j *Job) error {
+		st := findStep(j, stepID)
+		if st == nil {
+			return fmt.Errorf("%w: step %q", ErrNotFound, stepID)
+		}
+		r := findResult(st, resultID)
+		if r == nil {
+			return fmt.Errorf("%w: result %q", ErrNotFound, resultID)
+		}
+		if p.Label != nil {
+			r.Label = *p.Label
+		}
+		if p.Color != nil {
+			r.Color = *p.Color
+		}
+		st.UpdatedAt = time.Now().UTC()
+		return nil
+	})
+}
+
+// RemoveResult drops an outcome and CASCADES to the edges bound to it, the
+// same sweep DeleteStep does for its incident edges.
+//
+// Leaving them would be unrecoverable through the UI: an edge naming a dead
+// result has no port to anchor to, so the canvas cannot draw it — but it still
+// counts for cycle detection and the duplicate check, so the user would be
+// told a new edge "would create a cycle" by an edge they can neither see nor
+// delete.
+func (s *Store) RemoveResult(projectID, jobID, stepID, resultID string) (Job, error) {
+	return s.jobMutation(projectID, jobID, func(j *Job) error {
+		st := findStep(j, stepID)
+		if st == nil {
+			return fmt.Errorf("%w: step %q", ErrNotFound, stepID)
+		}
+		idx := -1
+		for i, r := range st.Results {
+			if r.ID == resultID {
+				idx = i
+				break
+			}
+		}
+		if idx < 0 {
+			return fmt.Errorf("%w: result %q", ErrNotFound, resultID)
+		}
+		st.Results = append(st.Results[:idx], st.Results[idx+1:]...)
+		kept := j.Edges[:0]
+		for _, e := range j.Edges {
+			if !(e.From == stepID && e.FromResultID == resultID) {
+				kept = append(kept, e)
+			}
+		}
+		j.Edges = kept
+		st.UpdatedAt = time.Now().UTC()
+		return nil
+	})
+}
+
 // ---- placeholder mutations ----
 
 // AddPlaceholder declares a per-batch document slot on a step.
@@ -685,6 +838,11 @@ func (s *Store) AddPlaceholder(projectID, jobID, stepID string, d PlaceholderDra
 		st := findStep(j, stepID)
 		if st == nil {
 			return fmt.Errorf("%w: step %q", ErrNotFound, stepID)
+		}
+		if IsDecision(st.Kind) {
+			// A placeholder on a routing node would put a slot into every
+			// batch's completeness count that no run can ever fill.
+			return fmt.Errorf("%w: a decision step carries no document slots", ErrInvalid)
 		}
 		if len(st.Placeholders) >= MaxPlaceholdersPerStep {
 			return fmt.Errorf("%w: step already has %d placeholders", ErrInvalid, MaxPlaceholdersPerStep)
@@ -792,6 +950,7 @@ func (s *Store) CreateBatch(projectID, jobID string, d BatchDraft, createdBy Use
 		for _, st := range j.Steps {
 			bs := BatchStep{
 				StepID:       st.ID,
+				Kind:         stepKind(st.Kind),
 				Num:          st.Num,
 				Title:        st.Title,
 				PlanDocs:     append([]PlanDoc{}, st.PlanDocs...),
@@ -809,6 +968,7 @@ func (s *Store) CreateBatch(projectID, jobID string, d BatchDraft, createdBy Use
 			Steps:        frozen,
 			Fulfillments: []Fulfillment{},
 			Refs:         []string{},
+			HiddenSteps:  []string{},
 			CreatedBy:    createdBy,
 			CreatedAt:    now,
 			UpdatedAt:    now,
@@ -1040,6 +1200,61 @@ func (s *Store) RemoveBatchRef(projectID, jobID, batchID, token string) (Batch, 
 	return *updated, nil
 }
 
+// HideBatchStep collapses one frozen step in the run view — typically the
+// branch a decision did not take. Idempotent, like AddBatchRef.
+//
+// This is presentation metadata on the Batch, NOT a field on the frozen
+// BatchStep: the snapshot stays a pure record of what the plan was, and
+// nothing derived from the run (completeness, fulfillment validation,
+// Where-Used) consults the hidden list.
+func (s *Store) HideBatchStep(projectID, jobID, batchID, stepID string) (Batch, error) {
+	return s.setBatchStepHidden(projectID, jobID, batchID, stepID, true)
+}
+
+// ShowBatchStep un-hides a frozen step. Missing is not an error — the caller
+// wants it visible, and it already is.
+func (s *Store) ShowBatchStep(projectID, jobID, batchID, stepID string) (Batch, error) {
+	return s.setBatchStepHidden(projectID, jobID, batchID, stepID, false)
+}
+
+func (s *Store) setBatchStepHidden(projectID, jobID, batchID, stepID string, hidden bool) (Batch, error) {
+	var updated *Batch
+	err := s.jobMutationErr(projectID, jobID, func(j *Job) error {
+		b := findBatch(j, batchID)
+		if b == nil {
+			return fmt.Errorf("%w: batch %q", ErrNotFound, batchID)
+		}
+		// Validate against the FROZEN steps, not the live plan: a step deleted
+		// from the plan is still part of this run and still hideable.
+		if findBatchStep(b, stepID) == nil {
+			return fmt.Errorf("%w: step %q is not part of this run", ErrNotFound, stepID)
+		}
+		idx := -1
+		for i, id := range b.HiddenSteps {
+			if id == stepID {
+				idx = i
+				break
+			}
+		}
+		switch {
+		case hidden && idx < 0:
+			b.HiddenSteps = append(b.HiddenSteps, stepID)
+		case !hidden && idx >= 0:
+			b.HiddenSteps = append(b.HiddenSteps[:idx], b.HiddenSteps[idx+1:]...)
+		default:
+			updated = copyBatch(b) // already in the wanted state
+			return nil
+		}
+		b.UpdatedAt = time.Now().UTC()
+		updated = copyBatch(b) // copy under lock; see jobMutation
+		return nil
+	})
+	if err != nil {
+		return Batch{}, err
+	}
+	return *updated, nil
+}
+
 // validateRefToken accepts only the compact card tokens the batch renders —
 // tasks and documents — bounded in length.
 func validateRefToken(token string) error {
@@ -1225,6 +1440,15 @@ func findPlaceholder(st *Step, placeholderID string) *Placeholder {
 	return nil
 }
 
+func findResult(st *Step, resultID string) *DecisionResult {
+	for i := range st.Results {
+		if st.Results[i].ID == resultID {
+			return &st.Results[i]
+		}
+	}
+	return nil
+}
+
 func findBatch(j *Job, batchID string) *Batch {
 	for _, b := range j.Batches {
 		if b.ID == batchID {
@@ -1287,6 +1511,14 @@ func copyStep(st *Step) *Step {
 	if out.Placeholders == nil {
 		out.Placeholders = []Placeholder{}
 	}
+	// UpdateResult writes through a *DecisionResult into this slice, so an
+	// aliased copy would let a failed mutation's rollback snapshot carry the
+	// edit it was supposed to undo. DecisionResult is all value types, so the
+	// slice copy is the whole deep copy.
+	out.Results = append([]DecisionResult(nil), st.Results...)
+	if out.Results == nil {
+		out.Results = []DecisionResult{}
+	}
 	return &out
 }
 
@@ -1306,6 +1538,10 @@ func copyBatch(b *Batch) *Batch {
 	out.Refs = append([]string(nil), b.Refs...)
 	if out.Refs == nil {
 		out.Refs = []string{}
+	}
+	out.HiddenSteps = append([]string(nil), b.HiddenSteps...)
+	if out.HiddenSteps == nil {
+		out.HiddenSteps = []string{}
 	}
 	return &out
 }

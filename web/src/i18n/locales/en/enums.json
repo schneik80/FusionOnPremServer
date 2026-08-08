@@ -58,5 +58,14 @@
     "step": "Step",
     "fulfillment": "Supplied",
     "reference": "Attached"
+  },
+  "resultColor": {
+    "green": "Green",
+    "amber": "Amber",
+    "red": "Red",
+    "blue": "Blue",
+    "violet": "Violet",
+    "teal": "Teal",
+    "grey": "Grey"
   }
 }

@@ -30,6 +30,25 @@ export function StepNumBadge({ num, size = 22 }: { num: number; size?: number })
   )
 }
 
+// DecisionGlyph marks a branch node wherever there is no room for the flow
+// canvas's actual diamond — the list card and the frozen run record. A rotated
+// square rather than an icon font, so it matches the canvas shape exactly.
+export function DecisionGlyph({ color, size = 11 }: { color: string; size?: number }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: '2px',
+        transform: 'rotate(45deg)',
+        bgcolor: color,
+      }}
+    />
+  )
+}
+
 // PlaceholderChip is an unfilled document slot. The dashed outline is the
 // feature's visual language for "expected, not yet supplied"; a required slot
 // is marked so a run's gaps are obvious at a glance.

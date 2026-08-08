@@ -118,7 +118,7 @@ func TestDuplicateJob(t *testing.T) {
 	src := mustJob(t, s, "Original")
 	a := mustStep(t, s, src.ID, "A")
 	b := mustStep(t, s, src.ID, "B")
-	if _, err := s.AddEdge(testProject, src.ID, a.ID, b.ID); err != nil {
+	if _, err := s.AddEdge(testProject, src.ID, a.ID, "", b.ID); err != nil {
 		t.Fatalf("AddEdge: %v", err)
 	}
 	if _, err := s.AttachPlanDoc(testProject, src.ID, a.ID, snapshot("item-1"), user()); err != nil {
@@ -263,27 +263,27 @@ func TestEdgesDAG(t *testing.T) {
 	b := mustStep(t, s, j.ID, "B")
 	c := mustStep(t, s, j.ID, "C")
 
-	if _, err := s.AddEdge(testProject, j.ID, a.ID, b.ID); err != nil {
+	if _, err := s.AddEdge(testProject, j.ID, a.ID, "", b.ID); err != nil {
 		t.Fatalf("AddEdge a->b: %v", err)
 	}
-	if _, err := s.AddEdge(testProject, j.ID, b.ID, c.ID); err != nil {
+	if _, err := s.AddEdge(testProject, j.ID, b.ID, "", c.ID); err != nil {
 		t.Fatalf("AddEdge b->c: %v", err)
 	}
 
 	// self-loop rejected
-	if _, err := s.AddEdge(testProject, j.ID, a.ID, a.ID); err == nil {
+	if _, err := s.AddEdge(testProject, j.ID, a.ID, "", a.ID); err == nil {
 		t.Fatalf("expected self-loop rejection")
 	}
 	// duplicate rejected
-	if _, err := s.AddEdge(testProject, j.ID, a.ID, b.ID); err == nil {
+	if _, err := s.AddEdge(testProject, j.ID, a.ID, "", b.ID); err == nil {
 		t.Fatalf("expected duplicate rejection")
 	}
 	// unknown endpoint rejected
-	if _, err := s.AddEdge(testProject, j.ID, a.ID, "s99"); err == nil {
+	if _, err := s.AddEdge(testProject, j.ID, a.ID, "", "s99"); err == nil {
 		t.Fatalf("expected unknown-endpoint rejection")
 	}
 	// cycle rejected: c->a would close a->b->c->a
-	if _, err := s.AddEdge(testProject, j.ID, c.ID, a.ID); err == nil {
+	if _, err := s.AddEdge(testProject, j.ID, c.ID, "", a.ID); err == nil {
 		t.Fatalf("expected cycle rejection")
 	}
 
@@ -306,6 +306,257 @@ func TestEdgesDAG(t *testing.T) {
 		if e.From == b.ID || e.To == b.ID {
 			t.Fatalf("edge incident to deleted step survived: %+v", e)
 		}
+	}
+}
+
+func mustDecision(t *testing.T, s *Store, jobID, title string) Step {
+	t.Helper()
+	j, err := s.CreateStep(testProject, jobID, StepDraft{Kind: "decision", Title: title})
+	if err != nil {
+		t.Fatalf("CreateStep decision: %v", err)
+	}
+	return *j.Steps[len(j.Steps)-1]
+}
+
+func mustResult(t *testing.T, s *Store, jobID, stepID, label, color string) DecisionResult {
+	t.Helper()
+	j, err := s.AddResult(testProject, jobID, stepID, ResultDraft{Label: label, Color: color})
+	if err != nil {
+		t.Fatalf("AddResult %q: %v", label, err)
+	}
+	st := findStep(&j, stepID)
+	return st.Results[len(st.Results)-1]
+}
+
+func TestDecisionResults(t *testing.T) {
+	s := newStore(t)
+	j := mustJob(t, s, "Job")
+	plain := mustStep(t, s, j.ID, "Mill")
+	dec := mustDecision(t, s, j.ID, "Passes QC?")
+
+	if IsDecision(plain.Kind) || !IsDecision(dec.Kind) {
+		t.Fatalf("kinds wrong: plain=%q decision=%q", plain.Kind, dec.Kind)
+	}
+	if _, err := s.CreateStep(testProject, j.ID, StepDraft{Kind: "wat", Title: "X"}); err == nil {
+		t.Errorf("expected unknown step kind to be rejected")
+	}
+
+	pass := mustResult(t, s, j.ID, dec.ID, "  Pass  ", "green")
+	if pass.Label != "Pass" || pass.Color != "green" {
+		t.Fatalf("result not normalised: %+v", pass)
+	}
+	if pass.ID != "dr1" {
+		t.Fatalf("result id = %q, want dr1", pass.ID)
+	}
+	// Results draw from the job-wide child counter, like placeholders and
+	// edges — so ids stay unique across every child kind in the job.
+	if _, err := s.AddPlaceholder(testProject, j.ID, plain.ID, PlaceholderDraft{Label: "NC"}); err != nil {
+		t.Fatalf("AddPlaceholder: %v", err)
+	}
+	if next := mustResult(t, s, j.ID, dec.ID, "Scrap", "grey"); next.ID != "dr3" {
+		t.Fatalf("result id = %q, want dr3 (ph2 took the number between)", next.ID)
+	}
+
+	// An omitted color takes the first palette token rather than empty.
+	blank := mustResult(t, s, j.ID, dec.ID, "Fail", "")
+	if blank.Color != ResultColors[0] {
+		t.Fatalf("default color = %q", blank.Color)
+	}
+
+	label := "Rework"
+	color := "amber"
+	got, err := s.UpdateResult(testProject, j.ID, dec.ID, blank.ID, ResultPatch{Label: &label, Color: &color})
+	if err != nil {
+		t.Fatalf("UpdateResult: %v", err)
+	}
+	if r := findResult(findStep(&got, dec.ID), blank.ID); r.Label != "Rework" || r.Color != "amber" {
+		t.Fatalf("patch not applied: %+v", r)
+	}
+
+	// Colors are a closed enum, not free text: the value lands in an SVG
+	// stroke and an sx rule on the client.
+	bad := "#ff0000; background: url(x)"
+	if _, err := s.UpdateResult(testProject, j.ID, dec.ID, blank.ID, ResultPatch{Color: &bad}); err == nil {
+		t.Errorf("expected a non-palette color to be rejected")
+	}
+	if _, err := s.AddResult(testProject, j.ID, dec.ID, ResultDraft{Label: "X", Color: "chartreuse"}); err == nil {
+		t.Errorf("expected an unknown palette token to be rejected")
+	}
+
+	// A plain step has no results, and a decision has no documents — the two
+	// kinds do not overlap in either direction.
+	if _, err := s.AddResult(testProject, j.ID, plain.ID, ResultDraft{Label: "Pass"}); err == nil {
+		t.Errorf("expected results to be rejected on a plain step")
+	}
+	if _, err := s.AttachPlanDoc(testProject, j.ID, dec.ID, snapshot("item-1"), user()); err == nil {
+		t.Errorf("expected plan documents to be rejected on a decision")
+	}
+	if _, err := s.AddPlaceholder(testProject, j.ID, dec.ID, PlaceholderDraft{Label: "NC"}); err == nil {
+		t.Errorf("expected placeholders to be rejected on a decision")
+	}
+
+	// Kind is create-only: StepPatch has no field for it, so a rename can
+	// never turn a decision back into a step and orphan its results.
+	title := "Renamed"
+	if _, err := s.UpdateStep(testProject, j.ID, dec.ID, StepPatch{Title: &title}); err != nil {
+		t.Fatalf("UpdateStep: %v", err)
+	}
+	after, _ := s.GetJob(testProject, j.ID)
+	if !IsDecision(findStep(&after, dec.ID).Kind) {
+		t.Errorf("a title patch changed the step kind")
+	}
+
+	for i := len(findStep(&after, dec.ID).Results); i < MaxResultsPerStep; i++ {
+		if _, err := s.AddResult(testProject, j.ID, dec.ID, ResultDraft{Label: fmt.Sprintf("R%d", i)}); err != nil {
+			t.Fatalf("AddResult %d: %v", i, err)
+		}
+	}
+	if _, err := s.AddResult(testProject, j.ID, dec.ID, ResultDraft{Label: "one too many"}); err == nil {
+		t.Errorf("expected the per-step result cap to be enforced")
+	}
+}
+
+func TestEdgesFromDecisionResults(t *testing.T) {
+	s := newStore(t)
+	j := mustJob(t, s, "Job")
+	dec := mustDecision(t, s, j.ID, "Passes QC?")
+	ship := mustStep(t, s, j.ID, "Ship")
+	rework := mustStep(t, s, j.ID, "Rework")
+	pass := mustResult(t, s, j.ID, dec.ID, "Pass", "green")
+	fail := mustResult(t, s, j.ID, dec.ID, "Fail", "red")
+
+	// A decision must say which result it branches on...
+	if _, err := s.AddEdge(testProject, j.ID, dec.ID, "", ship.ID); err == nil {
+		t.Errorf("expected an unbound edge from a decision to be rejected")
+	}
+	// ...and a plain step must not.
+	if _, err := s.AddEdge(testProject, j.ID, ship.ID, pass.ID, rework.ID); err == nil {
+		t.Errorf("expected a result binding on a plain step to be rejected")
+	}
+	// Child ids are unique job-wide, so a result from ANOTHER decision would
+	// resolve unless the binding is checked against this step.
+	other := mustDecision(t, s, j.ID, "Second gate")
+	foreign := mustResult(t, s, j.ID, other.ID, "Yes", "blue")
+	if _, err := s.AddEdge(testProject, j.ID, dec.ID, foreign.ID, ship.ID); err == nil {
+		t.Errorf("expected a foreign result id to be rejected")
+	}
+	if _, err := s.AddEdge(testProject, j.ID, dec.ID, "dr999", ship.ID); err == nil {
+		t.Errorf("expected an unknown result id to be rejected")
+	}
+
+	got, err := s.AddEdge(testProject, j.ID, dec.ID, pass.ID, ship.ID)
+	if err != nil {
+		t.Fatalf("AddEdge pass->ship: %v", err)
+	}
+	if got.Edges[0].FromResultID != pass.ID {
+		t.Fatalf("binding not stored: %+v", got.Edges[0])
+	}
+	// Two results may converge on one step, so the duplicate key includes the
+	// result — but the same result twice is still a duplicate.
+	if _, err := s.AddEdge(testProject, j.ID, dec.ID, fail.ID, ship.ID); err != nil {
+		t.Fatalf("two results converging on one step should be allowed: %v", err)
+	}
+	if _, err := s.AddEdge(testProject, j.ID, dec.ID, pass.ID, ship.ID); err == nil {
+		t.Errorf("expected a duplicate (from, result, to) to be rejected")
+	}
+
+	// Cycle detection ignores the binding: every result leaves the same node.
+	if _, err := s.AddEdge(testProject, j.ID, ship.ID, "", dec.ID); err == nil {
+		t.Errorf("expected a cycle back into the decision to be rejected")
+	}
+
+	// Deleting a result CASCADES to its edges. An orphan would be invisible on
+	// the canvas yet still block new edges as a phantom cycle.
+	if _, err := s.AddEdge(testProject, j.ID, dec.ID, fail.ID, rework.ID); err != nil {
+		t.Fatalf("AddEdge fail->rework: %v", err)
+	}
+	pruned, err := s.RemoveResult(testProject, j.ID, dec.ID, fail.ID)
+	if err != nil {
+		t.Fatalf("RemoveResult: %v", err)
+	}
+	for _, e := range pruned.Edges {
+		if e.FromResultID == fail.ID {
+			t.Fatalf("edge survived its result: %+v", e)
+		}
+	}
+	if len(pruned.Edges) != 1 || pruned.Edges[0].FromResultID != pass.ID {
+		t.Fatalf("cascade took the wrong edges: %+v", pruned.Edges)
+	}
+
+	// Deleting the decision still sweeps everything incident to it.
+	swept, err := s.DeleteStep(testProject, j.ID, dec.ID)
+	if err != nil {
+		t.Fatalf("DeleteStep: %v", err)
+	}
+	if len(swept.Edges) != 0 {
+		t.Fatalf("edges survived their decision step: %+v", swept.Edges)
+	}
+}
+
+func TestBatchHiddenSteps(t *testing.T) {
+	s := newStore(t)
+	j := mustJob(t, s, "Job")
+	mill := mustStep(t, s, j.ID, "Mill")
+	dec := mustDecision(t, s, j.ID, "Passes QC?")
+	if _, err := s.AttachPlanDoc(testProject, j.ID, mill.ID, snapshot("item-1"), user()); err != nil {
+		t.Fatalf("AttachPlanDoc: %v", err)
+	}
+	b, err := s.CreateBatch(testProject, j.ID, BatchDraft{Name: "Run 1"}, user())
+	if err != nil {
+		t.Fatalf("CreateBatch: %v", err)
+	}
+	if len(b.HiddenSteps) != 0 {
+		t.Fatalf("a new run starts with nothing hidden: %+v", b.HiddenSteps)
+	}
+	// Kind is frozen so the run view can render a decision row; results are
+	// deliberately not (a batch freezes no edges for them to point at).
+	var frozenDec *BatchStep
+	for i := range b.Steps {
+		if b.Steps[i].StepID == dec.ID {
+			frozenDec = &b.Steps[i]
+		}
+	}
+	if frozenDec == nil || !IsDecision(frozenDec.Kind) {
+		t.Fatalf("decision kind not frozen: %+v", b.Steps)
+	}
+
+	got, err := s.HideBatchStep(testProject, j.ID, b.ID, dec.ID)
+	if err != nil {
+		t.Fatalf("HideBatchStep: %v", err)
+	}
+	if len(got.HiddenSteps) != 1 || got.HiddenSteps[0] != dec.ID {
+		t.Fatalf("hidden = %+v", got.HiddenSteps)
+	}
+	// Idempotent both ways, like AddBatchRef.
+	if got, err = s.HideBatchStep(testProject, j.ID, b.ID, dec.ID); err != nil || len(got.HiddenSteps) != 1 {
+		t.Fatalf("hide is not idempotent: %+v %v", got.HiddenSteps, err)
+	}
+	if got, err = s.ShowBatchStep(testProject, j.ID, b.ID, dec.ID); err != nil || len(got.HiddenSteps) != 0 {
+		t.Fatalf("show failed: %+v %v", got.HiddenSteps, err)
+	}
+	if got, err = s.ShowBatchStep(testProject, j.ID, b.ID, dec.ID); err != nil || len(got.HiddenSteps) != 0 {
+		t.Fatalf("show is not idempotent: %+v %v", got.HiddenSteps, err)
+	}
+	if _, err := s.HideBatchStep(testProject, j.ID, b.ID, "s999"); err == nil {
+		t.Errorf("expected a step outside this run to be rejected")
+	}
+
+	// A step deleted from the PLAN is still part of the run, so still hideable
+	// — the frozen list is the authority, not the live graph.
+	if _, err := s.DeleteStep(testProject, j.ID, mill.ID); err != nil {
+		t.Fatalf("DeleteStep: %v", err)
+	}
+	if _, err := s.HideBatchStep(testProject, j.ID, b.ID, mill.ID); err != nil {
+		t.Fatalf("hiding a step deleted from the plan: %v", err)
+	}
+
+	// Hiding is presentation only: the document was still used in this run.
+	hits, err := s.FindDocRefs([]string{testProject}, "item-1")
+	if err != nil {
+		t.Fatalf("FindDocRefs: %v", err)
+	}
+	if len(hits) == 0 {
+		t.Fatalf("hiding a step removed it from Where-Used")
 	}
 }
 
@@ -580,7 +831,7 @@ func TestRejectedMutationRollsBackOnlyTouchedJob(t *testing.T) {
 	b := mustJob(t, s, "B")
 	s1 := mustStep(t, s, a.ID, "one")
 	s2 := mustStep(t, s, a.ID, "two")
-	if _, err := s.AddEdge(testProject, a.ID, s1.ID, s2.ID); err != nil {
+	if _, err := s.AddEdge(testProject, a.ID, s1.ID, "", s2.ID); err != nil {
 		t.Fatalf("AddEdge: %v", err)
 	}
 	if _, err := s.CreateStep(testProject, b.ID, StepDraft{Title: "b-step"}); err != nil {
@@ -591,7 +842,7 @@ func TestRejectedMutationRollsBackOnlyTouchedJob(t *testing.T) {
 	otherBefore, _ := s.GetJob(testProject, b.ID)
 
 	// Rejected: would close a cycle.
-	if _, err := s.AddEdge(testProject, a.ID, s2.ID, s1.ID); err == nil {
+	if _, err := s.AddEdge(testProject, a.ID, s2.ID, "", s1.ID); err == nil {
 		t.Fatalf("expected cycle rejection")
 	}
 	// Rejected: unknown step.
@@ -610,7 +861,7 @@ func TestRejectedMutationRollsBackOnlyTouchedJob(t *testing.T) {
 	}
 
 	// And the file on disk still agrees after a reload.
-	if _, err := s.AddEdge(testProject, a.ID, s2.ID, s1.ID); err == nil {
+	if _, err := s.AddEdge(testProject, a.ID, s2.ID, "", s1.ID); err == nil {
 		t.Fatalf("expected cycle rejection on retry")
 	}
 	reloaded, _ := s.GetJob(testProject, a.ID)

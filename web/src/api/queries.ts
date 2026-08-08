@@ -52,6 +52,8 @@ import type {
   JobPatch,
   MyProduction,
   PlaceholderDraft,
+  ResultDraft,
+  ResultPatch,
   StepDraft,
   StepPatch,
 } from '../production/types'
@@ -947,12 +949,27 @@ export function useJobGraphMutations(projectId: string | null, jobId: string | n
     onSuccess: settle,
   })
   const addEdge = useMutation({
-    mutationFn: (args: { from: string; to: string }) =>
-      api.prodEdgeCreate(projectId!, jobId!, args.from, args.to),
+    mutationFn: (args: { from: string; to: string; fromResultId?: string }) =>
+      api.prodEdgeCreate(projectId!, jobId!, args.from, args.to, args.fromResultId),
     onSuccess: settle,
   })
   const removeEdge = useMutation({
     mutationFn: (edgeId: string) => api.prodEdgeDelete(projectId!, jobId!, edgeId),
+    onSuccess: settle,
+  })
+  const addResult = useMutation({
+    mutationFn: (args: { stepId: string; body: ResultDraft }) =>
+      api.prodResultCreate(projectId!, jobId!, args.stepId, args.body),
+    onSuccess: settle,
+  })
+  const updateResult = useMutation({
+    mutationFn: (args: { stepId: string; resultId: string; patch: ResultPatch }) =>
+      api.prodResultUpdate(projectId!, jobId!, args.stepId, args.resultId, args.patch),
+    onSuccess: settle,
+  })
+  const removeResult = useMutation({
+    mutationFn: (args: { stepId: string; resultId: string }) =>
+      api.prodResultDelete(projectId!, jobId!, args.stepId, args.resultId),
     onSuccess: settle,
   })
   const addPlaceholder = useMutation({
@@ -981,6 +998,9 @@ export function useJobGraphMutations(projectId: string | null, jobId: string | n
     removeStep,
     addEdge,
     removeEdge,
+    addResult,
+    updateResult,
+    removeResult,
     addPlaceholder,
     removePlaceholder,
     addPlanDoc,
@@ -1017,6 +1037,13 @@ export function useBatchMutations(projectId: string | null, jobId: string | null
       api.prodFulfillmentDelete(projectId!, jobId!, args.batchId, args.fulfillmentId),
     onSuccess: settle,
   })
+  const setStepHidden = useMutation({
+    mutationFn: (args: { batchId: string; stepId: string; hidden: boolean }) =>
+      args.hidden
+        ? api.prodBatchStepHide(projectId!, jobId!, args.batchId, args.stepId)
+        : api.prodBatchStepShow(projectId!, jobId!, args.batchId, args.stepId),
+    onSuccess: settle,
+  })
   const addRef = useMutation({
     mutationFn: (args: { batchId: string; token: string }) =>
       api.prodBatchRefAdd(projectId!, jobId!, args.batchId, args.token),
@@ -1027,7 +1054,16 @@ export function useBatchMutations(projectId: string | null, jobId: string | null
       api.prodBatchRefDelete(projectId!, jobId!, args.batchId, args.token),
     onSuccess: settle,
   })
-  return { createBatch, updateBatch, removeBatch, addFulfillment, removeFulfillment, addRef, removeRef }
+  return {
+    createBatch,
+    updateBatch,
+    removeBatch,
+    addFulfillment,
+    removeFulfillment,
+    setStepHidden,
+    addRef,
+    removeRef,
+  }
 }
 
 // ---- whiteboards ----

@@ -58,5 +58,14 @@
     "step": "Étape",
     "fulfillment": "Fourni",
     "reference": "Joint"
+  },
+  "resultColor": {
+    "green": "Vert",
+    "amber": "Ambre",
+    "red": "Rouge",
+    "blue": "Bleu",
+    "violet": "Violet",
+    "teal": "Sarcelle",
+    "grey": "Gris"
   }
 }

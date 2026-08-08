@@ -58,5 +58,14 @@
     "step": "Etapa",
     "fulfillment": "Fornecido",
     "reference": "Anexado"
+  },
+  "resultColor": {
+    "green": "Verde",
+    "amber": "Âmbar",
+    "red": "Vermelho",
+    "blue": "Azul",
+    "violet": "Violeta",
+    "teal": "Verde-azulado",
+    "grey": "Cinzento"
   }
 }

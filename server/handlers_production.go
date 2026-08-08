@@ -452,6 +452,7 @@ func (s *Server) handleProdStepCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cancel()
 	var in struct {
+		Kind        string  `json:"kind"`
 		Title       string  `json:"title"`
 		Description string  `json:"description"`
 		X           float64 `json:"x"`
@@ -461,6 +462,7 @@ func (s *Server) handleProdStepCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j, err := c.store.CreateStep(c.projectID, jobID, production.StepDraft{
+		Kind:        in.Kind,
 		Title:       in.Title,
 		Description: in.Description,
 		X:           in.X,
@@ -537,12 +539,15 @@ func (s *Server) handleProdEdgeCreate(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	var in struct {
 		From string `json:"from"`
-		To   string `json:"to"`
+		// Required when From is a decision step, forbidden otherwise — the
+		// store enforces both directions.
+		FromResultID string `json:"fromResultId"`
+		To           string `json:"to"`
 	}
 	if !decodeProdBody(w, r, &in) {
 		return
 	}
-	j, err := c.store.AddEdge(c.projectID, jobID, in.From, in.To)
+	j, err := c.store.AddEdge(c.projectID, jobID, in.From, in.FromResultID, in.To)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -561,6 +566,95 @@ func (s *Server) handleProdEdgeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j, err := c.store.DeleteEdge(c.projectID, jobID, edgeID)
+	if err != nil {
+		s.prodError(w, r, err)
+		return
+	}
+	s.prodJobResult(w, r, c, j, http.StatusOK)
+}
+
+// ---- decision results ----
+//
+// Results are graph structure, not step content: each one is an out-port that
+// edges branch from. Like every other in-place graph edit these return the
+// whole job, so a result delete and the edges it cascades land in the client
+// cache together.
+
+func (s *Server) handleProdResultCreate(w http.ResponseWriter, r *http.Request) {
+	c, jobID, _, cancel, ok := s.prodJobScope(w, r)
+	if !ok {
+		return
+	}
+	defer cancel()
+	stepID, ok := reqParam(w, r, "stepId")
+	if !ok {
+		return
+	}
+	var in struct {
+		Label string `json:"label"`
+		Color string `json:"color"`
+	}
+	if !decodeProdBody(w, r, &in) {
+		return
+	}
+	j, err := c.store.AddResult(c.projectID, jobID, stepID, production.ResultDraft{
+		Label: in.Label,
+		Color: in.Color,
+	})
+	if err != nil {
+		s.prodError(w, r, err)
+		return
+	}
+	s.prodJobResult(w, r, c, j, http.StatusOK)
+}
+
+func (s *Server) handleProdResultUpdate(w http.ResponseWriter, r *http.Request) {
+	c, jobID, _, cancel, ok := s.prodJobScope(w, r)
+	if !ok {
+		return
+	}
+	defer cancel()
+	stepID, ok := reqParam(w, r, "stepId")
+	if !ok {
+		return
+	}
+	resultID, ok := reqParam(w, r, "resultId")
+	if !ok {
+		return
+	}
+	var in struct {
+		Label *string `json:"label"`
+		Color *string `json:"color"`
+	}
+	if !decodeProdBody(w, r, &in) {
+		return
+	}
+	j, err := c.store.UpdateResult(c.projectID, jobID, stepID, resultID, production.ResultPatch{
+		Label: in.Label,
+		Color: in.Color,
+	})
+	if err != nil {
+		s.prodError(w, r, err)
+		return
+	}
+	s.prodJobResult(w, r, c, j, http.StatusOK)
+}
+
+func (s *Server) handleProdResultDelete(w http.ResponseWriter, r *http.Request) {
+	c, jobID, _, cancel, ok := s.prodJobScope(w, r)
+	if !ok {
+		return
+	}
+	defer cancel()
+	stepID, ok := reqParam(w, r, "stepId")
+	if !ok {
+		return
+	}
+	resultID, ok := reqParam(w, r, "resultId")
+	if !ok {
+		return
+	}
+	j, err := c.store.RemoveResult(c.projectID, jobID, stepID, resultID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return
@@ -1021,6 +1115,59 @@ func (s *Server) handleProdBatchRefDelete(w http.ResponseWriter, r *http.Request
 		return
 	}
 	b, err := c.store.RemoveBatchRef(c.projectID, jobID, batchID, token)
+	if err != nil {
+		s.prodError(w, r, err)
+		return
+	}
+	s.prodBatchResult(w, b, http.StatusOK)
+}
+
+// ---- hidden run steps ----
+//
+// Which frozen steps the run view collapses — typically the branch a decision
+// did not take. Shaped like batchrefs (a string list on the Batch, idempotent
+// add, remove) rather than as a flag on the frozen BatchStep, which stays a
+// pure record of the plan.
+
+func (s *Server) handleProdBatchStepHide(w http.ResponseWriter, r *http.Request) {
+	c, jobID, _, cancel, ok := s.prodJobScope(w, r)
+	if !ok {
+		return
+	}
+	defer cancel()
+	batchID, ok := reqParam(w, r, "batchId")
+	if !ok {
+		return
+	}
+	var in struct {
+		StepID string `json:"stepId"`
+	}
+	if !decodeProdBody(w, r, &in) {
+		return
+	}
+	b, err := c.store.HideBatchStep(c.projectID, jobID, batchID, in.StepID)
+	if err != nil {
+		s.prodError(w, r, err)
+		return
+	}
+	s.prodBatchResult(w, b, http.StatusOK)
+}
+
+func (s *Server) handleProdBatchStepShow(w http.ResponseWriter, r *http.Request) {
+	c, jobID, _, cancel, ok := s.prodJobScope(w, r)
+	if !ok {
+		return
+	}
+	defer cancel()
+	batchID, ok := reqParam(w, r, "batchId")
+	if !ok {
+		return
+	}
+	stepID, ok := reqParam(w, r, "stepId")
+	if !ok {
+		return
+	}
+	b, err := c.store.ShowBatchStep(c.projectID, jobID, batchID, stepID)
 	if err != nil {
 		s.prodError(w, r, err)
 		return

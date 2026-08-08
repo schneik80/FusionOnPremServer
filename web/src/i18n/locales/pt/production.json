@@ -30,7 +30,9 @@
     "descPlaceholder": "Adicionar uma descrição…",
     "placeholders": "Espaços reservados",
     "leadsTo": "Conduz a",
-    "connectTo": "Ligar a…"
+    "connectTo": "Ligar a…",
+    "results": "Resultados",
+    "needsResults": "Adicione um resultado antes de ligar esta decisão."
   },
   "placeholders": {
     "addHint": "Adicionar um espaço reservado (p. ex., programa NC do Setup 1)"
@@ -45,7 +47,13 @@
     "dragToConnect": "Arraste para ligar",
     "newStepTitle": "Etapa {{num}}",
     "hintRename": "Faça duplo clique num passo para lhe mudar o nome.",
-    "hintChain": "«Adicionar passo» liga-se ao passo selecionado."
+    "hintChain": "«Adicionar passo» liga-se ao passo selecionado.",
+    "paletteStep": "Adicionar passos",
+    "paletteDecision": "Adicionar decisões",
+    "addDecision": "Adicionar decisão",
+    "newDecisionTitle": "Decisão {{num}}",
+    "dragToConnectResult": "Arraste para ligar «{{label}}»",
+    "decisionNeedsResults": "adicione um resultado para ramificar"
   },
   "counts": {
     "steps_one": "{{count}} etapa",
@@ -72,7 +80,10 @@
     "planDocsCaption": "Documentos do plano — fixados na versão anexada",
     "attachDocument": "Anexar um documento",
     "deleteStep": "Eliminar etapa",
-    "deleteConfirm": "Eliminar a etapa \"{{title}}\"?"
+    "deleteConfirm": "Eliminar a etapa \"{{title}}\"?",
+    "titleDecision": "Decisão",
+    "resultsCaption": "Resultados — cada um é um ramo do fluxo",
+    "deleteDecision": "Eliminar a decisão"
   },
   "batchesView": {
     "title": "Lotes",
@@ -111,7 +122,16 @@
     "linkTask": "Ligar uma tarefa…",
     "linkDoc": "Ligar um documento / página wiki…",
     "linkDocTitle": "Ligar um documento ou página wiki",
-    "linkAction": "Ligar"
+    "linkAction": "Ligar",
+    "hideStep": "Ocultar este passo na execução",
+    "showStep": "Mostrar este passo na execução",
+    "decisionRow": "Ponto de ramificação — sem documentos.",
+    "hiddenCount_one": "{{count}} oculto",
+    "hiddenCount_other": "{{count}} ocultos",
+    "showHidden_one": "Mostrar {{count}} passo oculto",
+    "showHidden_other": "Mostrar {{count}} passos ocultos",
+    "hideHidden_one": "Recolher {{count}} passo oculto",
+    "hideHidden_other": "Recolher {{count}} passos ocultos"
   },
   "attachDoc": {
     "title": "Anexar um documento",
@@ -142,5 +162,11 @@
     "loadFailed": "Falha ao carregar o seu trabalho de produção.",
     "emptyRuns": "Sem execuções em curso. Os lotes que criar aparecem aqui enquanto estão planeados ou em execução.",
     "emptyJobs": "Ainda não há trabalhos. Os trabalhos que criar — ou que contenham uma execução criada por si — aparecem aqui."
+  },
+  "results": {
+    "empty": "Ainda não há resultados.",
+    "addHint": "Adicionar um resultado (p. ex. Aprovado)",
+    "remove": "Remover o resultado",
+    "colorLabel": "Cor do resultado"
   }
 }

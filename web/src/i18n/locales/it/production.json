@@ -30,7 +30,9 @@
     "descPlaceholder": "Aggiungi una descrizione…",
     "placeholders": "Segnaposto",
     "leadsTo": "Porta a",
-    "connectTo": "Collega a…"
+    "connectTo": "Collega a…",
+    "results": "Esiti",
+    "needsResults": "Aggiungi un esito prima di collegare questa decisione."
   },
   "placeholders": {
     "addHint": "Aggiungi un segnaposto (es. Programma NC Setup 1)"
@@ -45,7 +47,13 @@
     "dragToConnect": "Trascina per collegare",
     "newStepTitle": "Fase di lavoro {{num}}",
     "hintRename": "Fai doppio clic su un passaggio per rinominarlo.",
-    "hintChain": "«Aggiungi passaggio» si collega al passaggio selezionato."
+    "hintChain": "«Aggiungi passaggio» si collega al passaggio selezionato.",
+    "paletteStep": "Aggiungi passaggi",
+    "paletteDecision": "Aggiungi decisioni",
+    "addDecision": "Aggiungi decisione",
+    "newDecisionTitle": "Decisione {{num}}",
+    "dragToConnectResult": "Trascina per collegare «{{label}}»",
+    "decisionNeedsResults": "aggiungi un esito per diramare"
   },
   "counts": {
     "steps_one": "{{count}} fase di lavoro",
@@ -72,7 +80,10 @@
     "planDocsCaption": "Documenti di piano — bloccati alla versione allegata",
     "attachDocument": "Allega un documento",
     "deleteStep": "Elimina fase di lavoro",
-    "deleteConfirm": "Eliminare la fase di lavoro \"{{title}}\"?"
+    "deleteConfirm": "Eliminare la fase di lavoro \"{{title}}\"?",
+    "titleDecision": "Decisione",
+    "resultsCaption": "Esiti — ciascuno è una diramazione del flusso",
+    "deleteDecision": "Elimina la decisione"
   },
   "batchesView": {
     "title": "Lotti",
@@ -111,7 +122,16 @@
     "linkTask": "Collega un'attività…",
     "linkDoc": "Collega un documento / una pagina wiki…",
     "linkDocTitle": "Collega un documento o una pagina wiki",
-    "linkAction": "Collega"
+    "linkAction": "Collega",
+    "hideStep": "Nascondi questo passaggio nell’esecuzione",
+    "showStep": "Mostra questo passaggio nell’esecuzione",
+    "decisionRow": "Punto di diramazione — nessun documento.",
+    "hiddenCount_one": "{{count}} nascosto",
+    "hiddenCount_other": "{{count}} nascosti",
+    "showHidden_one": "Mostra {{count}} passaggio nascosto",
+    "showHidden_other": "Mostra {{count}} passaggi nascosti",
+    "hideHidden_one": "Comprimi {{count}} passaggio nascosto",
+    "hideHidden_other": "Comprimi {{count}} passaggi nascosti"
   },
   "attachDoc": {
     "title": "Allega un documento",
@@ -142,5 +162,11 @@
     "loadFailed": "Impossibile caricare il tuo lavoro di produzione.",
     "emptyRuns": "Nessuna esecuzione in corso. I lotti che crei compaiono qui mentre sono pianificati o in esecuzione.",
     "emptyJobs": "Ancora nessuna commessa. Le commesse che crei — o che contengono un'esecuzione creata da te — compaiono qui."
+  },
+  "results": {
+    "empty": "Nessun esito.",
+    "addHint": "Aggiungi un esito (es. Conforme)",
+    "remove": "Rimuovi l’esito",
+    "colorLabel": "Colore dell’esito"
   }
 }

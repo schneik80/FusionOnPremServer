@@ -30,7 +30,9 @@
     "descPlaceholder": "Añadir una descripción…",
     "placeholders": "Marcadores",
     "leadsTo": "Conduce a",
-    "connectTo": "Conectar con…"
+    "connectTo": "Conectar con…",
+    "results": "Resultados",
+    "needsResults": "Añada un resultado antes de conectar esta decisión."
   },
   "placeholders": {
     "addHint": "Añadir un marcador (p. ej., programa NC de la preparación 1)"
@@ -45,7 +47,13 @@
     "dragToConnect": "Arrastre para conectar",
     "newStepTitle": "Paso {{num}}",
     "hintRename": "Haga doble clic en un paso para cambiarle el nombre.",
-    "hintChain": "«Añadir paso» se conecta al paso seleccionado."
+    "hintChain": "«Añadir paso» se conecta al paso seleccionado.",
+    "paletteStep": "Añadir pasos",
+    "paletteDecision": "Añadir decisiones",
+    "addDecision": "Añadir decisión",
+    "newDecisionTitle": "Decisión {{num}}",
+    "dragToConnectResult": "Arrastre para conectar «{{label}}»",
+    "decisionNeedsResults": "añada un resultado para ramificar"
   },
   "counts": {
     "steps_one": "{{count}} paso",
@@ -72,7 +80,10 @@
     "planDocsCaption": "Documentos del plan — fijados a la versión adjunta",
     "attachDocument": "Adjuntar un documento",
     "deleteStep": "Eliminar paso",
-    "deleteConfirm": "¿Eliminar el paso \"{{title}}\"?"
+    "deleteConfirm": "¿Eliminar el paso \"{{title}}\"?",
+    "titleDecision": "Decisión",
+    "resultsCaption": "Resultados — cada uno es una rama del flujo",
+    "deleteDecision": "Eliminar la decisión"
   },
   "batchesView": {
     "title": "Lotes",
@@ -111,7 +122,16 @@
     "linkTask": "Vincular una tarea…",
     "linkDoc": "Vincular un documento / página wiki…",
     "linkDocTitle": "Vincular un documento o una página wiki",
-    "linkAction": "Vincular"
+    "linkAction": "Vincular",
+    "hideStep": "Ocultar este paso en la ejecución",
+    "showStep": "Mostrar este paso en la ejecución",
+    "decisionRow": "Punto de ramificación — sin documentos.",
+    "hiddenCount_one": "{{count}} oculto",
+    "hiddenCount_other": "{{count}} ocultos",
+    "showHidden_one": "Mostrar {{count}} paso oculto",
+    "showHidden_other": "Mostrar {{count}} pasos ocultos",
+    "hideHidden_one": "Contraer {{count}} paso oculto",
+    "hideHidden_other": "Contraer {{count}} pasos ocultos"
   },
   "attachDoc": {
     "title": "Adjuntar un documento",
@@ -142,5 +162,11 @@
     "loadFailed": "No se pudo cargar su trabajo de producción.",
     "emptyRuns": "No hay ejecuciones en curso. Los lotes que cree aparecerán aquí mientras estén planificados o en ejecución.",
     "emptyJobs": "Aún no hay trabajos. Los trabajos que cree — o que contengan una ejecución creada por usted — aparecerán aquí."
+  },
+  "results": {
+    "empty": "Aún no hay resultados.",
+    "addHint": "Añadir un resultado (p. ej. Apto)",
+    "remove": "Quitar el resultado",
+    "colorLabel": "Color del resultado"
   }
 }

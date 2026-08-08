@@ -30,7 +30,9 @@
     "descPlaceholder": "Ajouter une description…",
     "placeholders": "Emplacements",
     "leadsTo": "Mène à",
-    "connectTo": "Connecter à…"
+    "connectTo": "Connecter à…",
+    "results": "Résultats",
+    "needsResults": "Ajoutez un résultat avant de connecter cette décision."
   },
   "placeholders": {
     "addHint": "Ajouter un emplacement (ex. Programme CN montage 1)"
@@ -45,7 +47,13 @@
     "dragToConnect": "Glisser pour connecter",
     "newStepTitle": "Étape {{num}}",
     "hintRename": "Double-cliquez sur une étape pour la renommer.",
-    "hintChain": "« Ajouter une étape » se connecte à l’étape sélectionnée."
+    "hintChain": "« Ajouter une étape » se connecte à l’étape sélectionnée.",
+    "paletteStep": "Ajouter des étapes",
+    "paletteDecision": "Ajouter des décisions",
+    "addDecision": "Ajouter une décision",
+    "newDecisionTitle": "Décision {{num}}",
+    "dragToConnectResult": "Faites glisser pour connecter « {{label}} »",
+    "decisionNeedsResults": "ajoutez un résultat pour brancher"
   },
   "counts": {
     "steps_one": "{{count}} étape",
@@ -72,7 +80,10 @@
     "planDocsCaption": "Documents du plan — épinglés à la version jointe",
     "attachDocument": "Joindre un document",
     "deleteStep": "Supprimer l'étape",
-    "deleteConfirm": "Supprimer l'étape « {{title}} » ?"
+    "deleteConfirm": "Supprimer l'étape « {{title}} » ?",
+    "titleDecision": "Décision",
+    "resultsCaption": "Résultats — une branche du flux chacun",
+    "deleteDecision": "Supprimer la décision"
   },
   "batchesView": {
     "title": "Lots",
@@ -111,7 +122,16 @@
     "linkTask": "Lier une tâche…",
     "linkDoc": "Lier un document / une page wiki…",
     "linkDocTitle": "Lier un document ou une page wiki",
-    "linkAction": "Lier"
+    "linkAction": "Lier",
+    "hideStep": "Masquer cette étape dans l’exécution",
+    "showStep": "Afficher cette étape dans l’exécution",
+    "decisionRow": "Point de branchement — aucun document.",
+    "hiddenCount_one": "{{count}} masquée",
+    "hiddenCount_other": "{{count}} masquées",
+    "showHidden_one": "Afficher {{count}} étape masquée",
+    "showHidden_other": "Afficher {{count}} étapes masquées",
+    "hideHidden_one": "Replier {{count}} étape masquée",
+    "hideHidden_other": "Replier {{count}} étapes masquées"
   },
   "attachDoc": {
     "title": "Joindre un document",
@@ -142,5 +162,11 @@
     "loadFailed": "Échec du chargement de votre travail de production.",
     "emptyRuns": "Aucune série en cours. Les lots que vous créez apparaissent ici tant qu'ils sont planifiés ou en cours.",
     "emptyJobs": "Aucun ordre de fabrication pour l'instant. Les ordres que vous créez — ou qui portent une série que vous avez créée — apparaissent ici."
+  },
+  "results": {
+    "empty": "Aucun résultat pour l’instant.",
+    "addHint": "Ajouter un résultat (p. ex. Conforme)",
+    "remove": "Supprimer le résultat",
+    "colorLabel": "Couleur du résultat"
   }
 }

@@ -25,6 +25,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthMe, useJob, useJobGraphMutations, useProductionMutations } from '../api/queries'
@@ -32,11 +33,13 @@ import { PinStar } from '../components/PinStar'
 import { encodeJobRef, jobRefFromJob } from '../components/productioncard/prodref'
 import { useLocalPin } from '../state/pins'
 import { BatchesView } from './BatchesView'
-import { PlaceholderChip, StepNumBadge } from './chips'
+import { DecisionGlyph, PlaceholderChip, StepNumBadge } from './chips'
 import { JobCanvas } from './JobCanvas'
+import { resultColor } from './resultcolors'
+import { ResultsEditor } from './ResultsEditor'
 import { StepEditor } from './StepEditor'
-import type { ProdStep } from './types'
-import { jobDisplayId } from './types'
+import type { ProdEdge, ProdResult, ProdStep } from './types'
+import { isDecision, jobDisplayId } from './types'
 
 // JobDetail renders one job: its steps as a plain vertical list with inline
 // graph edits (add/remove steps, connect steps, manage placeholders). The
@@ -355,20 +358,26 @@ function StepCard({
 }: {
   step: ProdStep
   allSteps: ProdStep[]
-  outgoing: { id: string; from: string; to: string }[]
+  outgoing: ProdEdge[]
   stepName: (id: string) => string
   canWrite: boolean
   graph: Graph
 }) {
   const { t } = useTranslation('production')
+  const theme = useTheme()
   const [placeholder, setPlaceholder] = useState('')
   const [connectTo, setConnectTo] = useState('')
   const [title, setTitle] = useState(step.title)
   const [desc, setDesc] = useState(step.description ?? '')
+  const decision = isDecision(step)
 
-  // Candidate targets: any other step not already connected from this one.
+  // Candidate targets: any other step not already connected from this one. A
+  // decision filters per branch instead (see BranchRow), since two results may
+  // legitimately converge on the same step.
   const connected = new Set(outgoing.map((e) => e.to))
-  const candidates = allSteps.filter((s) => s.id !== step.id && !connected.has(s.id))
+  const candidates = allSteps.filter(
+    (s) => s.id !== step.id && (decision || !connected.has(s.id)),
+  )
 
   const saveTitle = () => {
     const trimmed = title.trim()
@@ -380,9 +389,19 @@ function StepCard({
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5 }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 1.25,
+        borderRadius: 1.5,
+        // A decision reads as different at a glance in the list too, where it
+        // has no diamond silhouette to carry that.
+        ...(decision && { borderLeft: 3, borderLeftColor: 'primary.main' }),
+      }}
+    >
       <Stack direction="row" alignItems="center" spacing={1}>
         <StepNumBadge num={step.num} />
+        {decision && <DecisionGlyph color={theme.palette.primary.main} />}
         {canWrite ? (
           <TextField
             variant="standard"
@@ -432,100 +451,221 @@ function StepCard({
         )
       )}
 
-      {/* placeholders */}
-      <Box sx={{ mt: 1, pl: 3.75 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-          {t('stepCard.placeholders')}
-        </Typography>
-        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-          {step.placeholders.map((ph) => (
-            <PlaceholderChip
-              key={ph.id}
-              placeholder={ph}
-              onDelete={
-                canWrite
-                  ? () => graph.removePlaceholder.mutate({ stepId: step.id, placeholderId: ph.id })
-                  : undefined
-              }
-            />
-          ))}
-          {step.placeholders.length === 0 && (
-            <Typography variant="caption" color="text.disabled">
-              {t('empty.none')}
-            </Typography>
-          )}
-        </Stack>
-        {canWrite && (
-          <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} alignItems="center">
-            <TextField
-              size="small"
-              variant="standard"
-              placeholder={t('placeholders.addHint')}
-              value={placeholder}
-              onChange={(e) => setPlaceholder(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && placeholder.trim()) {
-                  graph.addPlaceholder.mutate(
-                    { stepId: step.id, body: { label: placeholder.trim() } },
-                    { onSuccess: () => setPlaceholder('') },
-                  )
+      {/* A decision routes; it carries no documents, so its outcomes stand
+          where a step's placeholders would. */}
+      {decision ? (
+        <Box sx={{ mt: 1, pl: 3.75 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            {t('stepCard.results')}
+          </Typography>
+          <Box sx={{ maxWidth: 420 }}>
+            <ResultsEditor step={step} canWrite={canWrite} graph={graph} />
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ mt: 1, pl: 3.75 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            {t('stepCard.placeholders')}
+          </Typography>
+          <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+            {step.placeholders.map((ph) => (
+              <PlaceholderChip
+                key={ph.id}
+                placeholder={ph}
+                onDelete={
+                  canWrite
+                    ? () => graph.removePlaceholder.mutate({ stepId: step.id, placeholderId: ph.id })
+                    : undefined
                 }
-              }}
-              sx={{ maxWidth: 320, '& input': { fontSize: 12 } }}
-            />
+              />
+            ))}
+            {step.placeholders.length === 0 && (
+              <Typography variant="caption" color="text.disabled">
+                {t('empty.none')}
+              </Typography>
+            )}
           </Stack>
-        )}
-      </Box>
+          {canWrite && (
+            <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} alignItems="center">
+              <TextField
+                size="small"
+                variant="standard"
+                placeholder={t('placeholders.addHint')}
+                value={placeholder}
+                onChange={(e) => setPlaceholder(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && placeholder.trim()) {
+                    graph.addPlaceholder.mutate(
+                      { stepId: step.id, body: { label: placeholder.trim() } },
+                      { onSuccess: () => setPlaceholder('') },
+                    )
+                  }
+                }}
+                sx={{ maxWidth: 320, '& input': { fontSize: 12 } }}
+              />
+            </Stack>
+          )}
+        </Box>
+      )}
 
-      {/* connections (outgoing edges) */}
+      {/* connections (outgoing edges) — grouped under the branch they leave
+          from when this is a decision, since every edge belongs to a result. */}
       <Box sx={{ mt: 1, pl: 3.75 }}>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
           {t('stepCard.leadsTo')}
         </Typography>
-        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-          {outgoing.map((e) => (
-            <Chip
-              key={e.id}
-              size="small"
-              icon={<FontAwesomeIcon icon={faLink} style={{ fontSize: 10 }} />}
-              label={stepName(e.to)}
-              onDelete={canWrite ? () => graph.removeEdge.mutate(e.id) : undefined}
-              sx={{ fontSize: 11 }}
-            />
-          ))}
-          {outgoing.length === 0 && (
-            <Typography variant="caption" color="text.disabled">
-              {t('empty.nothingYet')}
-            </Typography>
-          )}
-        </Stack>
-        {canWrite && candidates.length > 0 && (
-          <Select
-            size="small"
-            displayEmpty
-            value={connectTo}
-            onChange={(e) => {
-              const to = e.target.value
-              if (to) {
-                graph.addEdge.mutate(
-                  { from: step.id, to },
-                  { onSuccess: () => setConnectTo('') },
-                )
-              }
-            }}
-            sx={{ mt: 0.75, minWidth: 180, fontSize: 12, '& .MuiSelect-select': { py: 0.5 } }}
-          >
-            <MenuItem value="" disabled>
-              {t('stepCard.connectTo')}
-            </MenuItem>
-            {candidates.map((s) => (
-              <MenuItem key={s.id} value={s.id} sx={{ fontSize: 12 }}>
-                {s.title}
-              </MenuItem>
+        {decision ? (
+          <Stack spacing={0.5}>
+            {step.results.map((r) => (
+              <BranchRow
+                key={r.id}
+                result={r}
+                step={step}
+                edges={outgoing.filter((e) => e.fromResultId === r.id)}
+                candidates={candidates}
+                stepName={stepName}
+                canWrite={canWrite}
+                graph={graph}
+              />
             ))}
-          </Select>
+            {step.results.length === 0 && (
+              <Typography variant="caption" color="text.disabled">
+                {t('stepCard.needsResults')}
+              </Typography>
+            )}
+          </Stack>
+        ) : (
+          <>
+            <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+              {outgoing.map((e) => (
+                <Chip
+                  key={e.id}
+                  size="small"
+                  icon={<FontAwesomeIcon icon={faLink} style={{ fontSize: 10 }} />}
+                  label={stepName(e.to)}
+                  onDelete={canWrite ? () => graph.removeEdge.mutate(e.id) : undefined}
+                  sx={{ fontSize: 11 }}
+                />
+              ))}
+              {outgoing.length === 0 && (
+                <Typography variant="caption" color="text.disabled">
+                  {t('empty.nothingYet')}
+                </Typography>
+              )}
+            </Stack>
+            {canWrite && candidates.length > 0 && (
+              <Select
+                size="small"
+                displayEmpty
+                value={connectTo}
+                onChange={(e) => {
+                  const to = e.target.value
+                  if (to) {
+                    graph.addEdge.mutate(
+                      { from: step.id, to },
+                      { onSuccess: () => setConnectTo('') },
+                    )
+                  }
+                }}
+                sx={{ mt: 0.75, minWidth: 180, fontSize: 12, '& .MuiSelect-select': { py: 0.5 } }}
+              >
+                <MenuItem value="" disabled>
+                  {t('stepCard.connectTo')}
+                </MenuItem>
+                {candidates.map((s) => (
+                  <MenuItem key={s.id} value={s.id} sx={{ fontSize: 12 }}>
+                    {s.title}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          </>
         )}
       </Box>
     </Paper>
+  )
+}
+
+// BranchRow is one decision result and where it leads. Its own connect Select,
+// because an edge off a decision is meaningless without naming the branch.
+function BranchRow({
+  result,
+  step,
+  edges,
+  candidates,
+  stepName,
+  canWrite,
+  graph,
+}: {
+  result: ProdResult
+  step: ProdStep
+  edges: { id: string; to: string }[]
+  candidates: ProdStep[]
+  stepName: (id: string) => string
+  canWrite: boolean
+  graph: Graph
+}) {
+  const { t } = useTranslation('production')
+  const theme = useTheme()
+  const [connectTo, setConnectTo] = useState('')
+  const wired = new Set(edges.map((e) => e.to))
+  const open = candidates.filter((s) => !wired.has(s.id))
+
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+      <Typography
+        variant="caption"
+        sx={{
+          fontSize: 11,
+          minWidth: 72,
+          borderBottom: `2px solid ${resultColor(result.color, theme)}`,
+        }}
+        noWrap
+        title={result.label}
+      >
+        {result.label}
+      </Typography>
+      {edges.map((e) => (
+        <Chip
+          key={e.id}
+          size="small"
+          icon={<FontAwesomeIcon icon={faLink} style={{ fontSize: 10 }} />}
+          label={stepName(e.to)}
+          onDelete={canWrite ? () => graph.removeEdge.mutate(e.id) : undefined}
+          sx={{ fontSize: 11 }}
+        />
+      ))}
+      {edges.length === 0 && (
+        <Typography variant="caption" color="text.disabled">
+          {t('empty.nothingYet')}
+        </Typography>
+      )}
+      {canWrite && open.length > 0 && (
+        <Select
+          size="small"
+          displayEmpty
+          value={connectTo}
+          onChange={(e) => {
+            const to = e.target.value
+            if (to) {
+              graph.addEdge.mutate(
+                { from: step.id, to, fromResultId: result.id },
+                { onSuccess: () => setConnectTo('') },
+              )
+            }
+          }}
+          sx={{ minWidth: 150, fontSize: 12, '& .MuiSelect-select': { py: 0.25 } }}
+        >
+          <MenuItem value="" disabled>
+            {t('stepCard.connectTo')}
+          </MenuItem>
+          {open.map((s) => (
+            <MenuItem key={s.id} value={s.id} sx={{ fontSize: 12 }}>
+              {s.title}
+            </MenuItem>
+          ))}
+        </Select>
+      )}
+    </Stack>
   )
 }

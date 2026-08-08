@@ -58,5 +58,14 @@
     "step": "Fase",
     "fulfillment": "Fornito",
     "reference": "Allegato"
+  },
+  "resultColor": {
+    "green": "Verde",
+    "amber": "Ambra",
+    "red": "Rosso",
+    "blue": "Blu",
+    "violet": "Viola",
+    "teal": "Verde acqua",
+    "grey": "Grigio"
   }
 }

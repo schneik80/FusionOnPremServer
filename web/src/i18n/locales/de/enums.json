@@ -58,5 +58,14 @@
     "step": "Schritt",
     "fulfillment": "Bereitgestellt",
     "reference": "Angehängt"
+  },
+  "resultColor": {
+    "green": "Grün",
+    "amber": "Bernstein",
+    "red": "Rot",
+    "blue": "Blau",
+    "violet": "Violett",
+    "teal": "Blaugrün",
+    "grey": "Grau"
   }
 }

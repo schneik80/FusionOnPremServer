@@ -16,8 +16,10 @@ import { useTranslation } from 'react-i18next'
 import type { useJobGraphMutations } from '../api/queries'
 import { DocSourceButton } from './DocSourceButton'
 import { PinnedDocCard } from './PinnedDocCard'
-import { PlaceholderChip, StepNumBadge } from './chips'
+import { ResultsEditor } from './ResultsEditor'
+import { DecisionGlyph, PlaceholderChip, StepNumBadge } from './chips'
 import type { ProdStep } from './types'
+import { isDecision } from './types'
 
 type Graph = ReturnType<typeof useJobGraphMutations>
 
@@ -58,6 +60,7 @@ export function StepEditor({
   }, [step?.id])
 
   const open = !!step
+  const decision = !!step && isDecision(step)
 
   const saveTitle = () => {
     if (!step) return
@@ -95,8 +98,9 @@ export function StepEditor({
             sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}
           >
             <StepNumBadge num={step.num} />
+            {decision && <DecisionGlyph color="primary.main" />}
             <Typography variant="subtitle2" sx={{ flex: 1 }}>
-              {t('stepEditor.title')}
+              {t(decision ? 'stepEditor.titleDecision' : 'stepEditor.title')}
             </Typography>
             <IconButton size="small" onClick={onClose}>
               <FontAwesomeIcon icon={faXmark} style={{ fontSize: 14 }} />
@@ -129,6 +133,20 @@ export function StepEditor({
 
             <Divider sx={{ my: 2 }} />
 
+            {/* A decision routes rather than carrying work, so its outcomes
+                replace the document sections entirely — the server rejects
+                plan documents and placeholders on one. */}
+            {decision && (
+              <>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                  {t('stepEditor.resultsCaption')}
+                </Typography>
+                <ResultsEditor step={step} canWrite={canWrite} graph={graph} />
+              </>
+            )}
+
+            {!decision && (
+              <>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
               {t('stepEditor.placeholdersCaption')}
             </Typography>
@@ -192,6 +210,8 @@ export function StepEditor({
                 icon={faPaperclip}
                 onPin={(pin) => graph.addPlanDoc.mutate({ stepId: step.id, body: pin })}
               />
+            )}
+              </>
             )}
           </Box>
 

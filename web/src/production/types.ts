@@ -36,13 +36,25 @@ export interface ProdPlaceholder {
   required: boolean
 }
 
+// One outcome of a decision step. `color` is a palette token, not a hex value
+// — resolve it with resultColor() so it stays legible in both themes.
+export interface ProdResult {
+  id: string
+  label: string
+  color: string
+}
+
 export interface ProdStep {
   id: string
+  /** 'step' | 'decision' — always populated; the server normalises pre-v3 files */
+  kind: string
   num: number
   title: string
   description?: string
   x: number
   y: number
+  /** branch outcomes; empty for a plain step */
+  results: ProdResult[]
   planDocs: ProdPlanDoc[]
   placeholders: ProdPlaceholder[]
   createdAt: string
@@ -52,14 +64,20 @@ export interface ProdStep {
 export interface ProdEdge {
   id: string
   from: string
+  /** the decision result this edge branches from; absent on a plain link */
+  fromResultId?: string
   to: string
 }
 
 // A frozen step within a batch: identity, pinned plan docs, and placeholder
 // slots as they stood at batch creation. The batch record renders from these,
 // never the live plan.
+//
+// `kind` is frozen so a decision renders as one; its results are not, because
+// a batch freezes no edges for them to point at.
 export interface ProdBatchStep {
   stepId: string
+  kind: string
   num: number
   title: string
   planDocs: ProdPlanDoc[]
@@ -87,6 +105,8 @@ export interface ProdBatch {
   steps: ProdBatchStep[]
   fulfillments: ProdFulfillment[]
   refs: string[] // fls:task / fls:doc tokens — related tasks & documents
+  /** frozen step ids the run view collapses — presentation only */
+  hiddenSteps: string[]
   createdBy: ProdUser
   createdAt: string
   updatedAt: string
@@ -159,6 +179,8 @@ export interface JobPatch {
 }
 
 export interface StepDraft {
+  /** 'step' (default) | 'decision' — create-time only, never patchable */
+  kind?: string
   title: string
   description?: string
   x?: number
@@ -170,6 +192,16 @@ export interface StepPatch {
   description?: string
   x?: number
   y?: number
+}
+
+export interface ResultDraft {
+  label: string
+  color?: string
+}
+
+export interface ResultPatch {
+  label?: string
+  color?: string
 }
 
 export interface PlaceholderDraft {
@@ -221,5 +253,8 @@ export interface BatchPatch {
 // UI constants
 export const BATCH_KINDS = ['prove', 'production'] as const
 export const BATCH_STATUSES = ['planned', 'running', 'complete'] as const
+export const STEP_KINDS = ['step', 'decision'] as const
+
+export const isDecision = (s: { kind?: string }) => s.kind === 'decision'
 
 export const jobDisplayId = (j: { num: number }) => `J-${j.num}`

@@ -30,7 +30,9 @@
     "descPlaceholder": "Beschreibung hinzufügen…",
     "placeholders": "Platzhalter",
     "leadsTo": "Führt zu",
-    "connectTo": "Verbinden mit…"
+    "connectTo": "Verbinden mit…",
+    "results": "Ergebnisse",
+    "needsResults": "Fügen Sie ein Ergebnis hinzu, bevor Sie diese Entscheidung verbinden."
   },
   "placeholders": {
     "addHint": "Platzhalter hinzufügen (z. B. NC-Programm für Aufspannung 1)"
@@ -45,7 +47,13 @@
     "dragToConnect": "Zum Verbinden ziehen",
     "newStepTitle": "Arbeitsschritt {{num}}",
     "hintRename": "Doppelklicken Sie auf einen Schritt, um ihn umzubenennen.",
-    "hintChain": "„Schritt hinzufügen“ verbindet mit dem ausgewählten Schritt."
+    "hintChain": "„Schritt hinzufügen“ verbindet mit dem ausgewählten Schritt.",
+    "paletteStep": "Schritte hinzufügen",
+    "paletteDecision": "Entscheidungen hinzufügen",
+    "addDecision": "Entscheidung hinzufügen",
+    "newDecisionTitle": "Entscheidung {{num}}",
+    "dragToConnectResult": "Ziehen, um „{{label}}“ zu verbinden",
+    "decisionNeedsResults": "Ergebnis hinzufügen, um zu verzweigen"
   },
   "counts": {
     "steps_one": "{{count}} Arbeitsschritt",
@@ -72,7 +80,10 @@
     "planDocsCaption": "Plandokumente — an die angehängte Version gepinnt",
     "attachDocument": "Dokument anhängen",
     "deleteStep": "Arbeitsschritt löschen",
-    "deleteConfirm": "Arbeitsschritt „{{title}}“ löschen?"
+    "deleteConfirm": "Arbeitsschritt „{{title}}“ löschen?",
+    "titleDecision": "Entscheidung",
+    "resultsCaption": "Ergebnisse — je eine Verzweigung des Ablaufs",
+    "deleteDecision": "Entscheidung löschen"
   },
   "batchesView": {
     "title": "Chargen",
@@ -111,7 +122,16 @@
     "linkTask": "Aufgabe verknüpfen…",
     "linkDoc": "Dokument / Wiki-Seite verknüpfen…",
     "linkDocTitle": "Dokument oder Wiki-Seite verknüpfen",
-    "linkAction": "Verknüpfen"
+    "linkAction": "Verknüpfen",
+    "hideStep": "Diesen Schritt im Lauf ausblenden",
+    "showStep": "Diesen Schritt im Lauf anzeigen",
+    "decisionRow": "Verzweigungspunkt — keine Dokumente.",
+    "hiddenCount_one": "{{count}} ausgeblendet",
+    "hiddenCount_other": "{{count}} ausgeblendet",
+    "showHidden_one": "{{count}} ausgeblendeten Schritt anzeigen",
+    "showHidden_other": "{{count}} ausgeblendete Schritte anzeigen",
+    "hideHidden_one": "{{count}} ausgeblendeten Schritt einklappen",
+    "hideHidden_other": "{{count}} ausgeblendete Schritte einklappen"
   },
   "attachDoc": {
     "title": "Dokument anhängen",
@@ -142,5 +162,11 @@
     "loadFailed": "Ihre Produktionsdaten konnten nicht geladen werden.",
     "emptyRuns": "Keine aktiven Läufe. Chargen, die Sie erstellen, erscheinen hier, solange sie geplant sind oder laufen.",
     "emptyJobs": "Noch keine Aufträge. Aufträge, die Sie erstellen — oder die einen von Ihnen erstellten Lauf enthalten — erscheinen hier."
+  },
+  "results": {
+    "empty": "Noch keine Ergebnisse.",
+    "addHint": "Ergebnis hinzufügen (z. B. Bestanden)",
+    "remove": "Ergebnis entfernen",
+    "colorLabel": "Ergebnisfarbe"
   }
 }

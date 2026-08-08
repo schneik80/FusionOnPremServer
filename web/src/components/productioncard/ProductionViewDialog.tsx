@@ -16,7 +16,8 @@ import { useTranslation } from 'react-i18next'
 import { useJob } from '../../api/queries'
 import { batchKindLabel, batchStatusLabel } from '../../i18n/enums'
 import { PinnedDocCard } from '../../production/PinnedDocCard'
-import { jobDisplayId } from '../../production/types'
+import { DecisionGlyph } from '../../production/chips'
+import { isDecision, jobDisplayId } from '../../production/types'
 import type { BatchRef, JobRef } from './prodref'
 
 // ProductionViewDialog is the read-only unfurled view of a Job or Batch ref —
@@ -103,9 +104,12 @@ function JobSummary({ job }: { job: NonNullable<ReturnType<typeof useJob>['data'
       <Typography variant="subtitle2">{t('prodView.stepsHeading')}</Typography>
       <Stack spacing={0.5}>
         {job.steps.map((s) => (
-          <Typography key={s.id} variant="body2">
-            {s.num}. {s.title}
-          </Typography>
+          <Stack key={s.id} direction="row" alignItems="center" spacing={0.75}>
+            {isDecision(s) && <DecisionGlyph color="primary.main" size={9} />}
+            <Typography variant="body2">
+              {s.num}. {s.title}
+            </Typography>
+          </Stack>
         ))}
         {job.steps.length === 0 && (
           <Typography variant="caption" color="text.disabled">
@@ -141,11 +145,15 @@ function BatchSummary({ batch }: { batch: NonNullable<ReturnType<typeof useJob>[
       </Stack>
       {batch.steps.map((step) => {
         const asRun = batch.fulfillments.filter((f) => f.stepId === step.stepId)
+        const decision = isDecision(step)
         return (
           <Box key={step.stepId}>
-            <Typography variant="subtitle2" gutterBottom>
-              {step.num}. {step.title}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.5 }}>
+              {decision && <DecisionGlyph color="primary.main" size={9} />}
+              <Typography variant="subtitle2">
+                {step.num}. {step.title}
+              </Typography>
+            </Stack>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
               {step.planDocs.map((pd) => (
                 <PinnedDocCard key={pd.id} doc={pd.doc} />
@@ -153,7 +161,9 @@ function BatchSummary({ batch }: { batch: NonNullable<ReturnType<typeof useJob>[
               {asRun.map((f) => (
                 <PinnedDocCard key={f.id} doc={f.doc} asRun={f.isAsRun} />
               ))}
-              {step.planDocs.length === 0 && asRun.length === 0 && (
+              {/* A decision is a branch point, not a gap — "no documents"
+                  would read as something missing. */}
+              {!decision && step.planDocs.length === 0 && asRun.length === 0 && (
                 <Typography variant="caption" color="text.disabled">
                   {t('prodView.noDocuments')}
                 </Typography>

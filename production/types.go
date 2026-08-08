@@ -25,7 +25,9 @@ import (
 )
 
 // fileVersion 2 added the schema provenance stamp (v1→v2 backfill).
-const fileVersion = 2
+// fileVersion 3 added decision steps (Step.Kind/Results), result-bound edges
+// (Edge.FromResultID) and per-run hidden steps (Batch.HiddenSteps).
+const fileVersion = 3
 
 // CurrentVersion exposes the production.json schema version this build
 // writes, for the backup verify/restore wiring.
@@ -40,6 +42,7 @@ const (
 	MaxBatchesPerJob         = 500
 	MaxPlanDocsPerStep       = 50
 	MaxPlaceholdersPerStep   = 50
+	MaxResultsPerStep        = 12
 	MaxFulfillmentsPerBatch  = 1000
 	MaxRefsPerBatch          = 50
 	MaxRefLen                = 2048
@@ -64,6 +67,22 @@ var (
 	ErrInvalid = errors.New("production: invalid request")
 )
 
+// StepKinds are the flow-node types. A "step" is a unit of work carrying
+// documents; a "decision" is a branch point carrying named results, one per
+// outgoing route.
+//
+// Kind is set at create time and never patched. Turning a decision back into
+// a step would orphan its results and every edge bound to them, and the
+// immutability is structural — neither StepPatch nor the handler's decode
+// struct has a kind field. Keep it that way.
+var StepKinds = []string{"step", "decision"}
+
+// ResultColors are palette tokens, not hex. The client resolves each to a
+// theme-aware color, so a result stays legible in light and dark mode; and a
+// closed enum cannot inject CSS through the sx value or the SVG stroke it
+// ends up in.
+var ResultColors = []string{"green", "amber", "red", "blue", "violet", "teal", "grey"}
+
 // BatchKinds label a run's intent (prove-out vs production). Free-form batch
 // names are separate; Kind drives the timeline lane coloring.
 var BatchKinds = []string{"prove", "production"}
@@ -73,6 +92,23 @@ var BatchStatuses = []string{"planned", "running", "complete"}
 
 func validBatchKind(k string) bool   { return slices.Contains(BatchKinds, k) }
 func validBatchStatus(s string) bool { return slices.Contains(BatchStatuses, s) }
+func validStepKind(k string) bool    { return slices.Contains(StepKinds, k) }
+func validResultColor(c string) bool { return slices.Contains(ResultColors, c) }
+
+// stepKind reads a step's kind, treating "" as "step". Files written before
+// fileVersion 3 have no kind field, and the migration deliberately does not
+// rewrite them — every added field's zero value is already its legacy
+// meaning. Compare through this, never against st.Kind directly.
+func stepKind(k string) string {
+	if k == "" {
+		return "step"
+	}
+	return k
+}
+
+// IsDecision reports whether a step is a branch point. Exported so the DTO
+// layer normalises the wire value the same way the store does.
+func IsDecision(k string) bool { return stepKind(k) == "decision" }
 
 // UserRef identifies a project member the way tasks/chat do: by OIDC sub, with
 // name/email captured at write time for display without an APS round-trip.
@@ -118,19 +154,36 @@ type Placeholder struct {
 	Required bool   `json:"required"`
 }
 
+// DecisionResult is one named outcome of a decision step — "Pass", "Rework",
+// "Scrap". Each result is the source of its own outgoing edges, so the result
+// list and the branch structure are the same thing.
+type DecisionResult struct {
+	ID    string `json:"id"` // "dr<n>", from the job's shared child counter
+	Label string `json:"label"`
+	Color string `json:"color"` // a ResultColors token, not a hex value
+}
+
 // Step is a node in a Job's flow graph. X/Y are canvas positions in graph
 // space (persisted so the layout survives reloads).
 type Step struct {
-	ID           string        `json:"id"` // "s<n>", per-job counter
-	Num          int64         `json:"num"`
-	Title        string        `json:"title"`
-	Description  string        `json:"description,omitempty"`
-	X            float64       `json:"x"`
-	Y            float64       `json:"y"`
-	PlanDocs     []PlanDoc     `json:"planDocs"`
-	Placeholders []Placeholder `json:"placeholders"`
-	CreatedAt    time.Time     `json:"createdAt"`
-	UpdatedAt    time.Time     `json:"updatedAt"`
+	ID string `json:"id"` // "s<n>", per-job counter
+	// Kind is "step" or "decision"; "" reads as "step" (pre-v3 files). Set at
+	// create time and never patched — see StepKinds.
+	Kind        string  `json:"kind,omitempty"`
+	Num         int64   `json:"num"`
+	Title       string  `json:"title"`
+	Description string  `json:"description,omitempty"`
+	X           float64 `json:"x"`
+	Y           float64 `json:"y"`
+	// Results are the branch outcomes of a decision step, empty for a plain
+	// step. A decision carries no PlanDocs or Placeholders: it is a routing
+	// node, and letting it hold documents would put un-runnable slots into
+	// every batch's completeness count.
+	Results      []DecisionResult `json:"results,omitempty"`
+	PlanDocs     []PlanDoc        `json:"planDocs"`
+	Placeholders []Placeholder    `json:"placeholders"`
+	CreatedAt    time.Time        `json:"createdAt"`
+	UpdatedAt    time.Time        `json:"updatedAt"`
 }
 
 // Edge is a directed link between two Steps. The DAG is stored as a flat edge
@@ -139,7 +192,13 @@ type Step struct {
 type Edge struct {
 	ID   string `json:"id"` // "e<n>", per-job counter
 	From string `json:"from"`
-	To   string `json:"to"`
+	// FromResultID names which of a decision's results this edge leaves from.
+	// Required when From is a decision and forbidden otherwise, so the two
+	// shapes never mix on one node and the canvas always has a port to anchor
+	// to. Cycle detection ignores it: every result leaves the same node, so
+	// the underlying digraph is identical either way.
+	FromResultID string `json:"fromResultId,omitempty"`
+	To           string `json:"to"`
 }
 
 // BatchStep is a frozen copy of one Step as it stood when the batch was
@@ -148,7 +207,12 @@ type Edge struct {
 // never the live plan — so later plan edits (deleting a step, adding a
 // placeholder for the next run) cannot rewrite what an existing run recorded.
 type BatchStep struct {
-	StepID       string        `json:"stepId"`
+	StepID string `json:"stepId"`
+	// Kind is frozen so the run record can render a decision row correctly.
+	// The results themselves are deliberately NOT frozen: a Batch freezes
+	// steps but no edges, so a frozen result would name a branch the record
+	// cannot express. See the known gaps in docs/production/STATUS.md.
+	Kind         string        `json:"kind,omitempty"`
 	Num          int64         `json:"num"`
 	Title        string        `json:"title"`
 	PlanDocs     []PlanDoc     `json:"planDocs"`     // frozen copies (IDs match the plan's PlanDoc IDs)
@@ -183,7 +247,15 @@ type Batch struct {
 	// Refs are fls:task / fls:doc tokens attached to the run — related tasks
 	// and wiki/hub documents, rendered as cards. Unlike Fulfillments these
 	// are not version-pinned; they're live references.
-	Refs      []string  `json:"refs"`
+	Refs []string `json:"refs"`
+	// HiddenSteps are frozen step ids the run view collapses — typically the
+	// branch a decision did not take. Presentation metadata, and modelled on
+	// Refs rather than as a field on BatchStep on purpose: BatchStep is the
+	// frozen record, and a mutable field inside it would make "frozen" mean
+	// "frozen except these". Nothing derived from the run — completeness,
+	// fulfillment validation, Where-Used — may consult this.
+	HiddenSteps []string `json:"hiddenSteps"`
+
 	CreatedBy UserRef   `json:"createdBy"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -232,8 +304,9 @@ type JobPatch struct {
 	Description *string
 }
 
-// StepDraft is the create-step payload.
+// StepDraft is the create-step payload. Kind defaults to "step".
 type StepDraft struct {
+	Kind        string
 	Title       string
 	Description string
 	X           float64
@@ -242,10 +315,24 @@ type StepDraft struct {
 
 // StepPatch updates a step (nil = leave unchanged). X/Y are set together via
 // Position for frequent drag saves.
+//
+// There is deliberately no Kind here: see StepKinds.
 type StepPatch struct {
 	Title       *string
 	Description *string
 	Position    *Position
+}
+
+// ResultDraft / ResultPatch mutate a decision step's outcomes. Color is a
+// ResultColors token; an empty Color on create takes the first token.
+type ResultDraft struct {
+	Label string
+	Color string
+}
+
+type ResultPatch struct {
+	Label *string
+	Color *string
 }
 
 // Position is an explicit x/y pair so a drag save can update coordinates

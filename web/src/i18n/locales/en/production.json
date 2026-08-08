@@ -30,7 +30,9 @@
     "descPlaceholder": "Add a description…",
     "placeholders": "Placeholders",
     "leadsTo": "Leads to",
-    "connectTo": "Connect to…"
+    "connectTo": "Connect to…",
+    "results": "Results",
+    "needsResults": "Add a result before connecting this decision."
   },
   "placeholders": {
     "addHint": "Add a placeholder (e.g. Setup 1 NC program)"
@@ -45,7 +47,13 @@
     "dragToConnect": "Drag to connect",
     "newStepTitle": "Step {{num}}",
     "hintRename": "Double-click a step to rename it.",
-    "hintChain": "Add step connects to the selected step."
+    "hintChain": "Add step connects to the selected step.",
+    "paletteStep": "Add steps",
+    "paletteDecision": "Add decisions",
+    "addDecision": "Add decision",
+    "newDecisionTitle": "Decision {{num}}",
+    "dragToConnectResult": "Drag to connect “{{label}}”",
+    "decisionNeedsResults": "add a result to branch"
   },
   "counts": {
     "steps_one": "{{count}} step",
@@ -72,7 +80,10 @@
     "planDocsCaption": "Plan documents — pinned to the version attached",
     "attachDocument": "Attach a document",
     "deleteStep": "Delete step",
-    "deleteConfirm": "Delete step \"{{title}}\"?"
+    "deleteConfirm": "Delete step \"{{title}}\"?",
+    "titleDecision": "Decision",
+    "resultsCaption": "Results — one branch of the flow each",
+    "deleteDecision": "Delete decision"
   },
   "batchesView": {
     "title": "Batches",
@@ -111,7 +122,16 @@
     "linkTask": "Link a task…",
     "linkDoc": "Link a document / wiki page…",
     "linkDocTitle": "Link a document or wiki page",
-    "linkAction": "Link"
+    "linkAction": "Link",
+    "hideStep": "Hide this step in the run",
+    "showStep": "Show this step in the run",
+    "decisionRow": "Branch point — no documents.",
+    "hiddenCount_one": "{{count}} hidden",
+    "hiddenCount_other": "{{count}} hidden",
+    "showHidden_one": "Show {{count}} hidden step",
+    "showHidden_other": "Show {{count}} hidden steps",
+    "hideHidden_one": "Collapse {{count}} hidden step",
+    "hideHidden_other": "Collapse {{count}} hidden steps"
   },
   "attachDoc": {
     "title": "Attach a document",
@@ -142,5 +162,11 @@
     "loadFailed": "Failed to load your production work.",
     "emptyRuns": "No runs in flight. Batches you create show up here while they're planned or running.",
     "emptyJobs": "No jobs yet. Jobs you create — or that carry a run you created — show up here."
+  },
+  "results": {
+    "empty": "No results yet.",
+    "addHint": "Add a result (e.g. Pass)",
+    "remove": "Remove result",
+    "colorLabel": "Result colour"
   }
 }

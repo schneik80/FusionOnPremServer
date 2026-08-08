@@ -44,31 +44,46 @@ type ProdPlaceholderDTO struct {
 	Required bool   `json:"required"`
 }
 
-// ProdStepDTO is one flow node.
+// ProdResultDTO is one outcome of a decision step. Color is a palette token
+// (production.ResultColors), resolved to a theme-aware color by the client.
+type ProdResultDTO struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	Color string `json:"color"`
+}
+
+// ProdStepDTO is one flow node. Kind is always populated — the store treats a
+// missing kind (pre-v3 files) as "step", and normalising here means no client
+// needs its own `?? 'step'`.
 type ProdStepDTO struct {
 	ID           string               `json:"id"`
+	Kind         string               `json:"kind"`
 	Num          int64                `json:"num"`
 	Title        string               `json:"title"`
 	Description  string               `json:"description,omitempty"`
 	X            float64              `json:"x"`
 	Y            float64              `json:"y"`
+	Results      []ProdResultDTO      `json:"results"`
 	PlanDocs     []ProdPlanDocDTO     `json:"planDocs"`
 	Placeholders []ProdPlaceholderDTO `json:"placeholders"`
 	CreatedAt    string               `json:"createdAt"`
 	UpdatedAt    string               `json:"updatedAt"`
 }
 
-// ProdEdgeDTO is one directed link between steps.
+// ProdEdgeDTO is one directed link between steps. fromResultId names the
+// decision result the edge branches from, empty for a plain step→step link.
 type ProdEdgeDTO struct {
-	ID   string `json:"id"`
-	From string `json:"from"`
-	To   string `json:"to"`
+	ID           string `json:"id"`
+	From         string `json:"from"`
+	FromResultID string `json:"fromResultId,omitempty"`
+	To           string `json:"to"`
 }
 
 // ProdBatchStepDTO is a frozen step within a batch: identity, pinned plan
 // documents, and placeholder slots as they stood at batch creation.
 type ProdBatchStepDTO struct {
 	StepID       string               `json:"stepId"`
+	Kind         string               `json:"kind"`
 	Num          int64                `json:"num"`
 	Title        string               `json:"title"`
 	PlanDocs     []ProdPlanDocDTO     `json:"planDocs"`
@@ -98,6 +113,7 @@ type ProdBatchDTO struct {
 	Steps        []ProdBatchStepDTO   `json:"steps"`
 	Fulfillments []ProdFulfillmentDTO `json:"fulfillments"`
 	Refs         []string             `json:"refs"`
+	HiddenSteps  []string             `json:"hiddenSteps"`
 	CreatedBy    ProdUserDTO          `json:"createdBy"`
 	CreatedAt    string               `json:"createdAt"`
 	UpdatedAt    string               `json:"updatedAt"`
@@ -228,14 +244,35 @@ func prodPlaceholderDTOs(phs []production.Placeholder) []ProdPlaceholderDTO {
 	return out
 }
 
+func prodResultDTOs(rs []production.DecisionResult) []ProdResultDTO {
+	out := make([]ProdResultDTO, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, ProdResultDTO{ID: r.ID, Label: r.Label, Color: r.Color})
+	}
+	return out
+}
+
+// prodStepKind is where a missing kind becomes "step" on the wire. Files
+// written before schema v3 have no kind field and the migration deliberately
+// does not rewrite them (migrate.Apply never persists), so this is the single
+// place both the migrated and the raw-scanned read paths converge.
+func prodStepKind(k string) string {
+	if k == "" {
+		return "step"
+	}
+	return k
+}
+
 func prodStepDTO(st *production.Step) ProdStepDTO {
 	return ProdStepDTO{
 		ID:           st.ID,
+		Kind:         prodStepKind(st.Kind),
 		Num:          st.Num,
 		Title:        st.Title,
 		Description:  st.Description,
 		X:            st.X,
 		Y:            st.Y,
+		Results:      prodResultDTOs(st.Results),
 		PlanDocs:     prodPlanDocDTOs(st.PlanDocs),
 		Placeholders: prodPlaceholderDTOs(st.Placeholders),
 		CreatedAt:    fmtTime(st.CreatedAt),
@@ -254,6 +291,7 @@ func prodBatchDTO(b *production.Batch) ProdBatchDTO {
 		Steps:        make([]ProdBatchStepDTO, 0, len(b.Steps)),
 		Fulfillments: make([]ProdFulfillmentDTO, 0, len(b.Fulfillments)),
 		Refs:         append([]string{}, b.Refs...),
+		HiddenSteps:  append([]string{}, b.HiddenSteps...),
 		CreatedBy:    prodUserDTO(b.CreatedBy),
 		CreatedAt:    fmtTime(b.CreatedAt),
 		UpdatedAt:    fmtTime(b.UpdatedAt),
@@ -261,6 +299,7 @@ func prodBatchDTO(b *production.Batch) ProdBatchDTO {
 	for _, bs := range b.Steps {
 		out.Steps = append(out.Steps, ProdBatchStepDTO{
 			StepID:       bs.StepID,
+			Kind:         prodStepKind(bs.Kind),
 			Num:          bs.Num,
 			Title:        bs.Title,
 			PlanDocs:     prodPlanDocDTOs(bs.PlanDocs),
@@ -302,7 +341,12 @@ func prodJobDTO(j production.Job, projectID, hubID, projectName string) ProdJobD
 		out.Steps = append(out.Steps, prodStepDTO(st))
 	}
 	for _, e := range j.Edges {
-		out.Edges = append(out.Edges, ProdEdgeDTO{ID: e.ID, From: e.From, To: e.To})
+		out.Edges = append(out.Edges, ProdEdgeDTO{
+			ID:           e.ID,
+			From:         e.From,
+			FromResultID: e.FromResultID,
+			To:           e.To,
+		})
 	}
 	for _, b := range j.Batches {
 		out.Batches = append(out.Batches, prodBatchDTO(b))

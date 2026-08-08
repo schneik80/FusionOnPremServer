@@ -191,6 +191,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/production/steps", protHub(s.handleProdStepDelete))
 	mux.HandleFunc("POST /api/production/edges", protHub(s.handleProdEdgeCreate))
 	mux.HandleFunc("DELETE /api/production/edges", protHub(s.handleProdEdgeDelete))
+	// Decision results are graph structure (each is an out-port edges branch
+	// from), so they return the whole job like the other graph edits.
+	mux.HandleFunc("POST /api/production/results", protHub(s.handleProdResultCreate))
+	mux.HandleFunc("PATCH /api/production/results", protHub(s.handleProdResultUpdate))
+	mux.HandleFunc("DELETE /api/production/results", protHub(s.handleProdResultDelete))
 	mux.HandleFunc("POST /api/production/placeholders", protHub(s.handleProdPlaceholderCreate))
 	mux.HandleFunc("PATCH /api/production/placeholders", protHub(s.handleProdPlaceholderUpdate))
 	mux.HandleFunc("DELETE /api/production/placeholders", protHub(s.handleProdPlaceholderDelete))
@@ -222,6 +227,10 @@ func (s *Server) routes() http.Handler {
 
 	mux.HandleFunc("POST /api/production/batchrefs", protHub(s.handleProdBatchRefAdd))
 	mux.HandleFunc("DELETE /api/production/batchrefs", protHub(s.handleProdBatchRefDelete))
+	// Which frozen steps the run view collapses — presentation metadata on the
+	// batch, never a field on the frozen step snapshot.
+	mux.HandleFunc("POST /api/production/batchhidden", protHub(s.handleProdBatchStepHide))
+	mux.HandleFunc("DELETE /api/production/batchhidden", protHub(s.handleProdBatchStepShow))
 
 	// Notifications (the app-chrome bell: the caller's own per-user, per-hub
 	// inbox — mentions, assignments, due dates, production changes). The

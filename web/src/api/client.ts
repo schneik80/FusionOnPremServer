@@ -67,6 +67,8 @@ import type {
   MyProduction,
   PlaceholderDraft,
   PlaceholderPatch,
+  ResultDraft,
+  ResultPatch,
   ProdBatch,
   StepDraft,
   StepPatch,
@@ -687,14 +689,37 @@ export const api = {
       method: 'DELETE',
     }),
 
-  prodEdgeCreate: (projectId: string, jobId: string, from: string, to: string) =>
+  // fromResultId is required when `from` is a decision step and rejected
+  // otherwise — the server enforces both directions.
+  prodEdgeCreate: (projectId: string, jobId: string, from: string, to: string, fromResultId?: string) =>
     request<Job>(`/api/production/edges${qs({ projectId, jobId })}`, {
       method: 'POST',
-      body: JSON.stringify({ from, to }),
+      body: JSON.stringify({ from, to, fromResultId: fromResultId ?? '' }),
     }),
 
   prodEdgeDelete: (projectId: string, jobId: string, edgeId: string) =>
     request<Job>(`/api/production/edges${qs({ projectId, jobId, edgeId })}`, {
+      method: 'DELETE',
+    }),
+
+  // Decision results are graph structure — each is an out-port edges branch
+  // from — so like the other graph edits they return the whole job. A delete
+  // cascades to the edges bound to that result, which is why the caller needs
+  // the full graph back rather than just the step.
+  prodResultCreate: (projectId: string, jobId: string, stepId: string, body: ResultDraft) =>
+    request<Job>(`/api/production/results${qs({ projectId, jobId, stepId })}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  prodResultUpdate: (projectId: string, jobId: string, stepId: string, resultId: string, body: ResultPatch) =>
+    request<Job>(`/api/production/results${qs({ projectId, jobId, stepId, resultId })}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  prodResultDelete: (projectId: string, jobId: string, stepId: string, resultId: string) =>
+    request<Job>(`/api/production/results${qs({ projectId, jobId, stepId, resultId })}`, {
       method: 'DELETE',
     }),
 
@@ -772,6 +797,19 @@ export const api = {
 
   prodBatchRefDelete: (projectId: string, jobId: string, batchId: string, token: string) =>
     request<ProdBatch>(`/api/production/batchrefs${qs({ projectId, jobId, batchId, token })}`, {
+      method: 'DELETE',
+    }),
+
+  // Which frozen steps the run view collapses. Presentation metadata on the
+  // batch, so it returns the batch — the frozen step snapshot is untouched.
+  prodBatchStepHide: (projectId: string, jobId: string, batchId: string, stepId: string) =>
+    request<ProdBatch>(`/api/production/batchhidden${qs({ projectId, jobId, batchId })}`, {
+      method: 'POST',
+      body: JSON.stringify({ stepId }),
+    }),
+
+  prodBatchStepShow: (projectId: string, jobId: string, batchId: string, stepId: string) =>
+    request<ProdBatch>(`/api/production/batchhidden${qs({ projectId, jobId, batchId, stepId })}`, {
       method: 'DELETE',
     }),
 
