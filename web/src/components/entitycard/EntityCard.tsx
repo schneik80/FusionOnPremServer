@@ -36,7 +36,14 @@ import { CONNECTOR_OPACITY, RING_W } from '../graphstyle'
 // canvas is selected when its SHAPE is, so one click on the shape both selects
 // it and opens the card's action bar — the same two clicks to reach an action
 // that a card in chat takes.
-export const CardHostContext = createContext<{ selected: boolean } | null>(null)
+export const CardHostContext = createContext<{
+  selected: boolean
+  // Whiteboard-only: offered when the host can replace this card's shape with
+  // a full, resizable image of the referenced file. DocumentCard surfaces it
+  // as an extra action on image-typed documents; other hosts leave it unset
+  // and the action never appears.
+  swapDocToImage?: (opts: { url: string; name: string }) => void
+} | null>(null)
 
 // The class on the card's front face, and the halo box's inset around it. A
 // host that has to keep geometry in step with the card (the whiteboard shape)

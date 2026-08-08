@@ -170,7 +170,8 @@
     "status": "Status",
     "run": "Lauf",
     "steps": "Schritte",
-    "batches": "Chargen"
+    "batches": "Chargen",
+    "showAsImage": "Als Bild anzeigen"
   },
   "docCard": {
     "locating": "Wird gesucht…",

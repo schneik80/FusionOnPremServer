@@ -170,7 +170,8 @@
     "status": "Estado",
     "run": "Ejecución",
     "steps": "Pasos",
-    "batches": "Lotes"
+    "batches": "Lotes",
+    "showAsImage": "Mostrar como imagen"
   },
   "docCard": {
     "locating": "Localizando…",

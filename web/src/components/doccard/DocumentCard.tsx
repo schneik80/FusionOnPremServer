@@ -1,11 +1,12 @@
-import { faDownload, faFileImage } from '@fortawesome/free-solid-svg-icons'
+import { faDownload, faFileImage, faImage } from '@fortawesome/free-solid-svg-icons'
+import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { useItemDetails, useItemLocation } from '../../api/queries'
 import { thumbnailSrc } from '../../api/thumbnails'
 import { useGoToDocument } from '../../state/goto'
 import { useNav } from '../../state/nav'
-import { EntityCard, type CardAction } from '../entitycard/EntityCard'
+import { CardHostContext, EntityCard, type CardAction } from '../entitycard/EntityCard'
 import { docMeta } from '../entitycard/meta'
 import { iconForItem } from '../icons'
 import { viewerKindFor } from '../viewers/kind'
@@ -75,6 +76,19 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
       disabled: !canDownload,
     },
   ]
+
+  // Whiteboard-only: an image-typed document offers "show as image" — the host
+  // swaps this card's shape for a full, resizable image of the file's bytes.
+  const host = useContext(CardHostContext)
+  const swap = host?.swapDocToImage
+  if (swap && isImageFile && altId && !otherHub) {
+    actions.unshift({
+      key: 'showImage',
+      icon: faImage,
+      label: t('card.showAsImage'),
+      onClick: () => swap({ url: api.fileUrl(altId, docRef.itemId, name), name }),
+    })
+  }
 
   return (
     <EntityCard

@@ -1,5 +1,13 @@
-import { useLayoutEffect, useRef } from 'react'
-import { HTMLContainer, Rectangle2d, ShapeUtil, useValue, type Editor, type TLShape } from 'tldraw'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import {
+	AssetRecordType,
+	HTMLContainer,
+	Rectangle2d,
+	ShapeUtil,
+	useValue,
+	type Editor,
+	type TLShape,
+} from 'tldraw'
 import { RefCard } from '../components/RefCard'
 import {
 	CARD_FACE_CLASS,
@@ -82,6 +90,74 @@ export function shapeSizeForMeasurement(
 // The mounted card DOM, by shape id. CardBody keeps this current; the shape
 // util's onClick below is the only reader.
 const cardNodes = new Map<string, HTMLElement>()
+
+// The longest side an image is CREATED at when a card swaps into one. Only the
+// starting size — the whole point of the swap is that the image shape resizes
+// freely afterwards.
+const SWAP_IMAGE_MAX = 480
+
+function mimeFromName(name: string): string | null {
+	const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+	const map: Record<string, string> = {
+		png: 'image/png',
+		jpg: 'image/jpeg',
+		jpeg: 'image/jpeg',
+		gif: 'image/gif',
+		webp: 'image/webp',
+		svg: 'image/svg+xml',
+		bmp: 'image/bmp',
+	}
+	return map[ext] ?? null
+}
+
+// swapShapeForImage replaces a doc card with a NATIVE tldraw image shape over
+// the same spot: the file's bytes become an image asset (the same relative
+// same-origin URL the card's thumbnail uses — tldraw's srcUrl validator
+// accepts a leading-slash path, which keeps the stored document host- and
+// port-agnostic), fully resizable and croppable like any pasted image. The
+// image is loaded first so the asset carries its natural size; the actual
+// store mutation is one batch, so a single undo restores the card.
+function swapShapeForImage(editor: Editor, shapeId: string, opts: { url: string; name: string }) {
+	const img = new Image()
+	img.onerror = () => {
+		// eslint-disable-next-line no-console
+		console.warn('[whiteboard] swap-to-image: could not load', opts.url)
+	}
+	img.onload = () => {
+		const shape = editor.getShape<FlsCardShape>(shapeId as FlsCardShape['id'])
+		if (!shape || editor.getInstanceState().isReadonly) return
+		const natW = img.naturalWidth || SWAP_IMAGE_MAX
+		const natH = img.naturalHeight || SWAP_IMAGE_MAX
+		const scale = Math.min(1, SWAP_IMAGE_MAX / Math.max(natW, natH))
+		const w = Math.max(1, Math.round(natW * scale))
+		const h = Math.max(1, Math.round(natH * scale))
+		const assetId = AssetRecordType.createId()
+		editor.run(() => {
+			editor.createAssets([
+				AssetRecordType.create({
+					id: assetId,
+					type: 'image',
+					props: {
+						name: opts.name,
+						src: opts.url,
+						w: natW,
+						h: natH,
+						mimeType: mimeFromName(opts.name),
+						isAnimated: false,
+					},
+				}),
+			])
+			editor.createShape({
+				type: 'image',
+				x: shape.x + shape.props.w / 2 - w / 2,
+				y: shape.y + shape.props.h / 2 - h / 2,
+				props: { assetId, w, h },
+			})
+			editor.deleteShape(shape.id)
+		})
+	}
+	img.src = opts.url
+}
 
 export class FlsCardShapeUtil extends ShapeUtil<FlsCardShape> {
 	static override type = FLS_CARD_TYPE
@@ -171,6 +247,19 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 		'card is only selection',
 		() => editor.getOnlySelectedShapeId() === shape.id,
 		[editor, shape.id],
+	)
+
+	// A viewer must not offer the swap: it is a document write. Subscribed (not
+	// read in render) for the same reason as `interactive` above.
+	const readonly = useValue('board readonly', () => editor.getInstanceState().isReadonly, [editor])
+	const hostValue = useMemo(
+		() => ({
+			selected: interactive,
+			swapDocToImage: readonly
+				? undefined
+				: (opts: { url: string; name: string }) => swapShapeForImage(editor, shape.id, opts),
+		}),
+		[interactive, readonly, editor, shape.id],
 	)
 
 	// Publish the card's DOM for the util's onClick (see FlsCardShapeUtil).
@@ -306,7 +395,7 @@ function CardBody({ editor, shape }: { editor: Editor; shape: FlsCardShape }) {
 				{/* A card on the canvas takes its selection from the SHAPE, so the
 				    click that selects the shape also opens the card's action bar —
 				    two clicks to reach an action, the same as a card in chat. */}
-				<CardHostContext.Provider value={{ selected: interactive }}>
+				<CardHostContext.Provider value={hostValue}>
 					<RefCard token={shape.props.token} />
 				</CardHostContext.Provider>
 			</div>
