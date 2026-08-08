@@ -224,7 +224,7 @@ Four features keep data that is *ours*, not APS's: chat, tasks, production, and 
 - **Versioned envelopes** with a **schema provenance stamp** (`internal/schemameta` — createdAt/createdByVersion/updatedAt/updatedByVersion), a **future-version guard** (never rewrite what we don't understand), and per-store **migration registries** (`internal/migrate` — v(n)→v(n+1) steps that snapshot pre-migration bytes to `<file>.vN.bak`).
 - **Authorization delegated to `chat.Authorizer`** — APS project role mapped to capabilities (singleflight-deduplicated roster fetches), not a parallel permission system — plus a shared rate `Limiter`.
 
-Per store: **chat** (`docs/chat/STATUS.md`) is append-only JSONL channel logs with a per-hub SSE fan-out (`/api/chat/events`); **tasks** is `tasks.json` per project — Kanban plus a Gantt schedule (start/end dates, progress, dependsOn, milestone, stage); **production** (`docs/production/STATUS.md`) is `production.json` per project — jobs as step DAGs with version-pinned documents, and batches that deep-freeze the plan at run time; **whiteboards** (`docs/whiteboards/STATUS.md`) stores tldraw board metadata + documents.
+Per store: **chat** (`docs/chat/STATUS.md`) is append-only JSONL channel logs with a per-hub SSE fan-out (`/api/chat/events`); **tasks** is `tasks.json` per project — Kanban plus a Gantt schedule (start/end dates, progress, dependsOn, milestone, stage); **production** (`docs/production/STATUS.md`) is `production.json` per project — jobs as step DAGs of work steps and colour-coded branching decisions, carrying version-pinned documents, plus batches that deep-freeze the plan at run time; **whiteboards** (`docs/whiteboards/STATUS.md`) stores tldraw board metadata + documents.
 
 ### Backups
 
@@ -324,7 +324,8 @@ The SPA (React 18 + Vite + TypeScript + MUI v6 + TanStack Query) is a single sta
 
 - **i18n** — i18next with six locales (`en` source of truth + `de`/`fr`/`es`/`it`/`pt`), semantic keys only, enum tokens via `src/i18n/enums.ts`, server error codes mapped by `src/i18n/apiError.ts`, and an eslint ratchet forbidding literal strings. Grapheme-safe text helpers live in `src/fmt/graphemes.ts`. See [`docs/i18n/STATUS.md`](i18n/STATUS.md).
 - **Settings console** — `components/settings/`, a master-detail dialog: Appearance (theme, language, custom colors — per hub), Connection (port, region, hub switch), Uptime, Logs, Backups (run/verify/restore/config), Data (disk usage, per-project deletion).
-- **Visualizations are hand-drawn inline SVG** (`RelationGraph`, `HistoryGraph`, `ActivityHeatmap`); the only chart library is one recharts donut. The only CSS file is `whiteboards/whiteboard.css`, which reskins tldraw — everything else is MUI `sx`.
+- **Visualizations are hand-drawn inline SVG** (`RelationGraph`, `HistoryGraph`, `ActivityHeatmap`, the production flow canvas); the only chart library is one recharts donut. The only CSS file is `whiteboards/whiteboard.css`, which reskins tldraw — everything else is MUI `sx`.
+- **Shared inputs** — `components/DateField.tsx` is the app's date picker: a read-only field plus a hand-drawn month-grid popover, Monday-first in every locale so it agrees with the Gantt's calendar bands. There is no date library; the whole-day helpers live in `src/fmt/dates.ts` (re-exported by `tasks/gantt/ganttMath.ts`, their oldest caller).
 - **Hub-scoped client state** — theme mode, colors, and remembered hub key off the hub (`state/hubKeys.ts`); switching hubs runs a full teardown + reload (`state/teardown.ts`).
 
 ---

@@ -40,7 +40,7 @@ The first time, `-tls` generates and caches a self-signed certificate under `~/.
 - **Tasks** — a Kanban board plus a hand-drawn SVG **Gantt schedule**: drag bars to move/resize, drag between bars to add dependencies, group tasks into stages whose derived bar aggregates and moves its children, with progress roll-up and milestones. A cross-project "my tasks" screen sits on the nav rail.
 - **Wiki** — markdown pages with drafts, image upload, and publishing; pages live in the project's Fusion Team storage, not on this server.
 - **Chat** — channels (public and private), threads, reactions, unread cursors, and typing indicators, live over SSE. Access is derived from each user's APS project role — there is no parallel permission system.
-- **Production** — a light MES / product tracker: jobs as step graphs carrying version-pinned plan documents; batches freeze the plan at run time so later edits can never rewrite what a run recorded.
+- **Production** — a light MES / product tracker: jobs as step graphs carrying version-pinned plan documents, with branching **decision** nodes whose colour-coded results route the flow; batches freeze the plan at run time so later edits can never rewrite what a run recorded.
 - **Whiteboards** — tldraw boards with live cards for designs, tasks, jobs, and batches, including expanding an assembly into a card tree.
 
 **Hub isolation** — hubs are treated as hard client boundaries. Each browser session locks to one hub; every byte of local data (tasks, chat, production, whiteboards, pins, backups, even theme colors) is partitioned per hub, and no API or admin path can cross the partition. Switching hubs is a deliberate, full-reload action in Settings → Connection. See [`docs/hubs/STATUS.md`](docs/hubs/STATUS.md).
@@ -144,7 +144,7 @@ The whiteboards feature uses [tldraw](https://tldraw.dev), which requires a lice
 | [`docs/tasks/STATUS.md`](docs/tasks/STATUS.md) | Tasks: Kanban, the Gantt schedule model, cross-project view |
 | [`docs/wiki/STATUS.md`](docs/wiki/STATUS.md) | Wiki: drafts, publishing to Fusion Team, images |
 | [`docs/chat/STATUS.md`](docs/chat/STATUS.md) | Chat: channels, threads, SSE, authorization |
-| [`docs/production/STATUS.md`](docs/production/STATUS.md) | Production: jobs, steps, version pinning, batches |
+| [`docs/production/STATUS.md`](docs/production/STATUS.md) | Production: jobs, steps, decisions, version pinning, batches |
 | [`docs/whiteboards/STATUS.md`](docs/whiteboards/STATUS.md) | Whiteboards: tldraw integration, app cards, licence key |
 | [`docs/backup/STATUS.md`](docs/backup/STATUS.md) | Backups: GFS rotation, manifests, verify, restore |
 | [`docs/admin/STATUS.md`](docs/admin/STATUS.md) | The Settings admin console and data management |

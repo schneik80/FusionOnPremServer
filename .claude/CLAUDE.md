@@ -13,7 +13,7 @@ references (uses / where-used / drawings), thumbnails, BOM, and pins.
   - **HUB ISOLATION (security invariant — hubs are IP boundaries between clients):** every store roots under `hubs/<hubslug>/<store>/` (see `docs/hubs/STATUS.md`). The server holds one lazily-built store-set per hub; the session locks to a hub (`POST /api/session/hub`); the `requireHub` middleware wraps every data route (409 `hub_not_selected`, 403 `hub_mismatch`); handlers resolve stores from the **session**, never from client-supplied hubId. Pre-isolation layouts are unsupported (the one-time startup migration was retired after the only deployed server migrated). Never add a code path that reads another hub's profile.
   - `chat/` — append-only channel logs + the shared `Authorizer` / `Limiter`.
   - `tasks/` — `tasks.json` per project (Kanban + Gantt schedule: start/end dates, progress, dependsOn, milestone, stage). See `docs/tasks/STATUS.md`.
-  - `production/` — `production.json` per project (jobs, step DAG, version-pinned documents, batches). See `docs/production/STATUS.md`.
+  - `production/` — `production.json` per project (jobs, step DAG, version-pinned documents, batches). Steps come in two kinds: a **step** carries documents, a **decision** carries colour-coded **results** and no documents, and each result is the source of its own edges (`Edge.FromResultID`). Schema v3; see `docs/production/STATUS.md`.
   - `whiteboards/` — tldraw boards: `whiteboards.json` metadata per project plus one `doc-<id>.json` per board, since a document is megabytes and is rewritten on every autosave. See `docs/whiteboards/STATUS.md`.
   - `pins/` — per-hub pin files inside the hub profile.
   - `notifications/` — a first-party in-app notification center (the app-chrome bell). Same store posture but keyed by **user** (OIDC sub), not project: one `<userkey>.json` per user under `hubs/<slug>/notifications/`, holding a capped inbox. Emitted by our own write paths — chat `@mentions` (via the `fls:user` token, parsed server-side, no APS call), task assignment, task due-soon/overdue (reconciled at inbox-fetch time, no scheduler), and production batch changes. The server is the sole author; clients read/mark-read/dismiss. See `docs/notifications/STATUS.md`.
@@ -42,12 +42,22 @@ make run                                 # build UI + binary, serve over HTTPS (
 - **APS calls are quota'd, so never fan out per row.** The per-minute cost quota answers a burst with 429s, and `api/client.go` deliberately does *not* retry them (a retry can't replenish a per-minute budget). Anything per-item — a classify, a thumbnail — waits for the row to near the viewport via `components/useInView.ts`; anything per-container is capped with a visible "Load all" (`ACTIVITY_CAP` / `CLASSIFY_CAP` in `Dashboards.tsx`). Never cap silently.
 - **One stylesheet, one exception.** There are no CSS files except `web/src/whiteboards/whiteboard.css`, which reskins tldraw (a CSS-variable-themed component that cannot be styled through `sx`). It is scoped to `.fls-tldraw`. Everything else is MUI `sx`.
 - **Visualizations are hand-drawn inline SVG** — there is no graph/chart library beyond one recharts donut, no framer-motion, and no CSS files. Motion is MUI `<Slide>` plus short (100–120 ms) `sx` transitions. `RelationGraph.tsx` (pan/zoom + bezier edges), `HistoryGraph.tsx` (lanes) and `ActivityHeatmap.tsx` (isometric) are the reference implementations.
+- **No date library either.** `components/DateField.tsx` is the app's date picker (read-only field + hand-drawn month-grid popover, Monday-first everywhere); whole-day helpers live in `src/fmt/dates.ts`. Don't add `@mui/x-date-pickers` — it needs a peer date lib too.
 - **Card tokens** — `fls:doc` / `fls:task` / `fls:job` / `fls:batch` / `fls:whiteboard` are compact pseudo-URL tokens stored inline in chat/wiki/task bodies and unfurled at render time. `components/RefCard.tsx` maps every scheme to its renderer; `components/reftokens.ts` splits them out of plain text; `components/RefTokenDialog.tsx` maps a token straight to its dialog. Adding a scheme means touching those three plus `chat/MessageList.tsx` (its `ChatBody` destructures the union) and `wiki/Markdown.tsx` (its `a:` override) — nowhere else. Server-side, `internal/docref` reads the `fls:doc` tokens for the **reverse** lookup — `GET /api/items/local-refs`, the Where-Used tab's local sources (tasks/chat/whiteboards/jobs/batches that reference a document). One `GetProjects` call for the accessible-project scope, then raw-bytes-prefiltered local scans; wiki pages are excluded because they live in APS, not a local store (see `docs/api.md`).
 - Commit/push only when asked.
 
 ## Active work
-**Hub isolation + admin platform** (branch `admin`, merged to main) — the two
-most recent feature waves:
+**Production P6** (on `main`) — decisions and editing ergonomics, the most
+recent wave: duplicate a job (plan only, never its runs); a run date on batch
+creation via the new shared `components/DateField.tsx`; double-click rename and
+chain-from-selection on the flow canvas; **decision nodes** — a second step kind
+carrying colour-coded results, each routing its own edge — and per-run hidden
+steps. This bumped the production store to **schema v3** with a deliberately
+no-op migration (every added field's zero value is its legacy meaning; the
+version moves only so an older binary refuses the file instead of silently
+erasing the new fields on its next save). See `docs/production/STATUS.md`.
+
+Previously: **Hub isolation + admin platform** (branch `admin`, merged to main):
 1. **Admin platform**: full i18n (six locales, dynamic switching, error codes
    on the wire, Unicode hardening — `docs/i18n/STATUS.md`), schema hardening
    (versioned envelopes + provenance stamps + shared migration framework),

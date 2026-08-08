@@ -65,7 +65,7 @@ CI prints the per-function coverage summary rather than hard-gating on a number;
 | `backup` | — | GFS engine (daily/weekly/monthly rotation), allow-list sources, manifest verify, restore safety (foreign-hub / path-escape refusal), per-hub config |
 | `chat` | — | JSONL append-only store (+ race tests), read cursors, message validation, `Authorizer` role mapping, store migrations |
 | `tasks` | — | tasks store round-trip, schedule snapshotting, store migrations |
-| `production` | — | jobs/steps/batches store round-trip (plan freezing), store migrations |
+| `production` | — | jobs/steps/batches store round-trip (plan freezing, including in-place plan edits), decision results + result-bound edge invariants + delete cascade, job duplication, hidden run steps, store migrations |
 | `whiteboards` | — | board metadata + per-board document store, store migrations |
 | `internal/hubslug` | — | hub-URN → filesystem-slug derivation |
 | `internal/migrate` | — | the shared migration framework: v(n)→v(n+1) step ordering, pre-migration `.vN.bak` snapshots, future-version guard |

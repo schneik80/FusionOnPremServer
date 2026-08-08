@@ -177,7 +177,17 @@ run that freezes the plan, so later edits never rewrite what a run recorded.
 The job rail sits left; the selected job offers three views — an interactive
 pan/zoom **flow canvas** of the step graph, a plain **list**, and **batches**
 with a two-lane timeline (prove-out runs on top, production runs below).
-Documents are pinned by browsing the hub or uploading. See
+Documents are pinned by browsing the hub or uploading.
+
+A job can be **duplicated** from its header — the whole plan, none of the runs.
+On the canvas, a palette picks whether **+** adds a work **step** or a
+**decision**; with a step selected, the new node lands to its right already
+connected, and double-clicking any node renames it in place. A decision is a
+rounded diamond carrying named, colour-coded **results**, each of which routes
+its own outgoing edge in that result's colour — so a traveller that forks
+(pass / rework / scrap) is drawn as it actually runs. In a batch, steps can be
+**hidden** — typically the branch that run didn't take — and the run header
+toggles them back into view. See
 [`docs/production/STATUS.md`](production/STATUS.md).
 
 ### Whiteboards

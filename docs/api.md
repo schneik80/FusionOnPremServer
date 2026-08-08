@@ -545,7 +545,7 @@ anything is parsed. That is what makes the two heavy stores affordable:
 | Source | Storage | Scan |
 |---|---|---|
 | Tasks | one small `tasks.json` per project | prefilter, then `DocRefs` + description |
-| Jobs / batches | one `production.json` per project | prefilter, then `DocSnapshot.ItemID` + batch refs |
+| Jobs / batches | one `production.json` per project | prefilter, then `DocSnapshot.ItemID` + batch refs. Steps a run has *hidden* are still scanned — hiding is a view preference, and the document was used in that run either way. Decision steps carry no documents, so they never contribute a hit. |
 | Chat | append-only JSONL, one log per channel | prefilter per log; survivors get a real replay (an edit that removed the token drops the message, a deleted message never counts) |
 | Whiteboards | one `doc-<id>.json` per board, up to 24 MiB | prefilter on raw bytes; only a surviving document is counted |
 
