@@ -16,6 +16,7 @@
     "viewFlow": "Flusso",
     "viewList": "Elenco",
     "viewBatches": "Lotti",
+    "duplicateJob": "Duplica il lavoro",
     "deleteJob": "Elimina commessa",
     "deleteConfirm": "Eliminare la commessa \"{{name}}\" e tutti i suoi lotti?",
     "descPlaceholder": "Aggiungi una descrizione della commessa…",

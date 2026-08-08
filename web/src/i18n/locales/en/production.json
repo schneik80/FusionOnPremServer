@@ -16,6 +16,7 @@
     "viewFlow": "Flow",
     "viewList": "List",
     "viewBatches": "Batches",
+    "duplicateJob": "Duplicate job",
     "deleteJob": "Delete job",
     "deleteConfirm": "Delete job \"{{name}}\" and all its batches?",
     "descPlaceholder": "Add a job description…",

@@ -902,6 +902,18 @@ export function useProductionMutations(projectId: string | null) {
       api.prodJobUpdate(projectId!, args.jobId, args.patch),
     onSuccess: (j) => settleJob(j),
   })
+  const duplicateJob = useMutation({
+    mutationFn: (args: { jobId: string; hubId: string; projectName: string }) =>
+      api.prodJobDuplicate(projectId!, args.jobId, { hubId: args.hubId, projectName: args.projectName }),
+    // AWAITS the list refetch, unlike the other job mutations. The caller
+    // selects the copy on success, and ProductionApp's recovery effect resets
+    // the selection to jobs[0] whenever the selected id isn't in the list —
+    // so selecting before the list has the new job would snap straight back.
+    onSuccess: async (j) => {
+      qc.setQueryData(['prodJob', projectId, j.id], j)
+      await qc.invalidateQueries({ queryKey: ['prodJobs', projectId] })
+    },
+  })
   const removeJob = useMutation({
     mutationFn: (jobId: string) => api.prodJobDelete(projectId!, jobId),
     onSuccess: (_res, jobId) => {
@@ -909,7 +921,7 @@ export function useProductionMutations(projectId: string | null) {
       settleJob()
     },
   })
-  return { createJob, updateJob, removeJob }
+  return { createJob, duplicateJob, updateJob, removeJob }
 }
 
 // useJobGraphMutations bundles the in-place graph edits for one job (steps,

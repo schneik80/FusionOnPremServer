@@ -16,6 +16,7 @@
     "viewFlow": "Flux",
     "viewList": "Liste",
     "viewBatches": "Lots",
+    "duplicateJob": "Dupliquer le travail",
     "deleteJob": "Supprimer l'ordre",
     "deleteConfirm": "Supprimer l'ordre « {{name}} » et tous ses lots ?",
     "descPlaceholder": "Ajouter une description de l'ordre…",

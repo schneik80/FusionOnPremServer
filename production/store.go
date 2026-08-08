@@ -364,6 +364,76 @@ func (s *Store) CreateJob(projectID, hubID, projectName string, d JobDraft, crea
 	return *created, nil
 }
 
+// DuplicateJob copies a job's whole plan — steps, edges, placeholders and
+// version-pinned plan documents — into a new job. Batches are NOT copied: a
+// run belongs to the job it ran under, and forging its provenance would also
+// double every run-level hit in the Where-Used scan.
+//
+// Child ids are preserved verbatim. They are job-scoped ("per-job counters",
+// see the Job doc comment), so there is no uniqueness reason to renumber, and
+// renumbering would mean remapping Edge.From/To as well. The child counters
+// come along for the same reason: resetting NextChildNum to 1 would mint a
+// second "e1" into a job that already has one, and DeleteEdge matches by id.
+//
+// Read and write happen in one mutate closure: composing GetJob + CreateJob +
+// N x CreateStep would race a concurrent delete of the source and would write
+// the file N times for one logical operation.
+func (s *Store) DuplicateJob(projectID, hubID, projectName, jobID string, createdBy UserRef) (Job, error) {
+	var created *Job
+	err := s.mutate(projectID, func(pf *projectFile) error {
+		if len(pf.Jobs) >= MaxJobsPerProject {
+			return fmt.Errorf("%w: project already has %d jobs", ErrInvalid, MaxJobsPerProject)
+		}
+		var src *Job
+		for _, j := range pf.Jobs {
+			if j.ID == jobID {
+				src = j
+				break
+			}
+		}
+		if src == nil {
+			return fmt.Errorf("%w: job %q", ErrNotFound, jobID)
+		}
+		now := time.Now().UTC()
+		dup := copyJob(src)
+		dup.ID = fmt.Sprintf("j%d", pf.NextJobNum)
+		dup.Num = pf.NextJobNum
+		dup.Name = copyName(src.Name)
+		dup.Batches = []*Batch{}
+		dup.NextBatchNum = 1
+		dup.CreatedBy = createdBy
+		dup.CreatedAt = now
+		dup.UpdatedAt = now
+		pf.NextJobNum++
+		pf.HubID = hubID
+		pf.ProjectName = projectName
+		pf.Jobs = append(pf.Jobs, dup)
+		created = copyJob(dup) // copy under lock; see jobMutation
+		return nil
+	})
+	if err != nil {
+		return Job{}, err
+	}
+	return *created, nil
+}
+
+// copySuffix marks a duplicated job. Not translated: the store has no locale,
+// and the name is user-editable the moment the copy lands.
+const copySuffix = " (copy)"
+
+// copyName appends the copy suffix, trimming the base by RUNES first so a
+// name already at MaxNameRunes produces a valid copy instead of failing
+// validation — refusing to duplicate a job because its name is long would be
+// a rotten trade.
+func copyName(name string) string {
+	room := MaxNameRunes - utf8.RuneCountInString(copySuffix)
+	r := []rune(name)
+	if len(r) > room {
+		r = r[:room]
+	}
+	return string(r) + copySuffix
+}
+
 // UpdateJob patches a job's name/description.
 func (s *Store) UpdateJob(projectID, jobID string, p JobPatch) (Job, error) {
 	if p.Name != nil {
@@ -1186,9 +1256,15 @@ func batchStepHasPlaceholder(bs *BatchStep, placeholderID string) bool {
 
 func copyJob(j *Job) *Job {
 	out := *j
-	out.Steps = make([]*Step, len(j.Steps))
-	for i, st := range j.Steps {
-		out.Steps[i] = copyStep(st)
+	out.Steps = make([]*Step, 0, len(j.Steps))
+	for _, st := range j.Steps {
+		// A hand-edited or badly-restored file can carry "steps": [null];
+		// copyStep dereferences, so drop the hole rather than panic the
+		// handler. FindDocRefs already guards this on its own read path.
+		if st == nil {
+			continue
+		}
+		out.Steps = append(out.Steps, copyStep(st))
 	}
 	out.Edges = append([]Edge(nil), j.Edges...)
 	if out.Edges == nil {

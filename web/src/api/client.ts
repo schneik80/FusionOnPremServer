@@ -650,6 +650,15 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  // Copies a job's plan (steps, edges, placeholders, pinned plan documents)
+  // into a new job. Batches are not copied — a run belongs to the job it ran
+  // under. hubId/projectName ride in the body, as they do on create.
+  prodJobDuplicate: (projectId: string, jobId: string, body: { hubId: string; projectName: string }) =>
+    request<Job>(`/api/production/jobs/duplicate${qs({ projectId, jobId })}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   prodJobUpdate: (projectId: string, jobId: string, body: JobPatch) =>
     request<Job>(`/api/production/jobs${qs({ projectId, jobId })}`, {
       method: 'PATCH',

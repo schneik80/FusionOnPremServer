@@ -16,6 +16,7 @@
     "viewFlow": "Fluxo",
     "viewList": "Lista",
     "viewBatches": "Lotes",
+    "duplicateJob": "Duplicar o trabalho",
     "deleteJob": "Eliminar trabalho",
     "deleteConfirm": "Eliminar o trabalho \"{{name}}\" e todos os seus lotes?",
     "descPlaceholder": "Adicionar uma descrição do trabalho…",

@@ -316,6 +316,46 @@ func (s *Server) handleProdJobCreate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, prodJobDTO(j, c.projectID, in.HubID, in.ProjectName))
 }
 
+// handleProdJobDuplicate copies a job's plan into a new job. It creates, so it
+// takes the same CapPost + rate limit + hub check as create; the copy's plan
+// documents keep their pinned versions rather than following the tip.
+func (s *Server) handleProdJobDuplicate(w http.ResponseWriter, r *http.Request) {
+	c, ok := s.prodReq(w, r)
+	if !ok {
+		return
+	}
+	jobID, ok := reqParam(w, r, "jobId")
+	if !ok {
+		return
+	}
+	ctx, cancel := s.reqCtx(r)
+	defer cancel()
+	if !s.prodWrite(ctx, w, r, c) {
+		return
+	}
+	var in struct {
+		HubID       string `json:"hubId"`
+		ProjectName string `json:"projectName"`
+	}
+	if !decodeProdBody(w, r, &in) {
+		return
+	}
+	if in.HubID == "" || in.ProjectName == "" {
+		writeError(w, http.StatusBadRequest, "hubId and projectName are required")
+		return
+	}
+	if !hubMatches(w, c.hubID, in.HubID) {
+		return
+	}
+	j, err := c.store.DuplicateJob(c.projectID, in.HubID, in.ProjectName, jobID,
+		production.UserRef{ID: c.id.UserID, Name: c.name, Email: c.id.Email})
+	if err != nil {
+		s.prodError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, prodJobDTO(j, c.projectID, in.HubID, in.ProjectName))
+}
+
 // handleProdJobUpdate patches a job's name/description.
 func (s *Server) handleProdJobUpdate(w http.ResponseWriter, r *http.Request) {
 	c, ok := s.prodReq(w, r)

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -108,6 +110,115 @@ func TestJobValidation(t *testing.T) {
 	}
 	if _, err := s.UpdateJob(testProject, "nope", JobPatch{}); err == nil {
 		t.Fatalf("expected not-found for unknown job")
+	}
+}
+
+func TestDuplicateJob(t *testing.T) {
+	s := newStore(t)
+	src := mustJob(t, s, "Original")
+	a := mustStep(t, s, src.ID, "A")
+	b := mustStep(t, s, src.ID, "B")
+	if _, err := s.AddEdge(testProject, src.ID, a.ID, b.ID); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	if _, err := s.AttachPlanDoc(testProject, src.ID, a.ID, snapshot("item-1"), user()); err != nil {
+		t.Fatalf("AttachPlanDoc: %v", err)
+	}
+	if _, err := s.AddPlaceholder(testProject, src.ID, b.ID, PlaceholderDraft{Label: "NC program", Required: true}); err != nil {
+		t.Fatalf("AddPlaceholder: %v", err)
+	}
+	if _, err := s.CreateBatch(testProject, src.ID, BatchDraft{Name: "Run 1"}, user()); err != nil {
+		t.Fatalf("CreateBatch: %v", err)
+	}
+	before, err := s.GetJob(testProject, src.ID)
+	if err != nil {
+		t.Fatalf("GetJob source: %v", err)
+	}
+
+	other := UserRef{ID: "sub-2", Name: "Bob"}
+	dup, err := s.DuplicateJob(testProject, testHub, testName, src.ID, other)
+	if err != nil {
+		t.Fatalf("DuplicateJob: %v", err)
+	}
+
+	if dup.ID != "j2" || dup.Num != 2 {
+		t.Fatalf("copy did not get a fresh job id: %+v", dup)
+	}
+	if dup.Name != "Original (copy)" {
+		t.Fatalf("copy name = %q", dup.Name)
+	}
+	if dup.CreatedBy.ID != "sub-2" {
+		t.Fatalf("copy should be authored by the duplicator: %+v", dup.CreatedBy)
+	}
+
+	// Runs belong to the job they ran under.
+	if len(dup.Batches) != 0 || dup.NextBatchNum != 1 {
+		t.Fatalf("copy carried batches: %d batches, nextBatchNum %d", len(dup.Batches), dup.NextBatchNum)
+	}
+
+	// Child ids and counters ride along verbatim — renumbering would mean
+	// remapping Edge.From/To, and a reset NextChildNum would mint a second e1.
+	if len(dup.Steps) != 2 || dup.Steps[0].ID != a.ID || dup.Steps[1].ID != b.ID {
+		t.Fatalf("step ids not preserved: %+v", dup.Steps)
+	}
+	if len(dup.Edges) != 1 || dup.Edges[0].From != a.ID || dup.Edges[0].To != b.ID {
+		t.Fatalf("edges not preserved: %+v", dup.Edges)
+	}
+	if dup.NextStepNum != before.NextStepNum || dup.NextChildNum != before.NextChildNum {
+		t.Fatalf("counters not preserved: steps %d/%d children %d/%d",
+			dup.NextStepNum, before.NextStepNum, dup.NextChildNum, before.NextChildNum)
+	}
+
+	// A pin is exact — a copy must not silently follow the tip.
+	if len(dup.Steps[0].PlanDocs) != 1 || dup.Steps[0].PlanDocs[0].Doc.VersionNumber != 3 {
+		t.Fatalf("plan doc pin not copied verbatim: %+v", dup.Steps[0].PlanDocs)
+	}
+	if dup.Steps[0].PlanDocs[0].AddedBy.ID != user().ID {
+		t.Fatalf("pin attribution rewritten: %+v", dup.Steps[0].PlanDocs[0].AddedBy)
+	}
+	if len(dup.Steps[1].Placeholders) != 1 || !dup.Steps[1].Placeholders[0].Required {
+		t.Fatalf("placeholders not copied: %+v", dup.Steps[1].Placeholders)
+	}
+
+	// The copy is independent: adding a step to it must not touch the source.
+	if _, err := s.CreateStep(testProject, dup.ID, StepDraft{Title: "C"}); err != nil {
+		t.Fatalf("CreateStep on copy: %v", err)
+	}
+	after, err := s.GetJob(testProject, src.ID)
+	if err != nil {
+		t.Fatalf("GetJob source after: %v", err)
+	}
+	if len(after.Steps) != 2 {
+		t.Fatalf("editing the copy changed the source: %+v", after.Steps)
+	}
+
+	if _, err := s.DuplicateJob(testProject, testHub, testName, "nope", other); err == nil {
+		t.Fatalf("expected not-found duplicating an unknown job")
+	}
+}
+
+func TestDuplicateJobLongName(t *testing.T) {
+	s := newStore(t)
+	// A name already at the cap must still be duplicable: the base is trimmed
+	// by runes to make room rather than failing validation. Non-ASCII so a
+	// byte-wise trim would split a character.
+	long := ""
+	for utf8.RuneCountInString(long) < MaxNameRunes {
+		long += "é"
+	}
+	src := mustJob(t, s, long)
+	dup, err := s.DuplicateJob(testProject, testHub, testName, src.ID, user())
+	if err != nil {
+		t.Fatalf("DuplicateJob with a max-length name: %v", err)
+	}
+	if n := utf8.RuneCountInString(dup.Name); n != MaxNameRunes {
+		t.Fatalf("copy name is %d runes, want %d", n, MaxNameRunes)
+	}
+	if !strings.HasSuffix(dup.Name, copySuffix) {
+		t.Fatalf("copy name lost its suffix: %q", dup.Name)
+	}
+	if !utf8.ValidString(dup.Name) {
+		t.Fatalf("copy name is not valid UTF-8: %q", dup.Name)
 	}
 }
 
@@ -291,6 +402,25 @@ func TestBatchFreezeImmutability(t *testing.T) {
 		t.Fatalf("AddPlaceholder later: %v", err)
 	}
 	newPhID := jb2.Steps[0].Placeholders[len(jb2.Steps[0].Placeholders)-1].ID
+
+	// Edit the frozen placeholder IN PLACE on the live plan. This is the case
+	// the append/reslice mutations above cannot catch: UpdatePlaceholder writes
+	// through a *Placeholder into the live slice, so if copyStep ever stopped
+	// copying Placeholders the frozen record would change under it. Same shape
+	// as the rollback snapshot in mutateJob, which is why this matters beyond
+	// the freeze.
+	relabel := "Renamed on the live plan"
+	if _, err := s.UpdatePlaceholder(testProject, j.ID, st.ID, phID, PlaceholderPatch{Label: &relabel}); err != nil {
+		t.Fatalf("UpdatePlaceholder: %v", err)
+	}
+	inPlace, err := s.GetBatch(testProject, j.ID, b.ID)
+	if err != nil {
+		t.Fatalf("GetBatch after in-place edit: %v", err)
+	}
+	if inPlace.Steps[0].Placeholders[0].Label != "Setup 1 NC" {
+		t.Fatalf("in-place plan edit leaked into the frozen batch: %q", inPlace.Steps[0].Placeholders[0].Label)
+	}
+
 	if _, err := s.DeleteStep(testProject, j.ID, st.ID); err != nil {
 		t.Fatalf("DeleteStep: %v", err)
 	}

@@ -16,6 +16,7 @@
     "viewFlow": "Ablauf",
     "viewList": "Liste",
     "viewBatches": "Chargen",
+    "duplicateJob": "Auftrag duplizieren",
     "deleteJob": "Auftrag löschen",
     "deleteConfirm": "Auftrag „{{name}}“ und alle zugehörigen Chargen löschen?",
     "descPlaceholder": "Auftragsbeschreibung hinzufügen…",

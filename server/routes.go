@@ -181,6 +181,7 @@ func (s *Server) routes() http.Handler {
 	// contain ':'/'/').
 	mux.HandleFunc("GET /api/production/jobs", protHub(s.handleProdJobsList))
 	mux.HandleFunc("POST /api/production/jobs", protHub(s.handleProdJobCreate))
+	mux.HandleFunc("POST /api/production/jobs/duplicate", protHub(s.handleProdJobDuplicate))
 	mux.HandleFunc("PATCH /api/production/jobs", protHub(s.handleProdJobUpdate))
 	mux.HandleFunc("DELETE /api/production/jobs", protHub(s.handleProdJobDelete))
 	mux.HandleFunc("GET /api/production/job", protHub(s.handleProdJobGet))

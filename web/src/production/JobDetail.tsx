@@ -1,4 +1,5 @@
 import {
+  faClone,
   faDiagramProject,
   faFlask,
   faLink,
@@ -48,6 +49,7 @@ export function JobDetail({
   canWrite,
   canModerate,
   onDeleted,
+  onDuplicated,
 }: {
   projectId: string
   jobId: string
@@ -55,10 +57,11 @@ export function JobDetail({
   canWrite: boolean
   canModerate: boolean
   onDeleted: () => void
+  onDuplicated: (jobId: string) => void
 }) {
   const { t } = useTranslation('production')
   const jobQ = useJob(projectId, jobId, active)
-  const { updateJob, removeJob } = useProductionMutations(projectId)
+  const { updateJob, duplicateJob, removeJob } = useProductionMutations(projectId)
   const g = useJobGraphMutations(projectId, jobId)
   const myId = useAuthMe().data?.user?.id ?? ''
   // Called before the loading/not-found early returns below — hooks can't sit
@@ -202,6 +205,25 @@ export function JobDetail({
             )}
           </ToggleButton>
         </ToggleButtonGroup>
+        {canWrite && (
+          <Tooltip title={t('jobDetail.duplicateJob')}>
+            <span>
+              <IconButton
+                size="small"
+                aria-label={t('jobDetail.duplicateJob')}
+                disabled={duplicateJob.isPending}
+                onClick={() =>
+                  duplicateJob.mutate(
+                    { jobId: job.id, hubId: job.hubId, projectName: job.projectName },
+                    { onSuccess: (copy) => onDuplicated(copy.id) },
+                  )
+                }
+              >
+                <FontAwesomeIcon icon={faClone} style={{ fontSize: 13 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
         {canDelete && (
           <Tooltip title={t('jobDetail.deleteJob')}>
             <IconButton

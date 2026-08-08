@@ -54,6 +54,7 @@ export function ProductionApp({ active = true }: { active?: boolean }) {
             canWrite={caps?.write ?? false}
             canModerate={caps?.moderate ?? false}
             onDeleted={() => setSelectedId(null)}
+            onDuplicated={setSelectedId}
           />
         ) : (
           <Box
