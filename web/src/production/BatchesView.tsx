@@ -20,6 +20,8 @@ import { alpha, useTheme } from '@mui/material/styles'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useBatchMutations } from '../api/queries'
+import { DateField } from '../components/DateField'
+import { fmtDay, parseDay, sameDay, today } from '../fmt/dates'
 import { batchKindLabel } from '../i18n/enums'
 import { jobRefFromJob } from '../components/productioncard/prodref'
 import { BatchDetail } from './BatchDetail'
@@ -163,13 +165,17 @@ export function BatchesView({
         )}
       </Box>
 
+      {/* Keyed on `createOpen` so each open starts from a clean draft — the
+          dialog is mounted unconditionally, so without this it reopens
+          carrying the previous run's name, kind and date. */}
       <CreateBatchDialog
+        key={String(createOpen)}
         open={createOpen}
         pending={createBatch.isPending}
         onClose={() => setCreateOpen(false)}
-        onCreate={(name, kind) =>
+        onCreate={(name, kind, runAt) =>
           createBatch.mutate(
-            { name, kind },
+            { name, kind, runAt },
             { onSuccess: (b) => { setSelectedId(b.id); setCreateOpen(false) } },
           )
         }
@@ -187,11 +193,23 @@ function CreateBatchDialog({
   open: boolean
   pending: boolean
   onClose: () => void
-  onCreate: (name: string, kind: string) => void
+  /** runAt is RFC3339; the server pins "now" when it is omitted */
+  onCreate: (name: string, kind: string, runAt: string) => void
 }) {
   const { t } = useTranslation('production')
   const [name, setName] = useState('')
   const [kind, setKind] = useState<'prove' | 'production'>('prove')
+  const [runDay, setRunDay] = useState(() => fmtDay(today()))
+
+  // A run date is a calendar day, but RunAt is an instant. Keep the clock from
+  // "now" so a batch created today sorts after one created this morning, and
+  // only fall back to midnight for a day the user moved to.
+  const runAtRFC = () => {
+    const d = parseDay(runDay)
+    const now = new Date()
+    if (sameDay(d, now)) return now.toISOString()
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0).toISOString()
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -206,6 +224,13 @@ function CreateBatchDialog({
           value={name}
           onChange={(e) => setName(e.target.value)}
           sx={{ mt: 1 }}
+        />
+        <DateField
+          label={t('createBatch.runDateLabel')}
+          value={runDay}
+          onChange={setRunDay}
+          fullWidth
+          sx={{ mt: 2 }}
         />
         <ToggleButtonGroup
           size="small"
@@ -238,7 +263,7 @@ function CreateBatchDialog({
         <Button
           variant="contained"
           disabled={!name.trim() || pending}
-          onClick={() => onCreate(name.trim(), kind)}
+          onClick={() => onCreate(name.trim(), kind, runAtRFC())}
           sx={{ textTransform: 'none' }}
         >
           {t('createBatch.create')}

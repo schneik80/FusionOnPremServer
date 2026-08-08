@@ -84,9 +84,10 @@
     "title": "Nuovo lotto",
     "nameLabel": "Nome lotto",
     "namePlaceholder": "es. Lotto 1 (collaudo)",
+    "runDateLabel": "Data di esecuzione",
     "proveOut": "Collaudo",
     "production": "Produzione",
-    "freezeNote": "La creazione del lotto congela la versione corrente di ogni documento di piano. La data di esecuzione è impostata a ora (modificabile in seguito).",
+    "freezeNote": "La creazione del lotto congela la versione attuale di ogni documento del piano.",
     "create": "Crea lotto"
   },
   "batchDetail": {

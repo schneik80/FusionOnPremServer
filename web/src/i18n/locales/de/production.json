@@ -84,9 +84,10 @@
     "title": "Neue Charge",
     "nameLabel": "Chargenname",
     "namePlaceholder": "z. B. Charge 1 (Erprobung)",
+    "runDateLabel": "Laufdatum",
     "proveOut": "Erprobung",
     "production": "Produktion",
-    "freezeNote": "Beim Erstellen der Charge wird die aktuelle Version jedes Plandokuments eingefroren. Das Laufdatum wird auf jetzt gesetzt (später änderbar).",
+    "freezeNote": "Beim Erstellen der Charge wird die aktuelle Version jedes Plandokuments eingefroren.",
     "create": "Charge erstellen"
   },
   "batchDetail": {

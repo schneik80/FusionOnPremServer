@@ -84,9 +84,10 @@
     "title": "Nouveau lot",
     "nameLabel": "Nom du lot",
     "namePlaceholder": "ex. Lot 1 (validation)",
+    "runDateLabel": "Date d’exécution",
     "proveOut": "Validation",
     "production": "Production",
-    "freezeNote": "La création du lot fige la version actuelle de chaque document du plan. La date de lancement est fixée à maintenant (modifiable ensuite).",
+    "freezeNote": "La création du lot fige la version actuelle de chaque document de plan.",
     "create": "Créer le lot"
   },
   "batchDetail": {

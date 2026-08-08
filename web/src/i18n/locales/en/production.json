@@ -84,9 +84,10 @@
     "title": "New batch",
     "nameLabel": "Batch name",
     "namePlaceholder": "e.g. Batch 1 (prove)",
+    "runDateLabel": "Run date",
     "proveOut": "Prove-out",
     "production": "Production",
-    "freezeNote": "Creating the batch freezes the current version of every plan document. The run date is set to now (editable later).",
+    "freezeNote": "Creating the batch freezes the current version of every plan document.",
     "create": "Create batch"
   },
   "batchDetail": {

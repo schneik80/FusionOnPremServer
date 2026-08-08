@@ -84,9 +84,10 @@
     "title": "Novo lote",
     "nameLabel": "Nome do lote",
     "namePlaceholder": "p. ex., Lote 1 (prova)",
+    "runDateLabel": "Data de execução",
     "proveOut": "Prova",
     "production": "Produção",
-    "freezeNote": "Criar o lote congela a versão atual de todos os documentos do plano. A data de execução é definida para agora (editável mais tarde).",
+    "freezeNote": "Criar o lote congela a versão atual de cada documento do plano.",
     "create": "Criar lote"
   },
   "batchDetail": {
