@@ -208,7 +208,12 @@ export class FlsCardShapeUtil extends ShapeUtil<FlsCardShape> {
 		// gets the click rather than the card as a whole; fall back to the card
 		// root when the hit test lands outside (zoomed-out cards are small).
 		const hit = document.elementFromPoint(rect.left + p.x, rect.top + p.y)
-		const target = hit && node.contains(hit) ? hit : node.firstElementChild
+		let target: Element | null = hit && node.contains(hit) ? hit : node.firstElementChild
+		// The hit often lands on the FontAwesome <svg> (or its <path>) inside an
+		// action button — an SVGElement, which has no .click(). Climb to the
+		// nearest HTML ancestor so the button receives the replay; without this,
+		// clicking the middle of any action-bar icon on a board did nothing.
+		while (target && !(target instanceof HTMLElement)) target = target.parentElement
 		if (target instanceof HTMLElement) target.click()
 	}
 

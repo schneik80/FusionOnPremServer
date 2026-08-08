@@ -498,6 +498,15 @@ export function EntityCard({
       {selected && !flipped && bar.length > 0 && (
         <Box
           component="span"
+          // Keep the pointer interaction inside the bar. On a whiteboard the
+          // card lives on a tldraw canvas that takes pointer capture on
+          // pointerdown — the pointerup then retargets to the canvas, the
+          // browser never synthesizes a click on the button, and (because the
+          // bar hangs BELOW the shape's geometry box) the shape-level click
+          // replay in cardshape.tsx never fires for it either. Stopping the
+          // pointerdown from reaching the canvas lets the button keep the
+          // pointer and receive a real native click. Inert in other hosts.
+          onPointerDown={(e) => e.stopPropagation()}
           sx={{
             display: 'inline-flex',
             alignItems: 'center',
