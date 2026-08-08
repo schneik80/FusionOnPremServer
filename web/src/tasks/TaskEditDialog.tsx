@@ -19,6 +19,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChatMembers, useTaskMutations, useTasks } from '../api/queries'
+import { DateField } from '../components/DateField'
 import { taskPriorityLabel, taskStatusLabel } from '../i18n/enums'
 import {
   PRIORITIES,
@@ -232,14 +233,12 @@ export function TaskEditDialog({
             </TextField>
           </Stack>
           <Stack direction="row" spacing={2}>
-            <TextField
+            <DateField
               label={t('editDialog.dueDateLabel')}
-              type="date"
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              size="small"
+              onChange={setDueDate}
+              clearable
               sx={{ flex: 1 }}
-              InputLabelProps={{ shrink: true }}
             />
             <TextField
               select
@@ -270,24 +269,20 @@ export function TaskEditDialog({
             </Typography>
           </Divider>
           <Stack direction="row" spacing={2} alignItems="center">
-            <TextField
+            <DateField
               label={t('editDialog.startDateLabel')}
-              type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              size="small"
+              onChange={setStartDate}
+              clearable
               sx={{ flex: 1 }}
-              InputLabelProps={{ shrink: true }}
               error={oneSided && !startDate}
             />
-            <TextField
+            <DateField
               label={milestone ? t('editDialog.endDateMilestoneLabel') : t('editDialog.endDateLabel')}
-              type="date"
               value={milestone ? startDate : endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              size="small"
+              onChange={setEndDate}
+              clearable
               sx={{ flex: 1 }}
-              InputLabelProps={{ shrink: true }}
               disabled={milestone}
               error={(oneSided && !effEnd) || badOrder}
               helperText={badOrder ? t('editDialog.endsBeforeStarts') : undefined}

@@ -8,8 +8,13 @@
 // dependency arrows; known upstream bugs deliberately avoided (dates parse
 // to LOCAL midnight, empty task lists still produce a scale).
 
+import { addDays, daysBetween, fmtDay, isWeekend, mondayOf, parseDay } from '../../fmt/dates'
 import type { Task } from '../types'
 import { isScheduled } from '../types'
+
+// The whole-day helpers live in fmt/dates.ts so components/DateField.tsx can
+// share them; re-exported here because the Gantt is their oldest caller.
+export { addDays, daysBetween, fmtDay, isWeekend, mondayOf, parseDay }
 
 export type TimeUnit = 'day' | 'week' | 'month'
 
@@ -23,42 +28,6 @@ export const COL_WIDTH: Record<TimeUnit, number> = { day: 36, week: 84, month: 1
 const PAD_COLS: Record<TimeUnit, number> = { day: 7, week: 4, month: 2 }
 
 const DAY_MS = 86_400_000
-
-// ---- dates ----
-
-// parseDay reads YYYY-MM-DD as LOCAL midnight. new Date('YYYY-MM-DD') would
-// parse UTC midnight and render a day early in negative-offset zones — the
-// classic gantt off-by-one.
-export function parseDay(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number)
-  return new Date(y, (m || 1) - 1, d || 1)
-}
-
-export function fmtDay(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
-
-export function addDays(d: Date, n: number): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
-}
-
-export function isWeekend(d: Date): boolean {
-  const wd = d.getDay()
-  return wd === 0 || wd === 6
-}
-
-// mondayOf returns the ISO week start (Monday) for a date.
-export function mondayOf(d: Date): Date {
-  const wd = (d.getDay() + 6) % 7 // Mon=0 … Sun=6
-  return addDays(d, -wd)
-}
-
-// daysBetween counts whole local days from a to b (b − a). Rounding absorbs
-// the odd DST hour so a 23/25-hour day still counts as one.
-export function daysBetween(a: Date, b: Date): number {
-  return Math.round((b.getTime() - a.getTime()) / DAY_MS)
-}
 
 // ---- scale ----
 

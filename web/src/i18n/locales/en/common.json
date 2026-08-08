@@ -8,5 +8,12 @@
   "edit": "Edit",
   "remove": "Remove",
   "loading": "Loading…",
-  "none": "—"
+  "none": "—",
+  "date": {
+    "open": "Open the calendar",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today",
+    "clear": "Clear"
+  }
 }
