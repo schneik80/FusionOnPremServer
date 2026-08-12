@@ -288,6 +288,25 @@
   "history": {
     "versionCount_one": "{{count}} versión",
     "versionCount_other": "{{count}} versiones",
+    "gap": {
+      "nextDay": "Día siguiente",
+      "later": "{{duration}} después"
+    },
+    "showThread": "Mostrar el hilo entre días",
+    "showThreadHint": "Alinear todos los guardados en un eje continuo y enlazarlos en orden",
+    "daySaves_one": "{{count}} guardado",
+    "daySaves_other": "{{count}} guardados",
+    "dayAria_one": "{{date}} — {{count}} guardado",
+    "dayAria_other": "{{date}} — {{count}} guardados",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "unknownDate": "Fecha desconocida",
+    "savedBy": "Guardado por {{name}}",
+    "unknownAuthor": "Autor desconocido",
+    "moreAuthors_one": "{{count}} persona más",
+    "moreAuthors_other": "{{count}} personas más",
+    "showingDays": "Mostrando los {{count}} días más recientes",
+    "showAllDays": "Mostrar los {{count}} días",
     "saves": "Guardados",
     "milestones": "Hitos",
     "releases": "Lanzamientos",
@@ -295,7 +314,10 @@
     "versionShort": "v{{number}}",
     "milestone": "Hito",
     "release": "Lanzamiento {{revision}}",
-    "publicShare": "Compartido público"
+    "publicShare": "Compartido público",
+    "noDescription": "Sin descripción",
+    "noPreview": "Sin vista previa para esta versión",
+    "previewFailed": "No se pudo cargar la vista previa"
   },
   "relation": {
     "zoomOut": "Alejar",

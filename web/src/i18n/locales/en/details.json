@@ -288,6 +288,25 @@
   "history": {
     "versionCount_one": "{{count}} version",
     "versionCount_other": "{{count}} versions",
+    "gap": {
+      "nextDay": "Next day",
+      "later": "{{duration}} later"
+    },
+    "showThread": "Show thread across days",
+    "showThreadHint": "Line up every save on one continuous axis and thread them in order",
+    "daySaves_one": "{{count}} save",
+    "daySaves_other": "{{count}} saves",
+    "dayAria_one": "{{date}} — {{count}} save",
+    "dayAria_other": "{{date}} — {{count}} saves",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "unknownDate": "Date unknown",
+    "savedBy": "Saved by {{name}}",
+    "unknownAuthor": "Unknown author",
+    "moreAuthors_one": "{{count}} more person",
+    "moreAuthors_other": "{{count}} more people",
+    "showingDays": "Showing the most recent {{count}} days",
+    "showAllDays": "Show all {{count}} days",
     "saves": "Saves",
     "milestones": "Milestones",
     "releases": "Releases",
@@ -295,7 +314,10 @@
     "versionShort": "v{{number}}",
     "milestone": "Milestone",
     "release": "Release {{revision}}",
-    "publicShare": "Public share"
+    "publicShare": "Public share",
+    "noDescription": "No description",
+    "noPreview": "No preview for this version",
+    "previewFailed": "Preview could not be loaded"
   },
   "relation": {
     "zoomOut": "Zoom out",
