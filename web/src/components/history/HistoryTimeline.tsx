@@ -13,6 +13,7 @@ import {
   gapBetween,
   GUTTER_W,
   indexBase,
+  MIN_VIEW_H,
   plotWidth,
   threadWidth,
 } from './historyLayout'
@@ -30,7 +31,9 @@ import {
 //     noon is the same column in every row and nothing scrolls sideways.
 //   • on — every save sits on one continuous chronological axis, COL_GAP apart,
 //     with a polyline threading them in order. Empty time costs no width, so a
-//     long history scrolls both ways; that is the trade the toggle makes.
+//     long history scrolls both ways inside a height-bounded box; that is the
+//     trade the toggle makes. The author gutter freezes against the left edge
+//     so a track never loses its face.
 //
 // The layout maths lives in historyLayout.ts (pure, unit-tested); this file
 // measures the panel and decides what to render.
@@ -75,7 +78,7 @@ export default function HistoryTimeline({ versions }: { versions: VersionSummary
   const hasShare = versions.some((v) => !!v.publicShare)
 
   return (
-    <Stack spacing={1} sx={{ minHeight: 0 }}>
+    <Stack spacing={1} sx={{ minHeight: 0, ...(thread ? { height: '100%' } : null) }}>
       <Stack
         direction="row"
         spacing={1}
@@ -105,15 +108,24 @@ export default function HistoryTimeline({ versions }: { versions: VersionSummary
         </Tooltip>
       </Stack>
 
-      {/* The scroll container. Day view fits the panel and never scrolls
-          sideways; thread view scrolls both ways, and both bars belong to this
-          one box so the themed scrollbar corner applies (see theme.ts). */}
+      {/* The scroll container.
+          Day view is fitted to the panel and never overflows sideways, so it
+          grows downward and page-scrolls with the tab, like the list it reads
+          as.
+          Thread view owns BOTH axes and must therefore be height-bounded. It
+          shipped unbounded, which meant the box was as tall as its content — so
+          its horizontal scrollbar sat at the bottom of an 8,000px element,
+          nowhere near the viewport unless you had already scrolled to the end
+          of the history. Bounding the height pins both bars to the edges of
+          something you can actually see, and puts them on one box so the themed
+          scrollbar corner applies (see theme.ts). */}
       <Box
         ref={boxRef}
         sx={{
           position: 'relative',
-          overflowX: thread ? 'auto' : 'hidden',
-          overflowY: 'hidden',
+          ...(thread
+            ? { flex: 1, minHeight: MIN_VIEW_H, overflow: 'auto' }
+            : { overflow: 'hidden' }),
           border: 1,
           borderColor: 'divider',
           borderRadius: 1,

@@ -104,8 +104,16 @@ export default function DayRow({
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-        {/* Avatar gutter. Sticky and opaque-by-inheritance so dots never slide
-            under it when the plot scrolls. */}
+        {/* Avatar gutter — a frozen column, not part of the plot.
+            It sticks to the left edge so horizontal scrolling never takes a
+            track's face away from it: however far right you scroll, every row
+            still says who. zIndex 1 puts it above the thread overlay (which is
+            positioned but z-auto), so the polyline passes underneath rather
+            than across the avatars, and the opaque background means dots slide
+            under it instead of through it.
+            The right border only appears in thread view, where the plot can
+            actually scroll under it — in day view nothing moves, so the rule
+            would be a line for its own sake. */}
         <Box
           sx={{
             position: 'sticky',
@@ -114,6 +122,7 @@ export default function DayRow({
             width: GUTTER_W,
             flexShrink: 0,
             height: h,
+            ...(thread ? { borderRight: 1, borderColor: 'divider' } : null),
             // Each avatar box is TRACK_H tall and centres its disc, so one
             // ROW_PAD_Y of lead-in lines them up with trackY().
             pt: `${ROW_PAD_Y}px`,

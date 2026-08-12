@@ -30,7 +30,7 @@ Two x mappings share that skeleton, switched by a checkbox in the header:
 | empty time | not drawn — the gap label carries it | consumes no width; days butt up against each other |
 | axis | hour gridlines, labels at 00/06/12/18/24 | none; a dashed seam marks each day boundary |
 | thread | — | a polyline through every save in order, across rows |
-| scrolling | fits the panel; no horizontal scroll | scrolls both ways for a long history |
+| scrolling | fits the panel; grows downward and page-scrolls with the tab | both axes, inside a height-bounded box, with the gutter frozen left |
 
 Thread view is deliberately the *old strip refolded* — same 38 px pitch, same
 chronological order — so the toggle reads as "unfold this" rather than "draw
@@ -129,6 +129,31 @@ Nothing is capped silently.
 rather than the picked app language. Everything now goes through
 `web/src/fmt/index.ts`.
 
+**Thread view is height-bounded, and the gutter is a frozen column.** It first
+shipped as a scrolling container with no height, which meant the box was as tall
+as its content — on a long history, thousands of pixels tall, with its
+horizontal scrollbar sitting at the very bottom. Scrolled anywhere near the top
+there was no scrollbar on screen at all, so the axis could not be panned except
+from the end of the history. Bounding the height (`flex: 1`, `MIN_VIEW_H`,
+`overflow: 'auto'`) puts both bars on the edges of something visible, and on one
+box, so the themed scrollbar corner applies.
+
+The author gutter is `position: sticky; left: 0`, so horizontal scrolling never
+takes a track's face away from it — however far right you scroll, every row
+still says who saved. It carries `zIndex: 1`, which puts it above the thread
+overlay (positioned but z-auto), so the polyline passes *under* the avatars
+rather than across them, and an opaque background so dots slide beneath it. In
+thread view it also takes a right border, to read as a frozen pane; day view
+omits it, since nothing scrolls under it there and the rule would be decoration.
+
+**A pan/zoom canvas was tried and reverted.** Modelling thread view on
+`RelationGraph`/`JobCanvas` — one transform over the whole stack, zoom-to-fit,
+level-of-detail dropping labels below 0.35 scale — worked mechanically but not
+in use: at the scale needed to fit a long history (~0.06) the result is not
+readable enough to navigate by, and the zoom becomes a thing to fight rather
+than a way through. Scrolling a bounded box with a frozen gutter is the simpler
+answer and the one that stuck. Worth knowing before proposing it again.
+
 **Tooltip thumbnails are hover-delayed, on purpose.** A version thumbnail is an
 ungated per-item APS call, and only the **tip** component version is ever
 pre-warmed (by classify, off the browse row). Every historical version is
@@ -201,11 +226,14 @@ Eyeball, in light **and** dark and at two panel widths:
 7. Milestone halo, release halo and share ring are distinguishable; the legend
    lists only what occurs.
 8. Checkbox off by default. On: the staircase runs bottom-left → top-right, the
-   thread skips no version, seams land between days, and the gutter avatars and
-   day headers stay pinned while scrolling right.
-9. Both scrollbars are the themed thin bar and the bottom-right corner is
-   transparent, not an OS grey square (`theme.ts`). Check Chromium **and**
-   Firefox — Firefox honours only the standard `scrollbar-color` properties.
+   thread skips no version, and seams land between days. **Both scrollbars are
+   reachable from anywhere in the history** — that is the bug that motivated the
+   bounded height; scroll to the top and the horizontal bar is still there.
+9. Scroll right: the gutter avatars and day headers stay pinned, the thread
+   passes *under* the gutter rather than over it, and no dot shows through it.
+   Both bars are the themed thin bar and the bottom-right corner is transparent,
+   not an OS grey square (`theme.ts`). Check Chromium **and** Firefox — Firefox
+   honours only the standard `scrollbar-color` properties.
 10. A design with >60 days shows "Show all N days" and the caption still reports
     the true total.
 
