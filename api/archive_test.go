@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -579,5 +580,85 @@ func TestOpenArchive_FallsBackToSigningWhenNoLink(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if string(body) != "F3Z-BYTES" {
 		t.Errorf("body = %q, want the signed-object fallback to have run", body)
+	}
+}
+
+// The extension is decided from the LINK, because attributes.format.fileType
+// has been seen absent for a download whose link said .f3d — and comparing
+// only the attribute meant the rename silently did not fire, so the file went
+// out named .f3z while Autodesk's own web download of the same design gave
+// .f3d.
+func TestFileTypeFromLink(t *testing.T) {
+	cases := []struct {
+		name, link, want string
+	}{
+		{
+			"rfc5987 filename*, percent-encoded (the live shape)",
+			"https://cdn.us.oss.api.autodesk.com/oss/v2/signedresources/abc" +
+				"?region=US&response-content-disposition=attachment%3Bfilename%2A%3DUTF-8%27%27479f6974.f3d",
+			"f3d",
+		},
+		{
+			"plain filename=",
+			"https://cdn.us.oss.api.autodesk.com/x?response-content-disposition=" +
+				url.QueryEscape(`attachment;filename="Widget.f3z"`),
+			"f3z",
+		},
+		{"no disposition", "https://cdn.us.oss.api.autodesk.com/x?region=US", ""},
+		{"no extension in the name", "https://x/y?response-content-disposition=" +
+			url.QueryEscape("attachment;filename*=UTF-8''noext"), ""},
+		{"not a url", "://nope", ""},
+		{"empty", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := fileTypeFromLink(tc.link); got != tc.want {
+				t.Errorf("fileTypeFromLink = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFileTypeFromObjectURN(t *testing.T) {
+	// The key is percent-encoded and carries the RFC 5987 prefix; the
+	// extension still has to come out.
+	got := fileTypeFromObjectURN(
+		"urn:adsk.objects:os.object:wip.dm.prod/UTF-8%27%27479f6974.f3d")
+	if got != "f3d" {
+		t.Errorf("= %q, want f3d", got)
+	}
+	if got := fileTypeFromObjectURN("not-a-urn"); got != "" {
+		t.Errorf("unparseable urn = %q, want empty", got)
+	}
+}
+
+func TestResolveDownload_LinkBeatsAnAbsentDeclaredType(t *testing.T) {
+	// Exactly the live case: no attributes.format.fileType at all, and a link
+	// that says f3d. The old code compared only the attribute, found nothing,
+	// and left the file named after the REQUESTED format.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"data":[{"type":"downloads",
+			"attributes":{},
+			"relationships":{"storage":{
+				"data":{"id":"urn:adsk.objects:os.object:wip.dm.prod/UTF-8%27%27abc.f3d"},
+				"meta":{"link":{"href":"https://cdn.us.oss.api.autodesk.com/oss/v2/signedresources/x?region=US&response-content-disposition=attachment%3Bfilename%2A%3DUTF-8%27%27abc.f3d"}}}}}]}`)
+	}))
+	defer srv.Close()
+	defer dmBaseURLForTest(srv.URL)()
+
+	got, _, err := ResolveDownload(context.Background(), "tok", srv.URL+"/d")
+	if err != nil {
+		t.Fatalf("ResolveDownload: %v", err)
+	}
+	if got.FileType != "f3d" {
+		t.Errorf("FileType = %q, want f3d (from the link)", got.FileType)
+	}
+	if got.Declared != "" {
+		t.Errorf("Declared = %q, want empty — the attribute was absent", got.Declared)
+	}
+	// The evidence is kept so a disagreement can be logged rather than resolved
+	// silently.
+	if got.LinkType != "f3d" || got.ObjectType != "f3d" {
+		t.Errorf("sources = link:%q object:%q, want both f3d", got.LinkType, got.ObjectType)
 	}
 }

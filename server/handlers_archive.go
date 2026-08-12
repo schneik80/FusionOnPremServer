@@ -197,8 +197,16 @@ func (s *Server) handleArchiveFile(w http.ResponseWriter, r *http.Request) {
 	// which is a file Fusion may refuse to open. Correct the job too, so the
 	// list view and the bell agree with what was actually saved.
 	if built := target.FileType; built != "" && built != fileType {
-		s.logger.Warn("archive: APS built a format other than the one requested",
-			"job", job.ID, "doc", job.DocName, "requested", fileType, "built", built)
+		// Log every source it was decided from, not just the verdict. The
+		// first version of this compared only attributes.format.fileType,
+		// which was ABSENT for the download that prompted the fix — so the
+		// rename silently did not fire and the file went out named .f3z while
+		// Autodesk's own web download of the same design gave .f3d.
+		s.logger.Warn("archive: naming from the format APS built, not the one requested",
+			"job", job.ID, "doc", job.DocName,
+			"requested", fileType, "built", built,
+			"fromLink", target.LinkType, "declared", target.Declared,
+			"fromObjectKey", target.ObjectType)
 		name = archiveFileName(job.DocName, built)
 		job.setFormat(built, name)
 	}

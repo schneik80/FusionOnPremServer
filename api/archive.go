@@ -356,7 +356,14 @@ type ArchiveTarget struct {
 	Link       string // pre-signed url; use this when present
 	StorageURN string // fallback: sign it ourselves
 	Name       string
-	FileType   string // lowercase "f3z"/"f3d" as APS reports it; "" if absent
+	FileType   string // the decided extension, lowercase, no dot; "" if unknown
+	// The evidence FileType was decided from, kept so a disagreement can be
+	// logged rather than silently resolved. All three agreed in the one
+	// document ever captured; the live mismatch that prompted this had
+	// Declared empty while the link said f3d.
+	Declared   string // attributes.format.fileType
+	LinkType   string // extension in the link's response-content-disposition
+	ObjectType string // extension of the storage object key
 }
 
 // ResolveDownload reads a finished download and reports where its bytes are.
@@ -413,14 +420,87 @@ func ResolveDownload(ctx context.Context, token, downloadURL string) (ArchiveTar
 		if len(e.Attributes) > 0 {
 			_ = json.Unmarshal(e.Attributes, &attrs)
 		}
+		declared := strings.ToLower(strings.TrimSpace(attrs.Format.FileType))
+		linkType := fileTypeFromLink(link)
+		objectType := fileTypeFromObjectURN(rel.Storage.Data.ID)
 		return ArchiveTarget{
 			Link:       link,
 			StorageURN: rel.Storage.Data.ID,
 			Name:       attrs.Name,
-			FileType:   strings.ToLower(strings.TrimSpace(attrs.Format.FileType)),
+			// The LINK wins. Its response-content-disposition is what APS
+			// serves these bytes as — the same name Fusion Team's own web
+			// download produces — whereas attributes.format.fileType has been
+			// seen absent for a download the link called .f3d. Declared is
+			// second because it is at least explicit; the object key is last
+			// because it is the field that already turned out to be a
+			// content-disposition filename in disguise.
+			FileType:   firstNonEmpty(linkType, declared, objectType),
+			Declared:   declared,
+			LinkType:   linkType,
+			ObjectType: objectType,
 		}, body, nil
 	}
 	return ArchiveTarget{}, body, fmt.Errorf("download %s has no storage: %s", trimURL(downloadURL), snippetN(body, 4<<10))
+}
+
+// fileTypeFromLink pulls the extension out of a signed link's
+// response-content-disposition, e.g.
+//
+//	?response-content-disposition=attachment%3Bfilename*%3DUTF-8%27%27<uuid>.f3d
+//
+// This is the strongest signal available for what APS considers the file to be:
+// it is literally the name APS would serve it under.
+func fileTypeFromLink(rawLink string) string {
+	u, err := url.Parse(rawLink)
+	if err != nil {
+		return ""
+	}
+	disp := u.Query().Get("response-content-disposition")
+	if disp == "" {
+		return ""
+	}
+	// filename*= (RFC 5987) or a plain filename=; take whichever is present.
+	for _, key := range []string{"filename*=", "filename="} {
+		i := strings.Index(disp, key)
+		if i < 0 {
+			continue
+		}
+		v := disp[i+len(key):]
+		if j := strings.IndexAny(v, ";"); j >= 0 {
+			v = v[:j]
+		}
+		v = strings.Trim(strings.TrimSpace(v), `"`)
+		v = strings.TrimPrefix(v, "UTF-8''")
+		return bareExt(v)
+	}
+	return ""
+}
+
+// fileTypeFromObjectURN reads the extension off a storage object urn.
+func fileTypeFromObjectURN(urn string) string {
+	_, object, ok := parseOSSObjectURN(urn)
+	if !ok {
+		return ""
+	}
+	if d, err := url.QueryUnescape(object); err == nil {
+		object = d
+	}
+	return bareExt(object)
+}
+
+// bareExt is extOf (queries.go) normalized for comparison with an APS
+// fileType: lowercase and without the leading dot.
+func bareExt(name string) string {
+	return strings.ToLower(strings.TrimPrefix(extOf(name), "."))
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // autodeskHost reports whether a url points at Autodesk. Matches the apex and
