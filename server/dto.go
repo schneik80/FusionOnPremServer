@@ -115,6 +115,7 @@ type VersionDTO struct {
 	Number                 int    `json:"number"`
 	CreatedOn              string `json:"createdOn,omitempty"`
 	CreatedBy              string `json:"createdBy,omitempty"`
+	CreatedByID            string `json:"createdById,omitempty"`
 	Comment                string `json:"comment,omitempty"`
 	RootComponentVersionID string `json:"rootComponentVersionId,omitempty"`
 	IsMilestone            bool   `json:"isMilestone"`
@@ -333,6 +334,7 @@ func detailsDTO(d *api.ItemDetails) DetailsDTO {
 			Number:                 v.Number,
 			CreatedOn:              fmtTime(v.CreatedOn),
 			CreatedBy:              v.CreatedBy,
+			CreatedByID:            v.CreatedByID,
 			Comment:                v.Comment,
 			RootComponentVersionID: v.RootComponentVersionID,
 			IsMilestone:            v.IsMilestone,

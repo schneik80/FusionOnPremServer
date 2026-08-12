@@ -45,7 +45,11 @@ type VersionSummary struct {
 	Number    int
 	CreatedOn time.Time
 	CreatedBy string
-	Comment   string // version save comment (may be empty)
+	// CreatedByID is the APS user id of the author. Empty when the field could
+	// not be resolved; the UI then groups its per-author history tracks by
+	// display name instead.
+	CreatedByID string
+	Comment     string // version save comment (may be empty)
 	// RootComponentVersionID is this version's root component version id — the
 	// cvId used to fetch a per-version thumbnail. Empty when the field could not
 	// be resolved (unmigrated design / partial GraphQL response).
@@ -76,9 +80,9 @@ func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDeta
 				mimeType
 				extensionType
 				createdOn
-				createdBy  { firstName lastName }
+				createdBy  { id firstName lastName }
 				lastModifiedOn
-				lastModifiedBy { firstName lastName }
+				lastModifiedBy { id firstName lastName }
 				... on DesignItem {
 					fusionWebUrl
 					tipVersion { versionNumber }
@@ -104,7 +108,7 @@ func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDeta
 					versionNumber
 					name
 					createdOn
-					createdBy { firstName lastName }
+					createdBy { id firstName lastName }
 					# itemVersions.results is typed ItemVersion (an interface); the
 					# per-version root component version (carrying isMilestone + the
 					# cvId for that version's thumbnail) lives on the concrete
@@ -197,6 +201,7 @@ func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDeta
 			Comment:                v.Name,
 			CreatedOn:              parseTime(v.CreatedOn),
 			CreatedBy:              v.CreatedBy.fullName(),
+			CreatedByID:            v.CreatedBy.ID,
 			RootComponentVersionID: v.RootComponentVersion.ID,
 			IsMilestone:            v.RootComponentVersion.IsMilestone,
 			// Revision: reserved, no API source today.
@@ -208,6 +213,7 @@ func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDeta
 
 // apiUser is a helper for deserialising User objects.
 type apiUser struct {
+	ID    string `json:"id"`
 	First string `json:"firstName"`
 	Last  string `json:"lastName"`
 }

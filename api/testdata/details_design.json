@@ -7,9 +7,9 @@
     "mimeType": "application/vnd.autodesk.fusion360",
     "extensionType": "Fusion360",
     "createdOn": "2024-01-15T10:30:45Z",
-    "createdBy": {"firstName": "Ada", "lastName": "Lovelace"},
+    "createdBy": {"id": "user-ada", "firstName": "Ada", "lastName": "Lovelace"},
     "lastModifiedOn": "2024-02-20T14:00:00Z",
-    "lastModifiedBy": {"firstName": "Grace", "lastName": "Hopper"},
+    "lastModifiedBy": {"id": "user-grace", "firstName": "Grace", "lastName": "Hopper"},
     "fusionWebUrl": "https://fusion.example/widget-a",
     "tipVersion": {"versionNumber": 3},
     "tipRootComponentVersion": {
@@ -22,9 +22,9 @@
   },
   "itemVersions": {
     "results": [
-      {"versionNumber": 1, "name": "first", "createdOn": "2024-01-15T10:30:45Z", "createdBy": {"firstName": "Ada", "lastName": "Lovelace"}, "rootComponentVersion": null},
-      {"versionNumber": 2, "name": "second save", "createdOn": "2024-01-20T11:00:00Z", "createdBy": {"firstName": "Ada", "lastName": "Lovelace"}, "rootComponentVersion": {"id": "urn:cv:v2", "isMilestone": true}},
-      {"versionNumber": 3, "name": "third edit", "createdOn": "2024-02-20T14:00:00Z", "createdBy": {"firstName": "Grace", "lastName": "Hopper"}, "rootComponentVersion": {"id": "urn:cv:v3", "isMilestone": false}}
+      {"versionNumber": 1, "name": "first", "createdOn": "2024-01-15T10:30:45Z", "createdBy": {"id": "user-ada", "firstName": "Ada", "lastName": "Lovelace"}, "rootComponentVersion": null},
+      {"versionNumber": 2, "name": "second save", "createdOn": "2024-01-20T11:00:00Z", "createdBy": {"id": "user-ada", "firstName": "Ada", "lastName": "Lovelace"}, "rootComponentVersion": {"id": "urn:cv:v2", "isMilestone": true}},
+      {"versionNumber": 3, "name": "third edit", "createdOn": "2024-02-20T14:00:00Z", "createdBy": {"id": "user-grace", "firstName": "Grace", "lastName": "Hopper"}, "rootComponentVersion": {"id": "urn:cv:v3", "isMilestone": false}}
     ]
   }
 }

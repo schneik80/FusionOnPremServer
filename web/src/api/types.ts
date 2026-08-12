@@ -246,11 +246,12 @@ export interface VersionSummary {
   number: number
   createdOn?: string
   createdBy?: string
+  createdById?: string // APS user id — the History view's per-author track key
   comment?: string
   rootComponentVersionId?: string // per-version cvId for the thumbnail
-  isMilestone?: boolean // marks the "release" lane + a dev→release merge edge
-  revision?: string // reserved: the "main"/release lane; no API source yet
-  publicShare?: boolean // marks the rust-orange "share" lane; no API source yet
+  isMilestone?: boolean // marks a milestone save
+  revision?: string // reserved: the formal release revision; no API source yet
+  publicShare?: boolean // reserved: a public share on this version; no API source yet
 }
 
 export interface Details {
