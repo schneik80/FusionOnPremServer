@@ -16,6 +16,9 @@ func (s *Server) routes() http.Handler {
 	// they are wired. Run builds them with the rest; doing it here too means a
 	// hand-built Server (tests) is metered rather than dereferencing nil.
 	s.ensureAuthLimiters()
+	// Same reasoning for the background-job registries: Run builds them, but a
+	// hand-built Server (tests) would otherwise nil-panic on the first job.
+	s.ensureJobRegistries()
 
 	mux := http.NewServeMux()
 
@@ -35,6 +38,13 @@ func (s *Server) routes() http.Handler {
 	// branding rather than hub data, and why nothing confidential belongs in
 	// it. Writing it still requires a session (below).
 	mux.HandleFunc("GET /api/branding/logo", s.handleBrandingLogo)
+	// The Fusion helper app's two endpoints. Session-less by necessity — a
+	// native app carries no browser cookie — and authorized instead by a
+	// single-use, two-minute ticket the SPA minted while it WAS authenticated
+	// (see fusiontickets.go). Metered per IP like the other pre-session routes,
+	// so guessing at ticket ids costs the same as guessing at logins.
+	mux.HandleFunc("GET /api/fusion/ticket", s.perIP(s.fusionLim, s.handleFusionTicket))
+	mux.HandleFunc("POST /api/fusion/callback", s.perIP(s.fusionLim, s.handleFusionCallback))
 	mux.HandleFunc("/api/", s.handleAPINotFound)
 
 	// Protected: every data route requires a logged-in session. prot wraps a
@@ -251,6 +261,22 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/uploads/cancel", protHub(s.handleUploadCancel))
 	mux.HandleFunc("POST /api/uploads/dismiss", protHub(s.handleUploadDismiss))
 
+	// Archives (background F3Z/F3D generation for a Fusion-native document).
+	// Same job-manager shape as uploads; /file streams a finished one, and is
+	// the target the bell's "archive ready" notification resolves to.
+	mux.HandleFunc("POST /api/archives", protHub(s.handleArchiveCreate))
+	mux.HandleFunc("GET /api/archives", protHub(s.handleArchiveList))
+	mux.HandleFunc("POST /api/archives/cancel", protHub(s.handleArchiveCancel))
+	mux.HandleFunc("POST /api/archives/dismiss", protHub(s.handleArchiveDismiss))
+	mux.HandleFunc("GET /api/archives/file", protHub(s.handleArchiveFile))
+
+	// Fusion desktop actions (Open / Insert). The SPA half: mint a ticket for
+	// the helper app, or — when the caller is on this machine — perform the
+	// action here and answer with the result. The helper's half is public, up
+	// with the auth routes.
+	mux.HandleFunc("POST /api/fusion/action", protHub(s.handleFusionAction))
+	mux.HandleFunc("GET /api/fusion/outcome", protHub(s.handleFusionOutcome))
+
 	// Wiki (project-scoped markdown pages in a project-root "Wiki" folder).
 	mux.HandleFunc("GET /api/wiki/pages", protHub(s.handleWikiPages))
 	mux.HandleFunc("GET /api/wiki/page", protHub(s.handleWikiPage))
@@ -281,6 +307,27 @@ func (s *Server) ensureAuthLimiters() {
 	}
 	if s.authMeLim == nil {
 		s.authMeLim = chat.NewLimiter(5, 60)
+	}
+	if s.fusionLim == nil {
+		// The helper redeems one ticket and posts one callback per user
+		// action, so two requests per click. A burst of 20 covers a flurry of
+		// clicks; the 1/s refill leaves no room to enumerate ticket ids.
+		s.fusionLim = chat.NewLimiter(1, 20)
+	}
+}
+
+// ensureJobRegistries builds the in-memory background-job state if it isn't
+// set: the archive-generation manager and the Fusion action tickets. Both are
+// process-lifetime and unpersisted, so building them late costs nothing.
+func (s *Server) ensureJobRegistries() {
+	if s.archives == nil {
+		s.archives = newArchiveManager(archiveConcurrency)
+	}
+	if s.fusionTickets == nil {
+		s.fusionTickets = newFusionTicketStore()
+	}
+	if s.uploads == nil {
+		s.uploads = newUploadManager(uploadConcurrency)
 	}
 }
 

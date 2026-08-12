@@ -170,9 +170,21 @@ type Server struct {
 	// reverse proxy every RemoteAddr is the proxy's.
 	authLim   *chat.Limiter
 	authMeLim *chat.Limiter
+	// fusionLim meters the two session-less helper routes (ticket redeem and
+	// outcome callback), which are authorized by ticket rather than by cookie.
+	fusionLim *chat.Limiter
 
 	// uploads tracks background file-upload jobs (per-session; see uploads.go).
 	uploads *uploadManager
+
+	// archives tracks background archive-generation jobs — a Fusion design
+	// turned into an F3Z/F3D by APS (per-session; see archives.go).
+	archives *archiveManager
+
+	// fusionTickets holds the short-lived, single-use grants the helper app
+	// redeems to drive the user's Fusion (see fusiontickets.go). In memory and
+	// deliberately not persisted: a ticket outlives its usefulness in minutes.
+	fusionTickets *fusionTicketStore
 
 	// backupPoke wakes the backup scheduler goroutine to recompute its timers
 	// after a per-hub config change (buffered, cap 1, so posting never blocks
@@ -228,6 +240,8 @@ func Run(opts Options) error {
 		thumbs:           newThumbCache(512, 10*time.Minute),
 		warmSem:          make(chan struct{}, 12),
 		uploads:          newUploadManager(uploadConcurrency),
+		archives:         newArchiveManager(archiveConcurrency),
+		fusionTickets:    newFusionTicketStore(),
 	}
 
 	// A canonical public URL fixes the OAuth redirect_uri (one APS registration)
@@ -346,6 +360,8 @@ func Run(opts Options) error {
 	// Expire idle/old sessions and abandoned in-flight logins in the background.
 	s.sessions.StartJanitor(ctx)
 	s.pending.StartJanitor(ctx)
+	// Same for Fusion action tickets, which expire in two minutes.
+	s.fusionTickets.StartJanitor(ctx)
 
 	// Daily backup scheduler. Idles (rather than exits) while backups are
 	// disabled or unconfigured so enabling them at runtime needs no goroutine
