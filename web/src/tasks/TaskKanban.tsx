@@ -14,7 +14,8 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Avatar, Box, Paper, Stack, Tooltip, Typography } from '@mui/material'
+import { Box, Paper, Stack, Typography } from '@mui/material'
+import UserAvatar from '../components/UserAvatar'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -291,11 +292,7 @@ function BoardCard({ task, disabled, onOpen }: { task: Task; disabled: boolean; 
 // the drag overlay so the picked-up card looks identical to its slot.
 function CardFace({ task, dragging = false }: { task: Task; dragging?: boolean }) {
   const overdue = isOverdue(task.dueDate, task.status)
-  const initials = (task.assignee?.name || task.assignee?.email || '')
-    .split(/[\s@]+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('')
+  const assigneeName = task.assignee?.name || task.assignee?.email || ''
 
   return (
     <Paper
@@ -333,10 +330,13 @@ function CardFace({ task, dragging = false }: { task: Task; dragging?: boolean }
           </Typography>
         )}
         <Box sx={{ flex: 1 }} />
-        {initials && (
-          <Tooltip title={task.assignee?.name || task.assignee?.email || ''}>
-            <Avatar sx={{ width: 20, height: 20, fontSize: 10 }}>{initials}</Avatar>
-          </Tooltip>
+        {assigneeName && (
+          <UserAvatar
+            id={task.assignee?.id}
+            name={assigneeName}
+            size={20}
+            tooltip={assigneeName}
+          />
         )}
       </Stack>
     </Paper>

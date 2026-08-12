@@ -29,6 +29,7 @@ import { BrowserStage } from './BrowserStage'
 import { FusionActionFeedback } from './DocumentActions'
 import { NavRail } from './NavRail'
 import { NotificationBell } from './notifications/NotificationBell'
+import UserAvatar from './UserAvatar'
 import { PinsDialog } from './PinsDialog'
 import { SettingsDialog, type SettingsToolId } from './settings/SettingsDialog'
 import { UploadDialog } from './UploadDialog'
@@ -120,9 +121,19 @@ export function AppLayout() {
             </IconButton>
           </Tooltip>
           {authQ.data?.user && (authQ.data.user.name || authQ.data.user.email) && (
-            <Typography variant="caption" color="text.secondary">
-              {authQ.data.user.name || authQ.data.user.email}
-            </Typography>
+            <>
+              {/* The signed-in person's identity colour, the same one their
+                  chat messages and history tracks carry. */}
+              <UserAvatar
+                id={authQ.data.user.id}
+                name={authQ.data.user.name || authQ.data.user.email}
+                size={24}
+                tooltip={authQ.data.user.email || authQ.data.user.name}
+              />
+              <Typography variant="caption" color="text.secondary">
+                {authQ.data.user.name || authQ.data.user.email}
+              </Typography>
+            </>
           )}
           <Tooltip title={t('appLayout.signOut')}>
             <IconButton aria-label={t('appLayout.signOut')} onClick={logout} sx={{ color: 'text.secondary' }}>

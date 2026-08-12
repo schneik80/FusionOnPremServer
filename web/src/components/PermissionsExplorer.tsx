@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import UserAvatar from './UserAvatar'
 import type { TFunction } from 'i18next'
 import {
   Box,
@@ -28,7 +29,7 @@ import { usePermissionsPath } from '../api/queries'
 import { roleLabel } from '../i18n/enums'
 import { useNav } from '../state/nav'
 import type { Item, PermLayer } from '../api/types'
-import { firstGrapheme, truncateGraphemes } from '../fmt/graphemes'
+import { truncateGraphemes } from '../fmt/graphemes'
 
 // PermissionsExplorer adapts the "Permission Explorer" prototype to the real
 // Fusion model. Each layer of a document's path — the project, then each folder —
@@ -113,8 +114,6 @@ function resolve(layers: PermLayer[], kind: 'group' | 'user', id: string) {
   return { seq, kinds, leafRole: seq[seq.length - 1] ?? null, originIdx, denyIdx }
 }
 
-const initials = (name: string) =>
-  name.split(/\s+/).map((w) => firstGrapheme(w)).slice(0, 2).join('').toUpperCase()
 const truncate = (s: string, n: number) => truncateGraphemes(s, n)
 
 export default function PermissionsExplorer({ hubId, item }: { hubId: string | null; item: Item }) {
@@ -493,23 +492,25 @@ function Row({
         '&:hover': { bgcolor: alpha(accent, 0.08) },
       }}
     >
-      <Box
-        sx={{
-          width: 28,
-          height: 28,
-          borderRadius: '50%',
-          display: 'grid',
-          placeItems: 'center',
-          fontSize: 11,
-          fontWeight: 700,
-          border: 1,
-          borderColor: 'divider',
-          bgcolor: p.kind === 'group' ? 'transparent' : alpha(accent, denied ? 0.06 : 0.16),
-          color: p.kind === 'group' ? 'text.secondary' : denied ? 'text.secondary' : accent,
-        }}
-      >
-        {p.kind === 'group' ? <FontAwesomeIcon icon={faUsers} style={{ fontSize: 13 }} /> : initials(p.name)}
-      </Box>
+      {p.kind === 'group' ? (
+        <Box
+          sx={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            border: 1,
+            borderColor: 'divider',
+            color: 'text.secondary',
+            flexShrink: 0,
+          }}
+        >
+          <FontAwesomeIcon icon={faUsers} style={{ fontSize: 13 }} />
+        </Box>
+      ) : (
+        <UserAvatar id={p.id} name={p.name} size={28} dimmed={denied} />
+      )}
       <Box sx={{ minWidth: 0 }}>
         <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
           <Typography variant="body2" fontWeight={600} noWrap>

@@ -1,11 +1,11 @@
-import { Avatar, Box, Stack, Typography } from '@mui/material'
+import { Box, Stack, Typography } from '@mui/material'
+import UserAvatar from '../UserAvatar'
 import { alpha, useTheme } from '@mui/material/styles'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { HubContributor, HubDayCount, HubProdStats } from '../../api/types'
 import type { Task } from '../../tasks/types'
 import { statusBarColor } from '../../tasks/gantt/GanttBar'
-import { firstGrapheme } from '../../fmt/graphemes'
 import { Hint } from '../dashboard/shell'
 
 // Mission-control widgets for the hub Overview. Each takes already-fetched data
@@ -148,9 +148,7 @@ export function ContributorsWidget({ contributors }: { contributors: HubContribu
     <Stack spacing={0.75}>
       {contributors.map((c) => (
         <Box key={c.id || c.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar sx={{ width: 22, height: 22, fontSize: 10, flexShrink: 0 }}>
-            {firstGrapheme(c.name).toUpperCase()}
-          </Avatar>
+          <UserAvatar id={c.id} name={c.name} size={22} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="body2" noWrap>
               {c.name}

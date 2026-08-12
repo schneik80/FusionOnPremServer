@@ -1,6 +1,7 @@
 import { faComments, faFaceSmile, faTrash } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Avatar, Box, Chip, IconButton, Popover, Stack, Tooltip, Typography } from '@mui/material'
+import { Box, Chip, IconButton, Popover, Stack, Tooltip, Typography } from '@mui/material'
+import UserAvatar from '../components/UserAvatar'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DocumentCard } from '../components/doccard/DocumentCard'
@@ -12,7 +13,6 @@ import { WhiteboardCard } from '../components/whiteboardcard/WhiteboardCard'
 import { ImageCard } from '../components/imgcard/ImageCard'
 import { REACTION_EMOJI, type ChatCaps, type ChatMessage } from './types'
 import { fmtChatTime } from './fmt'
-import { firstGrapheme } from '../fmt/graphemes'
 
 // MessageList renders a scrollable, ascending timeline. It backs both the
 // channel view (top-level messages with thread badges) and the thread panel
@@ -189,9 +189,7 @@ function MessageRow({
         '&:hover .msg-actions': { opacity: 1 },
       }}
     >
-      <Avatar sx={{ width: 28, height: 28, fontSize: 13, mt: 0.25 }}>
-        {firstGrapheme(msg.authorName || '?').toUpperCase()}
-      </Avatar>
+      <UserAvatar id={msg.authorId} name={msg.authorName} size={28} sx={{ mt: 0.25 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" spacing={1} alignItems="baseline">
           <Typography variant="subtitle2" noWrap>
