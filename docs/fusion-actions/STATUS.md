@@ -278,6 +278,27 @@ Scheme registration is **per-user, never elevated**:
 | Windows | `HKCU\Software\Classes\fusionlocal` with `URL Protocol` and a quoted `shell\open\command`. |
 | Linux | `~/.local/share/applications/fls-helper.desktop` with `MimeType=x-scheme-handler/fusionlocal;`, then `update-desktop-database` and `xdg-mime default` (both best-effort). |
 
+### Shipping it
+
+The helper releases **independently of the server**, on `helper/vX.Y.Z` tags
+(`.github/workflows/helper-release.yml`). That workflow is `make helper` plus
+checksums — deliberately not GoReleaser, which the server uses: GoReleaser OSS
+cannot derive a version from a prefixed tag (monorepo prefixes are Pro), and the
+helper needs nothing it provides. `dist/` stays git-ignored; the binaries are
+release artifacts, not repository content.
+
+The two can drift because the only thing they share on the wire is the
+`fusionlocal://` URL, which carries a version segment. An older helper meeting a
+newer server is told the version is unsupported rather than misreading the
+request — so a helper release is only *required* when that segment changes.
+
+The Windows binaries are linked `-H windowsgui`: the OS starts this program on
+every Open and Insert, and a console-subsystem binary would flash a black window
+each time. `attachConsole` reattaches to the launching terminal so the CLI
+commands still print. A shell does not *wait* for a GUI-subsystem process, so
+setup-command output arrives after the prompt returns — inherent to that
+trade-off, and the reason the python/pythonw two-binary convention exists.
+
 ### The gap a URL scheme cannot close
 
 A scheme navigation tells the page **nothing** — not whether a handler is

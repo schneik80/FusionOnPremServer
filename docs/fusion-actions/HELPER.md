@@ -34,7 +34,11 @@ the server and Autodesk; the file downloads through your browser like any other.
 
 ### 1. Get the binary
 
-Pick the one for your machine from the release artifacts:
+Download it from a **[helper release](https://github.com/schneik80/fusionlocalserver/releases?q=fls-helper)**
+— these are tagged `helper/vX.Y.Z` and published separately from the server, so
+the version numbers are unrelated and you do not need to match them.
+
+Pick the one for your machine:
 
 | File | For |
 |---|---|
@@ -44,6 +48,8 @@ Pick the one for your machine from the release artifacts:
 | `fls-helper-darwin-amd64` | macOS, Intel |
 | `fls-helper-linux-amd64` | Linux, Intel/AMD |
 | `fls-helper-linux-arm64` | Linux, ARM64 |
+
+(Or build them yourself: `make helper` writes all six into `dist/`.)
 
 Put it somewhere permanent before registering it — the registration records the
 path it was at, so moving it afterwards breaks the link. Sensible homes:
@@ -182,6 +188,23 @@ anything running as you can drive your Fusion. The pairing check is what keeps
 
 ---
 
+## Versions, and when you actually need to upgrade
+
+The helper and the server are released independently — `helper/vX.Y.Z` tags for
+the helper, `vX.Y.Z` for the server — and their version numbers have nothing to
+do with each other. A server upgrade does **not** imply a helper upgrade.
+
+They can drift safely because the only thing they share is the shape of the
+`fusionlocal://` URL, which carries a version segment (`fusionlocal://v1/open`).
+An older helper meeting a newer server is told the version is unsupported and
+says so, rather than misreading the request. **A helper upgrade is only required
+when that segment changes**, which would be announced in the release notes.
+
+Everything else — new document actions, archive changes, UI work — is
+server-side and reaches you by reloading the page.
+
+---
+
 ## Architecture
 
 ```
@@ -234,7 +257,14 @@ make helper          # cross-compile every platform into dist/
 make helper-install  # go install for this machine, then register + pair
 ```
 
-Targets are in `HELPER_PLATFORMS` in the `Makefile`.
+Targets are in `HELPER_PLATFORMS` in the `Makefile`. `dist/` is git-ignored:
+the binaries are release artifacts, not repository content.
+
+Releases are cut by pushing a `helper/vX.Y.Z` tag, which runs
+`.github/workflows/helper-release.yml` — that workflow is just `make helper`
+plus checksums, deliberately not GoReleaser (which the server uses): GoReleaser
+OSS cannot derive a version from a prefixed tag, and the helper needs none of
+what it provides.
 
 **The Windows builds are linked `-H windowsgui`.** They have to be: the OS starts
 this program on every Open and Insert, and a console-subsystem binary flashes a

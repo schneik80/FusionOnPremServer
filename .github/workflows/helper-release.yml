@@ -1,0 +1,90 @@
+# Releases fls-helper INDEPENDENTLY of the server.
+#
+# The two ship on their own cadences on purpose: the helper is a tiny native
+# program installed per-user, and it changes far less often than the server it
+# talks to. Tagging `helper/v1.2.3` releases only the helper; the server's
+# release.yml watches `v*`, which never matches a ref beginning with "helper".
+#
+# Deliberately NOT GoReleaser, unlike the server. GoReleaser OSS cannot derive a
+# version from a prefixed tag — monorepo tag prefixes are a Pro feature — and it
+# would buy nothing here: the helper is six static binaries with no CGO, no
+# embedded web bundle and no injected client id, which `make helper` already
+# produces exactly.
+#
+# COMPATIBILITY: the helper and the server share internal/fusionlink. They can
+# version independently because the fusionlocal:// URL carries a version segment
+# and outcome codes are validated — an old helper meeting a newer server is told
+# the version is unsupported rather than misbehaving. A helper release is only
+# REQUIRED when that segment changes. See docs/fusion-actions/HELPER.md.
+
+name: Helper Release
+
+on:
+  push:
+    tags:
+      - "helper/v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        # The helper's own tests plus the shared packages it is built from.
+        run: go test ./cmd/fls-helper/... ./internal/...
+
+      - name: Derive version
+        id: version
+        # Strip the tag prefix: helper/v1.2.3 -> v1.2.3, which is what
+        # `fls-helper version` should report.
+        run: echo "version=${GITHUB_REF_NAME#helper/}" >> "$GITHUB_OUTPUT"
+
+      - name: Build all platforms
+        run: make helper VERSION=${{ steps.version.outputs.version }}
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum fls-helper-* > SHA256SUMS
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "fls-helper ${{ steps.version.outputs.version }}"
+          files: |
+            dist/fls-helper-*
+            dist/SHA256SUMS
+          body: |
+            Native helper that lets fusionlocalserver drive the Autodesk Fusion
+            desktop client on your own machine.
+
+            **You only need this if the server runs on a different computer.**
+            When the browser, the server and Fusion are all the same machine,
+            the server talks to Fusion directly and there is nothing to install.
+
+            Install:
+
+            ```
+            fls-helper register
+            fls-helper pair https://your-server:8080
+            fls-helper status
+            ```
+
+            Full instructions, the security model, and what each failure message
+            means: [docs/fusion-actions/HELPER.md](https://github.com/schneik80/fusionlocalserver/blob/main/docs/fusion-actions/HELPER.md)
+
+            > These binaries are **not code-signed**. macOS quarantines the file
+            > on first run (right-click → Open) and Windows SmartScreen warns
+            > once ("More info" → "Run anyway").
