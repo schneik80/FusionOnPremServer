@@ -187,6 +187,10 @@ class ServerManager:
     def __init__(self) -> None:
         self.pidfile = state_dir() / "server.pid"
         self.logfile = state_dir() / "server.log"
+        # The Popen of a server we started, kept ONLY so it can be reaped. The
+        # server is detached (start_new_session) and outlives this app, but it
+        # is still our child, so nobody else can reap it — see reap().
+        self._proc: subprocess.Popen | None = None
 
     def _read_pid(self) -> int | None:
         try:
@@ -202,8 +206,28 @@ class ServerManager:
             return False
         return True
 
+    def reap(self) -> None:
+        """Collect the exit status of a server we started, once it has exited.
+
+        A detached child is still a child: the kernel keeps its process entry
+        until the parent collects it, so without this every server we start and
+        stop leaves a <defunct> entry behind for as long as the tray runs.
+
+        This is not only tidiness. `kill(pid, 0)` SUCCEEDS for a zombie — the
+        pid still exists — so managed_pid() would keep reporting a stopped
+        server as ours-and-alive, leaving Stop enabled for a process that had
+        already exited. Polling Popen.poll() rather than installing a SIGCHLD
+        handler keeps subprocess's own bookkeeping authoritative, and costs one
+        non-blocking waitpid per tick.
+        """
+        if self._proc is None:
+            return
+        if self._proc.poll() is not None:  # exited and now reaped
+            self._proc = None
+
     def managed_pid(self) -> int | None:
         """The pid of a server WE started that is still alive, else None."""
+        self.reap()
         pid = self._read_pid()
         return pid if pid and self._alive(pid) else None
 
@@ -237,6 +261,9 @@ class ServerManager:
             stdin=subprocess.DEVNULL,
             start_new_session=True,  # detach: the server outlives the tray
         )
+        # Held so reap() can collect it. Starting a second server replaces this
+        # reference, but stop() reaps the previous one first, so nothing leaks.
+        self._proc = proc
         self.pidfile.write_text(str(proc.pid))
 
     def stop(self) -> None:
@@ -252,6 +279,10 @@ class ServerManager:
             except OSError:
                 pass
         self.pidfile.unlink(missing_ok=True)
+        # The server drains connections before exiting, so it is not gone yet.
+        # Reaping is left to the poll tick rather than waited on here: blocking
+        # the GLib loop would freeze the tray for the length of the shutdown.
+        self.reap()
 
 
 # ---- tray UI -----------------------------------------------------------------
