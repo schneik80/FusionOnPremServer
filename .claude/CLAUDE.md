@@ -47,7 +47,24 @@ make run                                 # build UI + binary, serve over HTTPS (
 - Commit/push only when asked.
 
 ## Active work
-**Production P6** (on `main`) — decisions and editing ergonomics, the most
+**Fusion document actions** (branch `feature/fusion-actions`) — **Open**,
+**Insert** and **Archive** on the details header of a Fusion-native document.
+*Archive* is a background job (`server/archives.go`, modelled on `uploads.go`)
+over the DM downloads API (`api/archive.go`: `downloadFormats` → `POST
+/downloads` → poll the job's **303** → OSS storage urn); APS picks F3Z vs F3D,
+no bytes are stored server-side, and the bell announces completion.
+*Open/Insert* drive the user's running Fusion through its local MCP server —
+directly when the caller is on loopback, otherwise via `cmd/fls-helper`, a
+per-user native app registered for the **`fusionlocal://`** scheme (never `fls:`,
+which is the card-token namespace). The handoff is a single-use two-minute
+**ticket** (`server/fusiontickets.go`); the helper refuses any server it has not
+been **paired** with and pins that server's certificate. Shared contracts in
+`internal/fusionlink` (scheme + outcome codes) and `internal/fusionact`;
+`internal/fusionmcp` is vendored from the sibling **FusionDataCLI** repo. See
+`docs/fusion-actions/STATUS.md` (design) and `docs/fusion-actions/HELPER.md`
+(install + user docs). Helper release binaries are committed under `dist/`.
+
+Previously: **Production P6** (on `main`) — decisions and editing ergonomics, the most
 recent wave: duplicate a job (plan only, never its runs); a run date on batch
 creation via the new shared `components/DateField.tsx`; double-click rename and
 chain-from-selection on the flow canvas; **decision nodes** — a second step kind
