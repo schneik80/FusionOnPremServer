@@ -83,11 +83,11 @@ This tells your OS that `fusionlocal://` links belong to this program. It is
 
 `fls-helper unregister` reverses it.
 
-> **Upgrading from a helper older than v0.2.0 on macOS: run `register` again.**
-> Earlier versions installed a handler that macOS could start but could never
-> hand the URL to, so Open and Insert failed while everything reported healthy.
-> `fls-helper status` now says so explicitly instead of claiming the scheme is
-> registered.
+> **On macOS, if you ever ran a pre-release build of the helper, run `register`
+> again.** Those builds installed a handler that macOS would start but could
+> never hand the URL to, so Open and Insert failed while everything reported
+> healthy. `fls-helper status` now says so explicitly instead of claiming the
+> scheme is registered.
 
 **macOS may ask for Local Network access the first time you use a button.** Allow
 it. The helper's whole job is to reach a server on another machine, and macOS

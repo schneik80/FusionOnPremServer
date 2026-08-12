@@ -261,7 +261,7 @@ func schemeRegistration() (string, schemeState, string) {
 		return bundle, schemeStale, "the app there does not claim the scheme"
 	}
 	// The applet's compiled script is what receives the URL. Its absence is the
-	// signature of the shim-based bundle written by fls-helper up to v0.1.0.
+	// signature of the shim-based bundle written by pre-release fls-helper builds.
 	if _, serr := os.Stat(filepath.Join(bundle, "Contents", "Resources", "Scripts", "main.scpt")); serr != nil {
 		return bundle, schemeStale,
 			"it was registered by an older fls-helper and cannot receive URLs from macOS"
