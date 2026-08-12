@@ -47,7 +47,8 @@ make run                                 # build UI + binary, serve over HTTPS (
 - Commit/push only when asked.
 
 ## Active work
-**Fusion document actions** (branch `feature/fusion-actions`) — **Open**,
+**Fusion document actions** (merged to `main`; helper released as
+`helper/v0.1.0`, verified end to end on Windows and macOS) — **Open**,
 **Insert** and **Archive** on the details header of a Fusion-native document.
 *Archive* is a background job (`server/archives.go`, modelled on `uploads.go`)
 over the DM downloads API (`api/archive.go`: `downloadFormats` → `POST
@@ -56,7 +57,10 @@ no bytes are stored server-side, and the bell announces completion.
 *Open/Insert* drive the user's running Fusion through its local MCP server —
 directly when the caller is on loopback, otherwise via `cmd/fls-helper`, a
 per-user native app registered for the **`fusionlocal://`** scheme (never `fls:`,
-which is the card-token namespace). The handoff is a single-use two-minute
+which is the card-token namespace). **macOS registration is an AppleScript
+applet, not a bare executable** — the OS delivers a scheme URL as an Apple
+Event, never in `argv` — and its bundle must declare
+`NSLocalNetworkUsageDescription` or every launch fails to reach the server. The handoff is a single-use two-minute
 **ticket** (`server/fusiontickets.go`); the helper refuses any server it has not
 been **paired** with and pins that server's certificate. Shared contracts in
 `internal/fusionlink` (scheme + outcome codes) and `internal/fusionact`;

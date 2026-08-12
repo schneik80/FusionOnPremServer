@@ -377,22 +377,22 @@ catalogs. The helper carries its own **English** copies (`explain()` in
 `cmd/fls-helper/launch.go`): it runs outside the browser with no access to the
 SPA's locale, and its message is the fallback for when nobody is watching the tab.
 
+## Verified
+
+**Windows and macOS are both verified end to end** — a real Open and a real
+Insert driving the desktop client, not just the plumbing up to the ticket.
+
+| | |
+|---|---|
+| **Windows** | Registry registration, pairing with certificate pinning, Open, Insert, every failure path, the unpaired-server refusal, and the two things that could only be reasoned about beforehand: `-H windowsgui` plus `AttachConsole` does let the CLI print, and a protocol launch flashes no console window. |
+| **macOS** | macOS 26 / arm64. Applet registration, receipt of a real `fusionlocal://` launch, pairing with certificate pinning, the pinned HTTPS call, the `osascript` dialog, Open and Insert. Getting here took two fixes — the Apple Event delivery and `NSLocalNetworkUsageDescription` — both written up under *Why macOS needs an applet* above. |
+| **Linux** | Unverified, and expected to stay that way: Fusion is Windows/macOS only, so the Linux build matters only where Fusion runs under Wine/CrossOver and exposes its MCP port on the host loopback. |
+
 ## Known gaps
 
 - **Code signing.** The macOS and Windows binaries are unsigned, so first run
   is quarantined / SmartScreen-flagged. This is the thing most likely to block
   adoption in practice, and it is not addressed here.
-- **macOS is verified as far as the ticket.** Registration, the applet's receipt
-  of a real `fusionlocal://` launch, pairing with certificate pinning, the pinned
-  HTTPS call reaching the server, and the `osascript` dialog all run correctly on
-  macOS 26 / arm64 — a launch carrying a deliberately invalid ticket reaches the
-  server and is declined with a 404, which exercises every step except Fusion
-  itself. Open and Insert against a **real** ticket are still unconfirmed there.
-  **Windows is verified end to end** — registry registration, pairing with
-  certificate pinning, Open, Insert, every failure path, the unpaired-server
-  refusal, and both of the things that could only be reasoned about before:
-  `-H windowsgui` plus `AttachConsole` does let the CLI print, and a protocol
-  launch flashes no console window.
 - **The Fusion palette already knows Fusion is running.** Inside `embed.html`
   the add-in bridge (`web/src/embed/bridge.ts`) is a strictly better route than
   the helper — it is in-process. Out of scope here; the obvious follow-up.
