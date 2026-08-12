@@ -22,17 +22,22 @@ const archiveStreamTimeout = 15 * time.Minute
 
 // archiveCreateReq is the create-job body. dmProjectId is the project altId
 // (DM id space) every byte-level APS endpoint needs; itemId is the lineage urn.
+//
+// versionId is optional and pins the archive to one version — a production
+// card asks for the version it froze, the details header omits it and gets the
+// tip. It is only ever accepted for a version of itemId's own lineage.
 type archiveCreateReq struct {
 	HubID       string `json:"hubId"`
 	DMProjectID string `json:"dmProjectId"`
 	ProjectID   string `json:"projectId"`
 	ProjectName string `json:"projectName"`
 	ItemID      string `json:"itemId"`
+	VersionID   string `json:"versionId"`
 	Name        string `json:"name"`
 }
 
 // handleArchiveCreate starts a background archive job for one document and
-// returns the session's refreshed job list. The APS work — resolve the tip
+// returns the session's refreshed job list. The APS work — resolve the target
 // version, ask which native formats it can produce, generate, poll — happens
 // in a goroutine detached from this request, because it takes minutes.
 // POST /api/archives
@@ -59,9 +64,17 @@ func (s *Server) handleArchiveCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "dmProjectId and itemId are required")
 		return
 	}
-	// One live job per document per session. A second click would spend the
-	// APS cost quota generating a byte-identical archive.
-	if s.archives.activeFor(sess.ID, in.ItemID) {
+	// A client may name a version, but only one of the document it is asking
+	// about — the same guard the production version pin applies. Without it a
+	// crafted body would archive any version urn the session can reach under
+	// another document's name.
+	if in.VersionID != "" && !api.VersionBelongsToItem(in.VersionID, in.ItemID) {
+		writeError(w, http.StatusBadRequest, "versionId does not belong to the document")
+		return
+	}
+	// One live job per document version per session. A second click would spend
+	// the APS cost quota generating a byte-identical archive.
+	if s.archives.activeFor(sess.ID, in.ItemID, in.VersionID) {
 		writeErrorCode(w, http.StatusConflict, "archive_already_running",
 			"an archive of this document is already being prepared")
 		return
@@ -81,6 +94,7 @@ func (s *Server) handleArchiveCreate(w http.ResponseWriter, r *http.Request) {
 		ProjectID:   in.ProjectID,
 		ProjectName: in.ProjectName,
 		ItemID:      in.ItemID,
+		VersionID:   in.VersionID,
 		DocName:     in.Name,
 		CreatedAt:   time.Now(),
 		status:      archiveQueued,
@@ -207,7 +221,7 @@ func (s *Server) handleArchiveFile(w http.ResponseWriter, r *http.Request) {
 			"requested", fileType, "built", built,
 			"fromLink", target.LinkType, "declared", target.Declared,
 			"fromObjectKey", target.ObjectType)
-		name = archiveFileName(job.DocName, built)
+		name = archiveFileName(job.DocName, job.versionNum(), built)
 		job.setFormat(built, name)
 	}
 	if name == "" {

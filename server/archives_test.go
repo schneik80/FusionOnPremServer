@@ -87,19 +87,24 @@ func TestArchiveManager_ActiveForBlocksDuplicates(t *testing.T) {
 	j := newArchive("a1", "sess-1", "item-1")
 	m.add(j)
 
-	if !m.activeFor("sess-1", "item-1") {
+	if !m.activeFor("sess-1", "item-1", "") {
 		t.Error("a queued job does not count as active; a second click would burn APS quota")
 	}
-	if m.activeFor("sess-1", "item-2") {
+	if m.activeFor("sess-1", "item-2", "") {
 		t.Error("a different document reports active")
 	}
-	if m.activeFor("sess-2", "item-1") {
+	if m.activeFor("sess-2", "item-1", "") {
 		t.Error("another session's job blocks this one")
+	}
+	// A pinned version of the same document is a different archive, so a tip
+	// job in flight must not block it (nor the other way round).
+	if m.activeFor("sess-1", "item-1", "urn:vf.item-1?version=3") {
+		t.Error("a tip job blocks archiving a pinned version of the same document")
 	}
 
 	// Once it settles, the same document can be archived again.
 	j.finish(archiveReady, "", "", "dl-1")
-	if m.activeFor("sess-1", "item-1") {
+	if m.activeFor("sess-1", "item-1", "") {
 		t.Error("a finished job still reports active")
 	}
 }
@@ -163,27 +168,32 @@ func TestArchiveFileName(t *testing.T) {
 	cases := []struct {
 		name     string
 		docName  string
+		version  int
 		fileType string
 		want     string
 	}{
-		{"plain", "Widget", "f3z", "Widget.f3z"},
-		{"spaces kept", "Front Bracket v2", "f3d", "Front Bracket v2.f3d"},
+		{"plain", "Widget", 0, "f3z", "Widget.f3z"},
+		{"spaces kept", "Front Bracket v2", 0, "f3d", "Front Bracket v2.f3d"},
 		// Separators become underscores and the leading dots are trimmed, so
 		// traversal can't survive and the result can't be a hidden dotfile.
-		{"path separators neutralized", "../../etc/passwd", "f3z", "_.._etc_passwd.f3z"},
-		{"quotes neutralized", `He said "hi"`, "f3z", "He said _hi_.f3z"},
+		{"path separators neutralized", "../../etc/passwd", 0, "f3z", "_.._etc_passwd.f3z"},
+		{"quotes neutralized", `He said "hi"`, 0, "f3z", "He said _hi_.f3z"},
 		// CR/LF would otherwise let a document name inject a response header.
-		{"newline neutralized", "Widget\r\nX-Header: y", "f3z", "Widget__X-Header_ y.f3z"},
-		{"empty falls back", "", "f3z", "design.f3z"},
+		{"newline neutralized", "Widget\r\nX-Header: y", 0, "f3z", "Widget__X-Header_ y.f3z"},
+		{"empty falls back", "", 0, "f3z", "design.f3z"},
 		// Every character replaced is still a usable, distinct name — the
 		// fallback is only for having nothing left at all.
-		{"all separators", "///", "f3z", "___.f3z"},
+		{"all separators", "///", 0, "f3z", "___.f3z"},
+		// A pinned version is named after the version it actually is, so two
+		// archives of one design can't collide in the download folder.
+		{"pinned version", "Widget", 3, "f3z", "Widget-v3.f3z"},
+		{"pinned version on a fallback name", "", 12, "f3d", "design-v12.f3d"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := archiveFileName(tc.docName, tc.fileType); got != tc.want {
-				t.Errorf("archiveFileName(%q, %q) = %q, want %q",
-					tc.docName, tc.fileType, got, tc.want)
+			if got := archiveFileName(tc.docName, tc.version, tc.fileType); got != tc.want {
+				t.Errorf("archiveFileName(%q, %d, %q) = %q, want %q",
+					tc.docName, tc.version, tc.fileType, got, tc.want)
 			}
 		})
 	}

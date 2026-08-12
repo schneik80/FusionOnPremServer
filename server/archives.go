@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"time"
 
@@ -78,8 +79,13 @@ type archiveJob struct {
 	ProjectID   string // GraphQL project id, echoed back for cache invalidation
 	ProjectName string
 	ItemID      string // lineage urn
-	DocName     string // the document's display name, for the file name and the bell
-	CreatedAt   time.Time
+	// VersionID pins the archive to one version. Empty means the lineage tip,
+	// which is what the details header asks for. A production card asks for the
+	// version it froze: that card shows a v{n} badge, so handing back the tip
+	// would be a different design under a label promising this one.
+	VersionID string
+	DocName   string // the document's display name, for the file name and the bell
+	CreatedAt time.Time
 
 	mu       sync.Mutex
 	status   archiveStatus
@@ -93,6 +99,16 @@ type archiveJob struct {
 	downloadURL string
 	finishedAt  time.Time
 	cancelFn    context.CancelFunc
+}
+
+// versionNum is the human version number of a pinned job, or 0 for a tip job —
+// which needs no number, because the tip is whatever is current. Read off the
+// urn rather than carried alongside it, so the two can never disagree.
+func (j *archiveJob) versionNum() int {
+	if j.VersionID == "" {
+		return 0
+	}
+	return api.VersionNumberFromURN(j.VersionID)
 }
 
 // setCancel installs the run context's cancel. If the job was canceled while
@@ -212,11 +228,15 @@ func (m *archiveManager) get(id, sessionID string) (*archiveJob, bool) {
 // activeFor reports whether the session already has a live job for an item, so
 // the UI can disable a second click rather than queueing a duplicate
 // generation against the APS quota.
-func (m *archiveManager) activeFor(sessionID, itemID string) bool {
+//
+// The version is part of the identity: archiving the tip and archiving the v3
+// a production batch pinned are two different files, and asking for the second
+// while the first runs is not a double click.
+func (m *archiveManager) activeFor(sessionID, itemID, versionID string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, j := range m.jobs {
-		if j.SessionID != sessionID || j.ItemID != itemID {
+		if j.SessionID != sessionID || j.ItemID != itemID || j.VersionID != versionID {
 			continue
 		}
 		j.mu.Lock()
@@ -279,7 +299,7 @@ func (m *archiveManager) dismiss(id, sessionID string) {
 // will not build a native archive of this version at all.
 var errNoArchiveFormat = errors.New("no native archive format available for this version")
 
-// runArchive executes one job end to end: wait for a slot, resolve the tip
+// runArchive executes one job end to end: wait for a slot, resolve the target
 // version, pick a format, kick off generation, poll to completion. notif may be
 // nil (no local stores) — the job still runs, it just cannot announce itself.
 func (s *Server) runArchive(job *archiveJob, sess *Session, notif *notifications.Store) {
@@ -319,16 +339,21 @@ func (s *Server) runArchive(job *archiveJob, sess *Session, notif *notifications
 	s.logger.Info("archive ready", "doc", job.DocName, "job", job.ID, "format", job.fileType)
 }
 
-// archiveJobRun is the happy-path body: tip version → offered formats → the
-// generation job → the finished download id.
+// archiveJobRun is the happy-path body: the target version → offered formats →
+// the generation job → the finished download id.
 func (s *Server) archiveJobRun(ctx context.Context, sess *Session, job *archiveJob) (string, error) {
 	token, err := s.sessionToken(ctx, sess)
 	if err != nil {
 		return "", err
 	}
-	versionURN, err := api.GetItemTipVersion(ctx, token, job.DMProjectID, job.ItemID)
-	if err != nil {
-		return "", err
+	// A pinned version costs no lookup; only the tip has to be resolved. The
+	// pin was already proved to belong to this lineage at create time.
+	versionURN := job.VersionID
+	if versionURN == "" {
+		versionURN, err = api.GetItemTipVersion(ctx, token, job.DMProjectID, job.ItemID)
+		if err != nil {
+			return "", err
+		}
 	}
 	formats, err := api.DownloadFormats(ctx, token, job.DMProjectID, versionURN)
 	if err != nil {
@@ -341,7 +366,7 @@ func (s *Server) archiveJobRun(ctx context.Context, sess *Session, job *archiveJ
 	if !ok {
 		return "", errNoArchiveFormat
 	}
-	job.setFormat(fileType, archiveFileName(job.DocName, fileType))
+	job.setFormat(fileType, archiveFileName(job.DocName, job.versionNum(), fileType))
 
 	apsJobIDs, err := api.CreateDownload(ctx, token, job.DMProjectID, versionURN, fileType)
 	if err != nil {
@@ -413,10 +438,17 @@ func (s *Server) emitArchiveResult(notif *notifications.Store, job *archiveJob, 
 // archiveFileName builds the name the browser saves under. The document name is
 // user data and may contain anything, so it is sanitized here rather than
 // trusted into a Content-Disposition header.
-func archiveFileName(docName, fileType string) string {
+//
+// A pinned version says so in the name. Two archives of the same design that
+// are different geometry must not land in the download folder as "Bracket.f3z"
+// and "Bracket (1).f3z" — on disk that leaves nothing to tell them apart.
+func archiveFileName(docName string, versionNum int, fileType string) string {
 	base := sanitizeDownloadName(docName)
 	if base == "" {
 		base = "design"
+	}
+	if versionNum > 0 {
+		base += "-v" + strconv.Itoa(versionNum)
 	}
 	return base + "." + fileType
 }

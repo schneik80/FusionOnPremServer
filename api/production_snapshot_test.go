@@ -15,8 +15,8 @@ func TestVersionNumberFromURN(t *testing.T) {
 		{"", 0},
 	}
 	for _, c := range cases {
-		if got := versionNumberFromURN(c.urn); got != c.want {
-			t.Errorf("versionNumberFromURN(%q) = %d, want %d", c.urn, got, c.want)
+		if got := VersionNumberFromURN(c.urn); got != c.want {
+			t.Errorf("VersionNumberFromURN(%q) = %d, want %d", c.urn, got, c.want)
 		}
 	}
 }
@@ -33,11 +33,11 @@ func TestVersionBelongsToItem(t *testing.T) {
 		{"", false},
 	}
 	for _, c := range cases {
-		if got := versionBelongsToItem(c.version, lineage); got != c.want {
-			t.Errorf("versionBelongsToItem(%q) = %v, want %v", c.version, got, c.want)
+		if got := VersionBelongsToItem(c.version, lineage); got != c.want {
+			t.Errorf("VersionBelongsToItem(%q) = %v, want %v", c.version, got, c.want)
 		}
 	}
-	if versionBelongsToItem("urn:adsk.wipprod:fs.file:vf.AbC-123?version=1", "") {
+	if VersionBelongsToItem("urn:adsk.wipprod:fs.file:vf.AbC-123?version=1", "") {
 		t.Errorf("empty lineage must not match")
 	}
 }

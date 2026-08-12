@@ -36,7 +36,7 @@ type DocVersionSnapshot struct {
 func SnapshotDocVersion(ctx context.Context, token, hubID, dmProjectID, itemID, preferredVersionID string) (DocVersionSnapshot, error) {
 	versionID := preferredVersionID
 	if versionID != "" {
-		if !versionBelongsToItem(versionID, itemID) {
+		if !VersionBelongsToItem(versionID, itemID) {
 			return DocVersionSnapshot{}, fmt.Errorf("version pin: versionId does not belong to the document")
 		}
 	} else {
@@ -49,7 +49,7 @@ func SnapshotDocVersion(ctx context.Context, token, hubID, dmProjectID, itemID, 
 
 	snap := DocVersionSnapshot{
 		VersionID:     versionID,
-		VersionNumber: versionNumberFromURN(versionID),
+		VersionNumber: VersionNumberFromURN(versionID),
 	}
 
 	// Best-effort thumbnail decoration; see the function comment.
@@ -66,9 +66,11 @@ func SnapshotDocVersion(ctx context.Context, token, hubID, dmProjectID, itemID, 
 	return snap, nil
 }
 
-// versionNumberFromURN extracts N from a DM version urn's "?version=N" query.
-// Returns 0 when absent or malformed.
-func versionNumberFromURN(urn string) int {
+// VersionNumberFromURN extracts N from a DM version urn's "?version=N" query.
+// Returns 0 when absent or malformed. Exported for the same reason as
+// VersionBelongsToItem: anything handed a pinned version urn — the archive job
+// naming its file — needs the human number without a second APS call.
+func VersionNumberFromURN(urn string) int {
 	_, query, ok := strings.Cut(urn, "?")
 	if !ok {
 		return 0
@@ -83,12 +85,16 @@ func versionNumberFromURN(urn string) int {
 	return 0
 }
 
-// versionBelongsToItem reports whether a DM version urn is a version of the
+// VersionBelongsToItem reports whether a DM version urn is a version of the
 // given item lineage. The two id forms share a core id:
 //
 //	lineage: urn:adsk.wipprod:dm.lineage:<core>
 //	version: urn:adsk.wipprod:fs.file:vf.<core>?version=N
-func versionBelongsToItem(versionURN, lineageURN string) bool {
+//
+// Exported because every path that lets a client name a version — pinning one
+// in production, archiving a pinned one — has to prove it belongs to the
+// document being addressed before spending an APS call on it.
+func VersionBelongsToItem(versionURN, lineageURN string) bool {
 	vCore := versionURN
 	if i := strings.IndexByte(vCore, '?'); i >= 0 {
 		vCore = vCore[:i]

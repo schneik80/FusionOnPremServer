@@ -17,7 +17,11 @@ type ArchiveJobDTO struct {
 	ProjectID   string `json:"projectId,omitempty"`
 	DMProjectID string `json:"dmProjectId,omitempty"`
 	ItemID      string `json:"itemId,omitempty"`
-	CreatedOn   string `json:"createdOn"`
+	// VersionID is set only when the job was pinned to one version. The SPA
+	// matches on it as well as itemId: a production card must not show the
+	// details header's tip job as if it were the pinned one it asked for.
+	VersionID string `json:"versionId,omitempty"`
+	CreatedOn string `json:"createdOn"`
 }
 
 // archiveJobDTO snapshots a job's current state.
@@ -38,6 +42,7 @@ func archiveJobDTO(j *archiveJob) ArchiveJobDTO {
 		ProjectID:   j.ProjectID,
 		DMProjectID: j.DMProjectID,
 		ItemID:      j.ItemID,
+		VersionID:   j.VersionID,
 		CreatedOn:   fmtTime(j.CreatedAt),
 	}
 }
