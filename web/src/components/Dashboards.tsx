@@ -1,5 +1,4 @@
 import {
-  Avatar,
   Box,
   Button,
   Chip,
@@ -13,6 +12,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUsers } from '@fortawesome/free-solid-svg-icons'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import UserAvatar from './UserAvatar'
 import type { TFunction } from 'i18next'
 import { useQueries } from '@tanstack/react-query'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
@@ -349,11 +349,6 @@ function RoleChip({ role }: { role: string }) {
   )
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts[parts.length - 1][0] ?? '') : '')).toUpperCase()
-}
-
 function PeopleGroups({
   members,
   groups,
@@ -398,7 +393,7 @@ function PeopleGroups({
           <Stack spacing={0.5} sx={{ mt: 0.5 }}>
             {shownMembers.map((m) => (
               <Box key={m.userId} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar sx={{ width: 22, height: 22, fontSize: 10 }}>{initials(m.name)}</Avatar>
+                <UserAvatar id={m.userId} name={m.name} size={22} />
                 <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }} title={m.email}>
                   {m.name}
                 </Typography>

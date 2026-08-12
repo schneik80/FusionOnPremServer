@@ -1,9 +1,13 @@
-// Shared stroke/size tokens for the app's hand-drawn lane graphs — the design
-// History graph (HistoryGraph.tsx) and the production Batch timeline
+// Shared stroke/size tokens for the app's hand-drawn dot-on-rail graphs — the
+// design History timeline (history/) and the production Batch timeline
 // (production/BatchTimeline.tsx). Both draw the same thing: dots on horizontal
-// lane rails with angled date tags underneath, so they must read as one visual
-// language. History is the reference implementation these values came from;
-// they live here so the two can't drift apart again.
+// rails, so they must read as one visual language. The values originated in the
+// original History lane graph and live here so the two can't drift apart again.
+//
+// TAG_ANGLE/TAG_OFFSET are the angled date tags under a lane; the Batch
+// timeline still uses them. History no longer does — it moved to day rows with
+// a horizontal clock axis — but its dot, ring and rail weights are unchanged,
+// which is what keeps the two charts recognisably the same family.
 //
 // Layout spacing (column gap, lane gap, padding) stays local to each graph —
 // it depends on how dense that graph's data is. Only the *drawing* weights,

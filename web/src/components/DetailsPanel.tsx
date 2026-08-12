@@ -56,7 +56,7 @@ import { ItemIcon } from './entityIcons'
 import { TAB_SLIDE_TIMEOUT } from './motion'
 import { batchKindLabel, docStateLabel, localRefKindLabel, localRefViaLabel, taskStatusLabel } from '../i18n/enums'
 import ActivityHeatmap from './ActivityHeatmap'
-import HistoryGraph from './HistoryGraph'
+import HistoryTimeline from './history/HistoryTimeline'
 import PermissionsExplorer from './PermissionsExplorer'
 import RelationGraph, { type GraphNode } from './RelationGraph'
 import { RefTokenDialog, useRefTokenNavigate } from './RefTokenDialog'
@@ -367,7 +367,6 @@ function SelectedDetails({
                 query={detailsQ.data}
                 loading={detailsQ.isLoading}
                 error={detailsQ.error as Error | null}
-                projectAltId={projectAltId}
               />
             )}
             {tab === 'activity' && (
@@ -753,19 +752,17 @@ function BOMTab({ cvId, active }: { cvId?: string; active: boolean }) {
   )
 }
 
-// HistoryTab renders the item's version history as a horizontal git-branch
-// graph: saves on the dev lane, milestones merged up to the release lane, and
-// releases (reserved) to the main lane.
+// HistoryTab renders the item's version history as a stack of day rows, newest
+// first, each split into a track per author on a 24-hour clock axis — or, with
+// the thread checkbox, on one continuous chronological axis.
 function HistoryTab({
   query,
   loading,
   error,
-  projectAltId,
 }: {
   query?: Details
   loading: boolean
   error: Error | null
-  projectAltId?: string
 }) {
   const { t } = useTranslation('details')
   if (loading) return <TabSpinner />
@@ -773,7 +770,7 @@ function HistoryTab({
   const versions = query?.versions ?? []
   if (versions.length === 0) return <TabEmpty text={t('details.noVersionHistory')} />
 
-  return <HistoryGraph versions={versions} projectAltId={projectAltId} />
+  return <HistoryTimeline versions={versions} />
 }
 
 // componentRefsToNodes maps Uses/Where-Used refs to graph nodes, deduped by the

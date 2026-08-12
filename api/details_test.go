@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,6 +82,12 @@ func TestGetItemDetails_AllFields(t *testing.T) {
 
 	var sawHubID, sawItemID bool
 	srv := testutil.GraphQLServer(t, func(req testutil.GraphQLRequest) testutil.GraphQLResponse {
+		// The per-author history tracks group by user id, so the query must ask
+		// for it — a silently dropped `id` would fall back to name grouping and
+		// merge two people who share a display name.
+		if !strings.Contains(req.Query, "createdBy { id firstName lastName }") {
+			t.Errorf("query does not select the author id:\n%s", req.Query)
+		}
 		if v, ok := req.Variables["hubId"].(string); ok && v == "h1" {
 			sawHubID = true
 		} else {
@@ -178,6 +185,13 @@ func TestGetItemDetails_AllFields(t *testing.T) {
 	if got.Versions[0].CreatedBy != "Grace Hopper" {
 		t.Errorf("Versions[0].CreatedBy = %q, want %q", got.Versions[0].CreatedBy, "Grace Hopper")
 	}
+	// The author id is what the History view's per-author tracks key on.
+	if got.Versions[0].CreatedByID != "user-grace" {
+		t.Errorf("Versions[0].CreatedByID = %q, want %q", got.Versions[0].CreatedByID, "user-grace")
+	}
+	if got.Versions[1].CreatedByID != "user-ada" {
+		t.Errorf("Versions[1].CreatedByID = %q, want %q", got.Versions[1].CreatedByID, "user-ada")
+	}
 
 	// Per-version milestone + cvId. Reversed order: [0]=v3, [1]=v2, [2]=v1.
 	// v3 has a non-milestone root component version.
@@ -220,7 +234,16 @@ func TestGetItemDetails_DrawingItem_NoComponentVersion(t *testing.T) {
 			"fusionWebUrl":   "https://example/dwg",
 			"tipVersion":     map[string]any{"versionNumber": 1},
 		},
-		"itemVersions": map[string]any{"results": []any{}},
+		"itemVersions": map[string]any{"results": []any{
+			// A version whose author carries no id — the id is optional in the
+			// response and must degrade to empty, not to a placeholder.
+			map[string]any{
+				"versionNumber": 1,
+				"name":          "sheet",
+				"createdOn":     "2024-03-01T09:00:00Z",
+				"createdBy":     map[string]any{"firstName": "X", "lastName": "Y"},
+			},
+		}},
 	}
 
 	srv := testutil.GraphQLServer(t, func(req testutil.GraphQLRequest) testutil.GraphQLResponse {
@@ -246,6 +269,15 @@ func TestGetItemDetails_DrawingItem_NoComponentVersion(t *testing.T) {
 	}
 	if got.IsMilestone {
 		t.Errorf("IsMilestone = true, want false")
+	}
+	if len(got.Versions) != 1 {
+		t.Fatalf("len(Versions) = %d, want 1", len(got.Versions))
+	}
+	if got.Versions[0].CreatedByID != "" {
+		t.Errorf("Versions[0].CreatedByID = %q, want empty", got.Versions[0].CreatedByID)
+	}
+	if got.Versions[0].CreatedBy != "X Y" {
+		t.Errorf("Versions[0].CreatedBy = %q, want %q", got.Versions[0].CreatedBy, "X Y")
 	}
 }
 

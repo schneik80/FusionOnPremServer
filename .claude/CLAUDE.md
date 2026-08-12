@@ -41,7 +41,7 @@ make run                                 # build UI + binary, serve over HTTPS (
 - Web: typed `request()` wrapper, react-query hooks (bump the persist `buster` in `main.tsx` when query shapes change). Realtime/per-user query keys (`chat*`, `task*`, `prod*`) are excluded from localStorage persistence — see the dehydrate filter in `main.tsx`.
 - **APS calls are quota'd, so never fan out per row.** The per-minute cost quota answers a burst with 429s, and `api/client.go` deliberately does *not* retry them (a retry can't replenish a per-minute budget). Anything per-item — a classify, a thumbnail — waits for the row to near the viewport via `components/useInView.ts`; anything per-container is capped with a visible "Load all" (`ACTIVITY_CAP` / `CLASSIFY_CAP` in `Dashboards.tsx`). Never cap silently.
 - **One stylesheet, one exception.** There are no CSS files except `web/src/whiteboards/whiteboard.css`, which reskins tldraw (a CSS-variable-themed component that cannot be styled through `sx`). It is scoped to `.fls-tldraw`. Everything else is MUI `sx`.
-- **Visualizations are hand-drawn inline SVG** — there is no graph/chart library beyond one recharts donut, no framer-motion, and no CSS files. Motion is MUI `<Slide>` plus short (100–120 ms) `sx` transitions. `RelationGraph.tsx` (pan/zoom + bezier edges), `HistoryGraph.tsx` (lanes) and `ActivityHeatmap.tsx` (isometric) are the reference implementations.
+- **Visualizations are hand-drawn inline SVG** — there is no graph/chart library beyond one recharts donut, no framer-motion, and no CSS files. Motion is MUI `<Slide>` plus short (100–120 ms) `sx` transitions. `RelationGraph.tsx` (pan/zoom + bezier edges), `history/HistoryTimeline.tsx` (day rows + per-author tracks) and `ActivityHeatmap.tsx` (isometric) are the reference implementations.
 - **No date library either.** `components/DateField.tsx` is the app's date picker (read-only field + hand-drawn month-grid popover, Monday-first everywhere); whole-day helpers live in `src/fmt/dates.ts`. Don't add `@mui/x-date-pickers` — it needs a peer date lib too.
 - **Card tokens** — `fls:doc` / `fls:task` / `fls:job` / `fls:batch` / `fls:whiteboard` are compact pseudo-URL tokens stored inline in chat/wiki/task bodies and unfurled at render time. `components/RefCard.tsx` maps every scheme to its renderer; `components/reftokens.ts` splits them out of plain text; `components/RefTokenDialog.tsx` maps a token straight to its dialog. Adding a scheme means touching those three plus `chat/MessageList.tsx` (its `ChatBody` destructures the union) and `wiki/Markdown.tsx` (its `a:` override) — nowhere else. Server-side, `internal/docref` reads the `fls:doc` tokens for the **reverse** lookup — `GET /api/items/local-refs`, the Where-Used tab's local sources (tasks/chat/whiteboards/jobs/batches that reference a document). One `GetProjects` call for the accessible-project scope, then raw-bytes-prefiltered local scans; wiki pages are excluded because they live in APS, not a local store (see `docs/api.md`).
 - Commit/push only when asked.
@@ -82,6 +82,18 @@ been **paired** with and pins that server's certificate. Shared contracts in
 `internal/fusionmcp` is vendored from the sibling **FusionDataCLI** repo. See
 `docs/fusion-actions/STATUS.md` (design) and `docs/fusion-actions/HELPER.md`
 (install + user docs). Helper release binaries are committed under `dist/`.
+
+**History day timeline** — the details panel's History tab was rebuilt from one
+long horizontal strip into a stack of **day rows, newest first**: alternating
+bands, an elapsed-time label between days ("3 months and 2 days later"), and one
+**track per author** with an identity avatar. Day view puts each row on a fixed
+00:00→24:00 clock axis fitted to the panel; a **Show thread across days**
+checkbox switches x to one continuous chronological axis (the old strip's 38 px
+pitch, empty time omitted) and threads every save with a polyline across rows.
+Layout maths is pure and unit-tested in `web/src/components/history/historyLayout.ts`.
+Version author ids now ride the wire (`createdById`) so tracks key on identity.
+`web/src/components/userColor.ts` is the app's **one** non-theme colour — an HSL
+hash of the author key. See `docs/history/STATUS.md`.
 
 Previously: **Production P6** (on `main`) — decisions and editing ergonomics, the most
 recent wave: duplicate a job (plan only, never its runs); a run date on batch
