@@ -49,11 +49,26 @@ make run                                 # build UI + binary, serve over HTTPS (
 ## Active work
 **Fusion document actions** (merged to `main`; helper released as
 `helper/v0.1.0`, verified end to end on Windows and macOS) — **Open**,
-**Insert** and **Archive** on the details header of a Fusion-native document.
+**Insert** and **Archive** on a Fusion-native document, offered on the details
+header (`components/DocumentActions.tsx`), on **every document card**
+(`components/doccard/docActions.ts`, used by `DocumentCard` and
+`production/PinnedDocCard`) and on a **document pin**. Two rules the card set
+enforces: a native document gets *Archive*, never *Download* (it has no storage
+object of its own, so the download button could only ever fail), and
+nativeness is decided by the GraphQL typename via `kindFromTypename`
+(`api/types.ts`) — never by a caller's kind hint, which an `fls:doc` token
+captured long ago and which the DM hub browser derives from a file extension
+a Fusion design does not have. `DetailsPanel` re-resolves it too, since kind
+decides its tabs. Icons: the **location arrow** is Navigate (within this app),
+the **arrow out of a box** is Open (hand off to another app) — they used to be
+the same glyph.
 *Archive* is a background job (`server/archives.go`, modelled on `uploads.go`)
 over the DM downloads API (`api/archive.go`: `downloadFormats` → `POST
 /downloads` → poll the job's **303** → OSS storage urn); APS picks F3Z vs F3D,
-no bytes are stored server-side, and the bell announces completion.
+no bytes are stored server-side, and the bell announces completion. It takes an
+optional `versionId` — a production card pins the archive to the version on its
+badge (guarded by `api.VersionBelongsToItem`, named `Doc-v3.f3z`); everything
+else archives the tip.
 *Open/Insert* drive the user's running Fusion through its local MCP server —
 directly when the caller is on loopback, otherwise via `cmd/fls-helper`, a
 per-user native app registered for the **`fusionlocal://`** scheme (never `fls:`,

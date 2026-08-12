@@ -1,7 +1,8 @@
 # Fusion document actions — status
 
-Three actions on the details header of a **Fusion-native document**: **Open**,
-**Insert** and **Archive**.
+Three actions on a **Fusion-native document**: **Open**, **Insert** and
+**Archive** — on the details header, on every document card, and on a document
+pin.
 
 **The problem it solves.** Until now the details panel was read-only. You could
 learn everything about a design — its history, its BOM, what references it — and
@@ -15,11 +16,69 @@ a Fusion-native design has no downloadable storage object of its own.
 |---|---|---|
 | **Open** | all native | The user's running Fusion desktop client opens the document by lineage urn. |
 | **Insert** | `design`, `configured` only | The document is inserted as an occurrence into the design Fusion currently has open. |
-| **Archive** | all native | APS generates an **F3Z or F3D** of the tip version; the bell announces it and the row downloads it. |
+| **Archive** | all native | APS generates an **F3Z or F3D** of one version; the bell announces it and the row downloads it. |
 
 Insert is narrower than the other two on purpose: Fusion inserts an *occurrence*
 into an open design, which is meaningless for a drawing or a schematic. Offering
 it there would produce a failure inside Fusion with an unhelpful message.
+
+## Where they appear
+
+| Surface | Offered by |
+|---|---|
+| Details header | `components/DocumentActions.tsx` |
+| Every document card — a `fls:doc` token in chat, a wiki page or a task, and a version-pinned document on a production step or batch | `components/doccard/docActions.ts`, consumed by `DocumentCard` and `production/PinnedDocCard` |
+| A document pin | `components/PinsDialog.tsx` |
+
+The cards had only a download button, and that was the wrong half of the
+feature. A card in a chat message or on a production step is exactly where
+someone wants to say *get this into Fusion*, and they were being sent back to
+the browser to find the document again first.
+
+Two rules the card set exists to enforce:
+
+- **A native document gets Archive, never Download.** A Fusion design has no
+  downloadable storage object of its own, so the old card download was offered
+  enabled and simply failed. Uploaded files keep the direct link.
+- **Nativeness is decided by the GraphQL typename, never by the caller's hint.**
+  See *The kind hint is not the kind*, below.
+
+The Pins dialog is the one *list* that can offer these, because it captured the
+project's DM id at pin time and so needs no per-row APS call — the repo-wide
+no-fan-out rule (`CLAUDE.md`) rules it out everywhere else. It trusts the pin's
+stored kind for the same reason it is allowed to: `isPinnable` (`state/pins.ts`)
+admits no kind a listing gets wrong.
+
+### The icons
+
+Navigate and Open are different verbs and now sit in the same action bar, so
+they cannot share a glyph:
+
+| Verb | Glyph | Means |
+|---|---|---|
+| **Navigate** | location arrow | move *this* app to the document |
+| **Open** | arrow out of a box | hand the document to *another* application |
+
+Both used to be the arrow out of a box.
+
+### The kind hint is not the kind
+
+Every one of these actions is gated on the document being Fusion-native, so
+getting the kind wrong hides all three — and, worse, sends a click to the
+two-tab uploaded-file view instead of a design's history, BOM and references.
+
+Callers get it wrong for structural reasons, not carelessness:
+
+- an `fls:doc` token captured a kind hint whenever it was written;
+- the DM-backed hub browser (`api/browse.go`) recovers a kind from the file
+  **extension**, and a Fusion Team design does not have one — so it lists as
+  `unknown`. Production documents attached through that browser are stored
+  `unknown`, which is exactly how a batch's cards lost their actions.
+
+So `kindFromTypename` (`api/types.ts`) is the single resolver, and two places
+apply it rather than trusting anyone: the cards, and `DetailsPanel` itself —
+which decides tabs, actions and thumbnails off kind and therefore has to be
+right no matter which entry point selected the document.
 
 ---
 
@@ -126,9 +185,34 @@ Where it differs:
 The job holds the `*Session`, not a token: a 30-minute poll outlives an APS
 access token, so it re-reads through `s.sessionToken` on every iteration.
 
-**One live job per document per session.** A second click would spend the cost
-quota generating a byte-identical archive, so it is refused with
-`archive_already_running` and the button disables itself.
+**One live job per document version per session.** A second click would spend
+the cost quota generating a byte-identical archive, so it is refused with
+`archive_already_running` and the button disables itself. The *version* is part
+of that identity — see below.
+
+### Which version gets archived
+
+`POST /api/archives` takes an optional `versionId`. Omitted (the details header,
+a plain document card) it archives the lineage tip, resolved server-side.
+
+A **production card supplies one**, because that card is version-honest: it
+carries a `v{n}` badge and a per-version thumbnail, and handing back the tip
+under that badge would be a different design under a label promising this one.
+Three consequences:
+
+- the client-supplied version is checked against the item's lineage
+  (`api.VersionBelongsToItem`, the same guard the production version pin uses)
+  before an APS call is spent on it — otherwise a crafted body could archive any
+  version the session can reach under another document's name;
+- the saved file is named `Widget-v3.f3z`. Two archives of one design that are
+  different geometry must not land in a download folder as `Widget.f3z` and
+  `Widget (1).f3z`, which leaves nothing on disk to tell them apart;
+- the SPA matches a running job on **item + version**, so the header's tip job
+  and a card's pinned job never show each other's spinner.
+
+**Open and Insert cannot be pinned this way.** Fusion opens a *lineage*, at its
+tip. That is Fusion's own behaviour, so a pinned card's Open is left alone
+rather than dressed up as something it isn't.
 
 ### No bytes on this server
 
@@ -396,7 +480,9 @@ Insert driving the desktop client, not just the plumbing up to the ticket.
 - **The Fusion palette already knows Fusion is running.** Inside `embed.html`
   the add-in bridge (`web/src/embed/bridge.ts`) is a strictly better route than
   the helper — it is in-process. Out of scope here; the obvious follow-up.
-- **Archive is tip-version only.** The History tab pins older versions, but the
-  action always archives the tip.
+- **Only a production card can archive an older version.** The wire supports any
+  version (`versionId` on `POST /api/archives`) and production cards use it, but
+  the History tab still has no "archive this version" affordance — from the
+  details header the action is always the tip.
 - **No archive progress.** APS reports queued/processing/done and nothing finer,
   so the UI shows an indeterminate state rather than inventing a percentage.

@@ -488,8 +488,11 @@ The rail's **Pins** dialog lists your pins grouped by kind — projects,
 folders, documents, whiteboards, tasks, production, channels — with navigate
 and remove actions. Navigating a whiteboard or a channel takes you to it;
 a task, job or batch opens its detail dialog over the list, so you can work
-through several without reopening the dialog each time. Pins are per hub and
-stored on the server, so they follow you between browsers.
+through several without reopening the dialog each time. A pinned Fusion
+document also carries **Open in Fusion** — and **Insert** if it is a 3D
+design — so a pin is a shortcut into the desktop client, not just into this
+browser. Pins are per hub and stored on the server, so they follow you between
+browsers.
 
 ---
 
@@ -535,6 +538,14 @@ In markdown they're written as ordinary links, so a page still reads sensibly
 in any other renderer. Server-side, the same tokens power the **Where Used**
 tab's local sources — the reverse lookup of everything that references a
 document.
+
+Click a card to select it and a small action bar appears under it. On a
+document card that is **Navigate** (move the browser to it), **Details** (the
+card turns over to show its metadata), and — for a Fusion document — **Open**,
+**Insert** and **Archive**, exactly as on the details header. An uploaded file
+gets a plain **Download** instead, because only it has a file to hand back. On
+a production card, Archive gives you the *pinned* version the card's badge
+names, not whatever the design has become since.
 
 ---
 

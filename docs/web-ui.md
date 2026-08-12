@@ -212,7 +212,8 @@ Two rail apps aggregate across every project in the hub:
 
 The star on any project, folder, or document row bookmarks it. The rail's
 **Pins** dialog lists pins grouped by kind (projects / folders / documents)
-with navigate and remove actions. Pins are scoped per hub and persisted on the
+with navigate and remove actions, plus **Open in Fusion** (and **Insert** for a
+3D design) on a document pin. Pins are scoped per hub and persisted on the
 server.
 
 ## Uploads
@@ -231,6 +232,14 @@ Compact pseudo-URL tokens — `fls:doc`, `fls:task`, `fls:job`, `fls:batch` —
 can live inline in chat messages, wiki pages, and task bodies. At render time
 each token unfurls into a rich card (thumbnail, title, status) that links to
 the thing it names. The same cards are what whiteboards place on the canvas.
+
+Selecting a card reveals its action bar. A document card carries **Navigate**
+(the location arrow — move the browser to it), **Details** (the card turns over
+to a metadata back face), and the same Fusion actions as the details header:
+**Open**, **Insert** and **Archive** on a Fusion-native document, or a plain
+**Download** on an uploaded file. A production card's Archive is pinned to the
+version on its badge. See
+[`docs/fusion-actions/STATUS.md`](fusion-actions/STATUS.md).
 
 ## Settings console
 

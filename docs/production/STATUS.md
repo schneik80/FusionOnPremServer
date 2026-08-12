@@ -124,8 +124,9 @@ migrate on load.
   posture: atomic temp+rename writes, per-project mutex, `.bak` on corruption,
   future-version guard, clone + rollback on save failure. Mutations copy the
   returned object **under the lock**.
-- `api/production_snapshot.go` — version-pin resolution (+ `versionBelongsToItem`,
-  so an upload may assert the version it just created but never a foreign one).
+- `api/production_snapshot.go` — version-pin resolution (+ `VersionBelongsToItem`,
+  so an upload may assert the version it just created but never a foreign one;
+  exported because the archive job applies the same guard to a pinned version).
 - `server/handlers_production.go`, `server/dto_production.go`, routes in
   `server/routes.go`. Authorization reuses `chat.Authorizer`: `CapRead` to view,
   `CapPost` to edit, `CapModerate`-or-creator to delete a job/batch.
@@ -176,8 +177,18 @@ picks whether `+` creates a step or a decision.
   time axis (rust-orange `#b7410e`, the History graph's share-lane hue), per-step
   frozen documents, placeholder fulfillment, as-run artifacts, completeness bar.
 - `DocSourceButton` supplies a document from **the hub** or **an upload**;
-  `PinnedDocChip` renders a pin with its exact version badge and jumps to the
-  document via `useGoToDocument`.
+  `PinnedDocCard` renders a pin with its exact version badge, jumps to the
+  document via `useGoToDocument`, and carries the shared Fusion actions —
+  **Open**, **Insert**, and an **Archive pinned to the version on the badge**
+  (`docs/fusion-actions/STATUS.md`).
+
+  It resolves the document's **kind from the GraphQL typename**, never from the
+  kind stored in the snapshot. That hint comes from the hub browser, which
+  derives a kind from the file extension (`api/browse.go`) — and a Fusion Team
+  design has none, so every design attached that way is stored `unknown`.
+  Trusting it sent a click from a batch to the two-tab uploaded-file view
+  instead of the design's own history, BOM and references, and hid all three
+  actions with it.
 - `ProductionScreen` — the cross-project rail screen (`app=production`): runs in
   flight across every project, and jobs you own.
 
