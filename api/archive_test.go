@@ -453,6 +453,12 @@ func TestResolveDownload_PrefersThePreSignedLink(t *testing.T) {
 	if got.Name != "Widget.f3d" {
 		t.Errorf("Name = %q, want %q", got.Name, "Widget.f3d")
 	}
+	// What APS BUILT, which the caller names the saved file from — this
+	// document reports f3d even though the request that produced it asked for
+	// f3z, which is exactly the case the field exists for.
+	if got.FileType != "f3d" {
+		t.Errorf("FileType = %q, want %q", got.FileType, "f3d")
+	}
 	if len(raw) == 0 {
 		t.Error("raw document not returned; it is what makes a later failure diagnosable")
 	}
@@ -533,7 +539,7 @@ func TestOpenArchive_StreamsFromThePreSignedLink(t *testing.T) {
 	// The host guard is the production rule; point it at the test server.
 	defer autodeskHostForTest(func(string) bool { return true })()
 
-	resp, name, err := OpenArchive(context.Background(), "tok", srv.URL+"/data/v1/projects/p/downloads/d")
+	resp, target, err := OpenArchive(context.Background(), "tok", srv.URL+"/data/v1/projects/p/downloads/d")
 	if err != nil {
 		t.Fatalf("OpenArchive: %v", err)
 	}
@@ -542,8 +548,8 @@ func TestOpenArchive_StreamsFromThePreSignedLink(t *testing.T) {
 	if string(body) != "F3D-BYTES" {
 		t.Errorf("body = %q, want %q", body, "F3D-BYTES")
 	}
-	if name != "Widget.f3d" {
-		t.Errorf("name = %q, want %q", name, "Widget.f3d")
+	if target.Name != "Widget.f3d" {
+		t.Errorf("name = %q, want %q", target.Name, "Widget.f3d")
 	}
 }
 

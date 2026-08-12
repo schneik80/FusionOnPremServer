@@ -167,7 +167,7 @@ func (s *Server) handleArchiveFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	resp, apsName, err := api.OpenArchive(ctx, token, downloadURL)
+	resp, target, err := api.OpenArchive(ctx, token, downloadURL)
 	if err != nil {
 		// Log the cause unconditionally. The friendly codes below deliberately
 		// say nothing about what actually failed, and the first time this went
@@ -189,9 +189,21 @@ func (s *Server) handleArchiveFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	name := job.fileName
+	fileType, name := job.format()
+	// APS is the authority on what it produced, and it does not always produce
+	// what was asked for: a version offering f3z has been seen returning a
+	// download whose format.fileType is f3d. Naming that file .f3z would hand
+	// the browser a bare design inside a name that promises a zip container,
+	// which is a file Fusion may refuse to open. Correct the job too, so the
+	// list view and the bell agree with what was actually saved.
+	if built := target.FileType; built != "" && built != fileType {
+		s.logger.Warn("archive: APS built a format other than the one requested",
+			"job", job.ID, "doc", job.DocName, "requested", fileType, "built", built)
+		name = archiveFileName(job.DocName, built)
+		job.setFormat(built, name)
+	}
 	if name == "" {
-		name = apsName
+		name = target.Name
 	}
 	h := w.Header()
 	h.Set("Content-Type", "application/octet-stream")

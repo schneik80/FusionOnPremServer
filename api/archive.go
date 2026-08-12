@@ -345,10 +345,18 @@ func downloadURLFromLocation(loc string) (string, bool) {
 // (filename*=UTF-8”<uuid>.f3d) leaking into the urn — which is why every
 // spelling of it answered "Object not found". The storage urn is kept only as
 // a fallback for a response that omits the link.
+//
+// FileType is what APS says it actually BUILT, which is not always what was
+// asked for: a version whose downloadFormats offered f3z has been observed
+// producing a download whose format.fileType is f3d. The caller names the saved
+// file from this rather than from its own request, because an f3z is a zip
+// container — handing a browser an f3d under an .f3z name produces a file
+// Fusion may refuse to open.
 type ArchiveTarget struct {
 	Link       string // pre-signed url; use this when present
 	StorageURN string // fallback: sign it ourselves
 	Name       string
+	FileType   string // lowercase "f3z"/"f3d" as APS reports it; "" if absent
 }
 
 // ResolveDownload reads a finished download and reports where its bytes are.
@@ -397,12 +405,20 @@ func ResolveDownload(ctx context.Context, token, downloadURL string) (ArchiveTar
 			return ArchiveTarget{}, body, fmt.Errorf("download details: refusing off-host link %q", trimURL(link))
 		}
 		var attrs struct {
-			Name string `json:"name"`
+			Name   string `json:"name"`
+			Format struct {
+				FileType string `json:"fileType"`
+			} `json:"format"`
 		}
 		if len(e.Attributes) > 0 {
 			_ = json.Unmarshal(e.Attributes, &attrs)
 		}
-		return ArchiveTarget{Link: link, StorageURN: rel.Storage.Data.ID, Name: attrs.Name}, body, nil
+		return ArchiveTarget{
+			Link:       link,
+			StorageURN: rel.Storage.Data.ID,
+			Name:       attrs.Name,
+			FileType:   strings.ToLower(strings.TrimSpace(attrs.Format.FileType)),
+		}, body, nil
 	}
 	return ArchiveTarget{}, body, fmt.Errorf("download %s has no storage: %s", trimURL(downloadURL), snippetN(body, 4<<10))
 }
@@ -575,12 +591,14 @@ func signedURLFrom(ctx context.Context, token, signURL string) (string, error) {
 // of the same archive. It also never leaves this process — the signed url is a
 // bearer credential for the object, and no other download path in this app
 // hands one to a browser either (see OpenFile in files.go).
-func OpenArchive(ctx context.Context, token, downloadURL string) (resp *http.Response, name string, err error) {
+// It returns the resolved target alongside the response so the caller can name
+// the file from what APS built rather than from what it requested.
+func OpenArchive(ctx context.Context, token, downloadURL string) (resp *http.Response, target ArchiveTarget, err error) {
 	// Re-read the download rather than caching its link: the signature in it
 	// expires, so a stored one would break the second download.
 	target, doc, err := ResolveDownload(ctx, token, downloadURL)
 	if err != nil {
-		return nil, "", err
+		return nil, ArchiveTarget{}, err
 	}
 	signedURL := target.Link
 	if signedURL == "" {
@@ -589,21 +607,21 @@ func OpenArchive(ctx context.Context, token, downloadURL string) (resp *http.Res
 		// other thing the document offers.
 		signedURL, err = signArchiveObject(ctx, token, target.StorageURN)
 		if err != nil {
-			return nil, "", fmt.Errorf("%w (storage urn %q; download document: %s)",
+			return nil, ArchiveTarget{}, fmt.Errorf("%w (storage urn %q; download document: %s)",
 				err, target.StorageURN, snippetN(doc, 16<<10))
 		}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedURL, nil)
 	if err != nil {
-		return nil, "", err
+		return nil, ArchiveTarget{}, err
 	}
 	resp, err = httpClient.Do(req) // pre-signed url carries its own auth; no Bearer header
 	if err != nil {
-		return nil, "", fmt.Errorf("download archive: %w", err)
+		return nil, ArchiveTarget{}, fmt.Errorf("download archive: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		resp.Body.Close()
-		return nil, "", fmt.Errorf("download archive -> HTTP %d", resp.StatusCode)
+		return nil, ArchiveTarget{}, fmt.Errorf("download archive -> HTTP %d", resp.StatusCode)
 	}
-	return resp, target.Name, nil
+	return resp, target, nil
 }

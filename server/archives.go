@@ -123,6 +123,15 @@ func (j *archiveJob) setFormat(fileType, fileName string) {
 	j.mu.Unlock()
 }
 
+// format reads back what setFormat recorded. The download handler runs on a
+// request goroutine while the poll loop may still be writing, so these are read
+// under the lock like every other mutable field.
+func (j *archiveJob) format() (fileType, fileName string) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.fileType, j.fileName
+}
+
 // finish moves the job to a terminal state (first writer wins — a cancel that
 // raced completion keeps whichever landed first). Reports whether this call is
 // the one that settled it, so only one caller emits a notification.
