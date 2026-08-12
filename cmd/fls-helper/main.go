@@ -40,6 +40,13 @@ func main() {
 
 	args := os.Args[1:]
 	if len(args) == 0 {
+		// Almost always someone typing the command with no arguments, in which
+		// case usage() is the answer and nobody reads the log. But it is also
+		// exactly what a broken scheme registration looks like — the OS starts
+		// this program and the URL never arrives — and that case has no
+		// terminal to print to, so it has to leave a trace somewhere. It cost a
+		// long debugging session on macOS once.
+		logLaunch("started with no arguments — if the OS launched this, the URL did not arrive; run `fls-helper status`")
 		usage()
 		os.Exit(2)
 	}

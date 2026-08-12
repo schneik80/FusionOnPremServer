@@ -63,10 +63,10 @@ type pairingFile struct {
 	Servers []pairedServer `json:"servers"`
 }
 
-// pairingPath is <config>/helper.json, alongside the server's own config. Same
-// directory on every platform, matching config.Dir() — a helper and a server on
-// one machine should keep their state in one place.
-func pairingPath() (string, error) {
+// configDir is where everything this program owns lives, alongside the server's
+// own config. Same directory on every platform, matching config.Dir() — a
+// helper and a server on one machine should keep their state in one place.
+func configDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("locating your home directory: %w", err)
@@ -74,6 +74,15 @@ func pairingPath() (string, error) {
 	dir := filepath.Join(home, ".config", "fusionlocalserver")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("creating %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
+// pairingPath is <config>/helper.json.
+func pairingPath() (string, error) {
+	dir, err := configDir()
+	if err != nil {
+		return "", err
 	}
 	return filepath.Join(dir, "helper.json"), nil
 }

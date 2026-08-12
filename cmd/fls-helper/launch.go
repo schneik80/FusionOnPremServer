@@ -43,18 +43,27 @@ func runLaunch(raw string) int {
 		// A malformed URL is not something the user did; do not alarm them
 		// with a dialog, just record it.
 		fmt.Fprintf(os.Stderr, "fls-helper: %v\n", err)
+		logLaunch("launch rejected: %v", err)
 		return 2
 	}
+	logLaunch("launch %s ticket=%s server=%s", link.Action, redactTicket(link.Ticket),
+		displayOrigin(link.Server))
 
 	server, ok := trusted(link.Server)
 	if !ok {
 		// The one refusal with no server to report to — by definition we do
 		// not trust it, so we must not call it either.
+		//
+		// Log before notifying, here and below: notify() blocks on a modal
+		// dialog, so a record written afterwards does not exist until someone
+		// clicks OK — and an unattended failure is exactly the one worth having
+		// a record of.
+		fmt.Fprintf(os.Stderr, "fls-helper: refusing unpaired server %q\n", link.Server)
+		logLaunch("  refused: %s is not paired with this computer", displayOrigin(link.Server))
 		notify("Fusion Local Server helper",
 			fmt.Sprintf("Refused a request from %s.\n\nThis server is not paired with this computer. "+
 				"If you trust it, run:\n\n    fls-helper pair %s",
 				displayOrigin(link.Server), displayOrigin(link.Server)))
-		fmt.Fprintf(os.Stderr, "fls-helper: refusing unpaired server %q\n", link.Server)
 		return 1
 	}
 	origin := server.Origin
@@ -65,10 +74,11 @@ func runLaunch(raw string) int {
 
 	payload, err := redeemTicket(ctx, client, origin, link.Ticket)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "fls-helper: redeeming ticket: %v\n", err)
+		logLaunch("  failed: could not redeem the ticket: %v", err)
 		notify("Fusion Local Server helper",
 			"Could not confirm this request with the server.\n\n"+err.Error()+
 				"\n\nThe request may have expired — try again from the browser.")
-		fmt.Fprintf(os.Stderr, "fls-helper: redeeming ticket: %v\n", err)
 		return 1
 	}
 	// The URL and the ticket must agree. They always will in practice; if they
@@ -90,9 +100,11 @@ func runLaunch(raw string) int {
 
 	report(ctx, client, origin, link.Ticket, code)
 	if code != "" {
+		logLaunch("  failed: %s (%s)", code, payload.DocName)
 		notify("Fusion Local Server helper", explain(code, action, payload.DocName))
 		return 1
 	}
+	logLaunch("  ok: %s %s", action, payload.DocName)
 	return 0
 }
 

@@ -86,18 +86,30 @@ func unregisterScheme() error {
 	return nil
 }
 
-// schemeRegistration reports whether our handler is installed, and where.
-func schemeRegistration() (string, bool) {
+// schemeRegistration reports whether our handler is installed, and where. A
+// .desktop entry carries the command line it will be launched with, so unlike
+// macOS there is no separate question of whether delivery can work — but it can
+// still name a binary this one has moved away from, which is stale rather than
+// absent.
+func schemeRegistration() (string, schemeState, string) {
 	path, err := desktopPath()
 	if err != nil {
-		return "", false
+		return "", schemeAbsent, ""
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", false
+		return "", schemeAbsent, ""
 	}
 	if !strings.Contains(string(data), "x-scheme-handler/"+fusionlink.Scheme) {
-		return "", false
+		return path, schemeStale, "the entry there does not claim the scheme"
 	}
-	return path, true
+	if exe, eerr := os.Executable(); eerr == nil {
+		if resolved, rerr := filepath.EvalSymlinks(exe); rerr == nil {
+			exe = resolved
+		}
+		if !strings.Contains(string(data), "Exec="+exe+" ") {
+			return path, schemeStale, "it does not dispatch to this binary at " + exe
+		}
+	}
+	return path, schemeGood, ""
 }

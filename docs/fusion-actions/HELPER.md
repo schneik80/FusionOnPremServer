@@ -78,10 +78,22 @@ This tells your OS that `fusionlocal://` links belong to this program. It is
 | | |
 |---|---|
 | **Windows** | `HKCU\Software\Classes\fusionlocal` |
-| **macOS** | a minimal `.app` in `~/Applications`, then `lsregister` |
+| **macOS** | a small handler app in `~/Applications`, then `lsregister` |
 | **Linux** | `~/.local/share/applications/fls-helper.desktop`, then `update-desktop-database` |
 
 `fls-helper unregister` reverses it.
+
+> **Upgrading from a helper older than v0.2.0 on macOS: run `register` again.**
+> Earlier versions installed a handler that macOS could start but could never
+> hand the URL to, so Open and Insert failed while everything reported healthy.
+> `fls-helper status` now says so explicitly instead of claiming the scheme is
+> registered.
+
+**macOS may ask for Local Network access the first time you use a button.** Allow
+it. The helper's whole job is to reach a server on another machine, and macOS
+blocks that until you agree — a denial looks exactly like the server being
+unreachable. You can change it later in System Settings → Privacy & Security →
+Local Network.
 
 ### 3. Pair with your server
 
@@ -108,10 +120,20 @@ fls-helper v0.1.0
 URL scheme  : fusionlocal:// registered (~/Applications/Fusion Local Server Helper.app)
 Paired with : https://your-server:8080 (pinned certificate a1b2c3d4…e5f6a7b8)
 Fusion      : running, 12 project(s) in its active hub
+
+Recent launches:
+  2026-08-12T15:26:13Z launch open ticket=a1b2c3… server=https://your-server:8080
+  2026-08-12T15:26:14Z   ok: open bracket.f3d
 ```
 
 Three lines, three preconditions. If a button does nothing, this tells you which
 one is missing without guessing.
+
+The launches below them are the last few times your browser actually reached the
+helper, read from `~/.config/fusionlocalserver/helper.log`. **An empty list while
+the scheme says registered is itself the answer**: the click never arrived, so
+the problem is the registration or the browser, not Fusion. A button press has no
+terminal to print to, which is why it keeps this log at all.
 
 ---
 
@@ -137,8 +159,9 @@ failures raise a message.
 | **Autodesk Fusion is not running on your computer.** | Start Fusion and try again. |
 | **Fusion is signed in to a different hub.** | Fusion cannot see the document. Switch hubs in Fusion. |
 | **Fusion has no design open to insert into.** | Insert needs an open design. |
-| **No helper app responded.** | Nothing is registered for `fusionlocal://`. Run `register`, then `pair`. |
+| **No helper app responded.** | Nothing is registered for `fusionlocal://`. Run `register`, then `pair`. On macOS, also re-run `register` if you upgraded from an older helper. |
 | **Refused a request from …** (native dialog) | That server is not paired on this machine. |
+| **Could not confirm this request with the server.** | The helper could not reach the server, or the request expired. If it says *cannot reach* on macOS, check Local Network access (above); if the server's certificate was replaced, `pair` again. |
 
 The first three appear both in the browser and, if you have navigated away, in
 the notification bell.
@@ -287,5 +310,5 @@ fls-helper unpair https://your-server:8080
 fls-helper unregister
 ```
 
-Then delete the binary, and `~/.config/fusionlocalserver/helper.json` if the
-server does not also run on that machine.
+Then delete the binary, and `~/.config/fusionlocalserver/helper.json` and
+`helper.log` if the server does not also run on that machine.

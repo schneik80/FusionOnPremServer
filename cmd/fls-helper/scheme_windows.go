@@ -61,16 +61,24 @@ func unregisterScheme() error {
 	return nil
 }
 
-func schemeRegistration() (string, bool) {
+// schemeRegistration reports whether our handler is installed. The registry
+// value is the command line the OS will run, so there is no separate question of
+// whether delivery can work — but it can name a binary this one has moved away
+// from, which is stale rather than absent.
+func schemeRegistration() (string, schemeState, string) {
+	where := `HKCU\` + schemeKeyPath()
 	k, err := registry.OpenKey(registry.CURRENT_USER,
 		schemeKeyPath()+`\shell\open\command`, registry.QUERY_VALUE)
 	if err != nil {
-		return "", false
+		return "", schemeAbsent, ""
 	}
 	defer k.Close()
 	cmd, _, err := k.GetStringValue("")
 	if err != nil || cmd == "" {
-		return "", false
+		return "", schemeAbsent, ""
 	}
-	return `HKCU\` + schemeKeyPath(), true
+	if exe, eerr := os.Executable(); eerr == nil && !strings.Contains(cmd, exe) {
+		return where, schemeStale, "it dispatches to " + cmd + ", not to this binary at " + exe
+	}
+	return where, schemeGood, ""
 }

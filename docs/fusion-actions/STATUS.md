@@ -265,7 +265,15 @@ instead of showing a dial error or a Python traceback.
 Subcommands: `pair` / `unpair`, `register` / `unregister`, `status`.
 `status` reports all three preconditions (scheme registered, servers paired,
 Fusion reachable) because a user who clicked a button and saw nothing needs to
-find out which one is missing without guessing.
+find out which one is missing without guessing. It also prints the last few
+launches from `~/.config/fusionlocalserver/helper.log`: a launch comes from the
+OS with no terminal attached, and on macOS the applet discards the child's
+stderr, so without that log a failed launch leaves no trace anywhere.
+
+The scheme check has **three** states, not two — `absent`, `stale`, `good`. A
+registration that exists but cannot deliver is the failure that actually
+happened (see below), and reporting it as "registered" pointed debugging away
+from the one thing that was wrong.
 
 Install, usage, troubleshooting and the security model are written up for users
 in **[HELPER.md](HELPER.md)**.
@@ -274,9 +282,39 @@ Scheme registration is **per-user, never elevated**:
 
 | | how |
 |---|---|
-| macOS | a minimal `.app` in `~/Applications` with `CFBundleURLTypes`, then `lsregister -f`. Its executable is a two-line `sh` launcher rather than a copy of the binary, so an upgraded helper doesn't keep running the old code until someone re-registers. |
+| macOS | an **AppleScript applet** in `~/Applications` (built with `osacompile`, `Info.plist` patched via `plutil`), then `lsregister -f`. It dispatches to the binary rather than embedding it, so an upgraded helper is picked up without re-registering. |
 | Windows | `HKCU\Software\Classes\fusionlocal` with `URL Protocol` and a quoted `shell\open\command`. |
 | Linux | `~/.local/share/applications/fls-helper.desktop` with `MimeType=x-scheme-handler/fusionlocal;`, then `update-desktop-database` and `xdg-mime default` (both best-effort). |
+
+#### Why macOS needs an applet
+
+The obvious macOS implementation is wrong in a way that still reports success,
+and it shipped: a bundle whose `CFBundleExecutable` was a two-line `sh` shim
+(`exec fls-helper "$@"`). **macOS does not pass a scheme URL in `argv`.** Launch
+Services resolves the scheme, starts the bundle, and then delivers the URL as a
+`kAEGetURL` Apple Event — which a process with no run loop never receives. So
+`fls-helper` ran with no arguments on every Open and Insert, printed usage to a
+terminal that did not exist, and exited. Registration looked fine, pairing looked
+fine, `status` said all three preconditions were met, and every button failed.
+Windows (`"%1"`) and Linux (`Exec=… %u`) pass argv, which is why they worked.
+
+Receiving the Apple Event directly means linking AppKit through cgo, which breaks
+the cross-compiled `make helper` build for all six platforms. An AppleScript
+applet's `on open location` handler is the only mechanism that does not, and
+`osacompile` ships with every macOS. Two consequences worth knowing:
+
+- **`osacompile` ad-hoc signs its output**, so patching `Info.plist` afterwards
+  invalidates the seal. It still launches (Gatekeeper only assesses *quarantined*
+  apps), and `register` repairs the seal with `codesign --force --sign -` on a
+  best-effort basis — requiring the Command Line Tools just to register a URL
+  scheme would be absurd.
+- **`NSLocalNetworkUsageDescription` is mandatory, not decorative.** From macOS
+  15 an app needs Local Network permission to reach a LAN host, and the system
+  will not prompt without a purpose string. The helper exists precisely because
+  the server is on another machine, so without that key every launch failed at
+  the first HTTPS call with a bare "cannot reach" — while the identical binary
+  run from a terminal succeeded, because Terminal holds the permission. Both
+  halves of this were found only by launching through the OS and comparing.
 
 ### Shipping it
 
@@ -344,8 +382,12 @@ SPA's locale, and its message is the fallback for when nobody is watching the ta
 - **Code signing.** The macOS and Windows binaries are unsigned, so first run
   is quarantined / SmartScreen-flagged. This is the thing most likely to block
   adoption in practice, and it is not addressed here.
-- **The helper is untested on macOS.** Scheme registration (the `.app` bundle
-  and `lsregister`) and the `osascript` dialog have only ever run on Linux.
+- **macOS is verified as far as the ticket.** Registration, the applet's receipt
+  of a real `fusionlocal://` launch, pairing with certificate pinning, the pinned
+  HTTPS call reaching the server, and the `osascript` dialog all run correctly on
+  macOS 26 / arm64 — a launch carrying a deliberately invalid ticket reaches the
+  server and is declined with a 404, which exercises every step except Fusion
+  itself. Open and Insert against a **real** ticket are still unconfirmed there.
   **Windows is verified end to end** — registry registration, pairing with
   certificate pinning, Open, Insert, every failure path, the unpaired-server
   refusal, and both of the things that could only be reasoned about before:
