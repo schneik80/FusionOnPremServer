@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, addMonths, daysBetween, fmtDay, isDay, mondayOf, monthGrid, parseDay, sameDay } from './dates'
+import {
+  addDays,
+  addMonths,
+  calendarBreakdown,
+  daysBetween,
+  fmtDay,
+  isDay,
+  mondayOf,
+  monthGrid,
+  parseDay,
+  sameDay,
+} from './dates'
 
 describe('parseDay / fmtDay', () => {
   it('round-trips a day string', () => {
@@ -83,5 +94,37 @@ describe('monthGrid', () => {
     for (let day = 1; day <= 28; day++) {
       expect(g.some((d) => sameDay(d, new Date(2026, 1, day))), `day ${day}`).toBe(true)
     }
+  })
+})
+
+describe('calendarBreakdown', () => {
+  const span = (a: string, b: string) => calendarBreakdown(parseDay(a), parseDay(b))
+
+  it('counts whole days below a month', () => {
+    expect(span('2026-08-11', '2026-08-12')).toEqual({ years: 0, months: 0, days: 1 })
+    expect(span('2026-08-11', '2026-08-18')).toEqual({ years: 0, months: 0, days: 7 })
+  })
+
+  it('splits months and days', () => {
+    expect(span('2026-05-10', '2026-08-12')).toEqual({ years: 0, months: 3, days: 2 })
+  })
+
+  it('splits years, months and days', () => {
+    expect(span('2025-06-09', '2026-08-12')).toEqual({ years: 1, months: 2, days: 3 })
+  })
+
+  it('inherits addMonths clamping at the end of a month', () => {
+    // 31 Jan → 28 Feb is one whole month, not 28 days.
+    expect(span('2026-01-31', '2026-02-28')).toEqual({ years: 0, months: 1, days: 0 })
+    expect(span('2026-01-31', '2026-03-02')).toEqual({ years: 0, months: 1, days: 2 })
+  })
+
+  it('reports an exact year with no remainder', () => {
+    expect(span('2026-03-01', '2027-03-01')).toEqual({ years: 1, months: 0, days: 0 })
+  })
+
+  it('is zero for the same day and symmetric when reversed', () => {
+    expect(span('2026-08-12', '2026-08-12')).toEqual({ years: 0, months: 0, days: 0 })
+    expect(span('2026-08-12', '2025-06-09')).toEqual(span('2025-06-09', '2026-08-12'))
   })
 })

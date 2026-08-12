@@ -53,6 +53,22 @@ export function daysBetween(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / DAY_MS)
 }
 
+// calendarBreakdown splits the span between two local-midnight days into
+// calendar years/months/days — the shape the History view's between-day labels
+// render ("1 year, 2 months and 3 days later").
+//
+// It walks the anchor forward with addMonths rather than subtracting date
+// fields, so it inherits that function's end-of-month clamp: 31 Jan → 28 Feb is
+// "1 month", not "28 days". The remainder goes through daysBetween, which
+// already rounds the odd DST hour away.
+export function calendarBreakdown(from: Date, to: Date): { years: number; months: number; days: number } {
+  if (to < from) return calendarBreakdown(to, from)
+  let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+  if (addMonths(from, months) > to) months--
+  const days = daysBetween(addMonths(from, months), to)
+  return { years: Math.floor(months / 12), months: months % 12, days }
+}
+
 export function sameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
