@@ -9,5 +9,13 @@
   "conflict": "Die Anfrage steht im Konflikt mit dem aktuellen Zustand — bitte neu laden und erneut versuchen.",
   "whiteboard_stale": "Dieses Whiteboard hat sich geändert, seit Sie es geöffnet haben.",
   "logo_unsupported": "Diese Datei ist kein unterstütztes Bild. Verwenden Sie PNG, JPEG, GIF, WebP oder SVG.",
-  "logo_too_large": "Dieses Bild ist zu groß. Das Anmelde-Logo darf höchstens 2 MB groß sein."
+  "logo_too_large": "Dieses Bild ist zu groß. Das Anmelde-Logo darf höchstens 2 MB groß sein.",
+  "fusion_not_running": "Autodesk Fusion läuft nicht auf Ihrem Computer.",
+  "fusion_wrong_hub": "Fusion ist bei einem anderen Hub angemeldet und kann dieses Dokument daher nicht sehen.",
+  "fusion_no_active_design": "In Fusion ist kein Entwurf geöffnet, in den eingefügt werden könnte.",
+  "fusion_failed": "Fusion konnte die Anfrage nicht abschließen.",
+  "archive_format_unavailable": "Autodesk kann von dieser Version kein Fusion-Archiv erstellen.",
+  "archive_expired": "Dieses Archiv ist bei Autodesk nicht mehr verfügbar. Versuchen Sie, es erneut zu erstellen.",
+  "archive_not_ready": "Dieses Archiv wird noch vorbereitet.",
+  "archive_already_running": "Ein Archiv dieses Dokuments wird bereits vorbereitet."
 }

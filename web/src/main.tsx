@@ -49,11 +49,12 @@ createRoot(document.getElementById('root')!).render(
         persister,
         maxAge: DAY,
         // Bump when query shapes change to invalidate stale persisted caches.
-        buster: 'fls-16',
+        buster: 'fls-17',
         dehydrateOptions: {
           // Persist only successful, non-volatile queries. Auth state must stay
           // fresh (and persisting it could briefly show a prior user's state);
-          // upload jobs are live server state and are re-polled on load; and
+          // upload and archive jobs are live server state (session-scoped, and
+          // dropped on restart) and are re-polled on load; and
           // chat, tasks, and production never persist — they're realtime,
           // per-user data that must not linger in shared-machine localStorage.
           // ('task' covers task/tasks/tasksMine; 'prod' covers
@@ -67,6 +68,7 @@ createRoot(document.getElementById('root')!).render(
             q.state.status === 'success' &&
             q.queryKey[0] !== 'authMe' &&
             q.queryKey[0] !== 'uploads' &&
+            q.queryKey[0] !== 'archives' &&
             !String(q.queryKey[0]).startsWith('chat') &&
             !String(q.queryKey[0]).startsWith('task') &&
             !String(q.queryKey[0]).startsWith('prod') &&

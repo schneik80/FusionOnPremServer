@@ -6,6 +6,7 @@
 import type {
   ActivityReport,
   AdminStatus,
+  ArchiveJob,
   AuthMe,
   BackupConfig,
   BackupList,
@@ -20,6 +21,9 @@ import type {
   Details,
   DiskUsage,
   DrawingRef,
+  FusionAction,
+  FusionActionResult,
+  FusionOutcome,
   FsDirs,
   GroupMember,
   HubOverview,
@@ -966,6 +970,52 @@ export const api = {
   // returns the refreshed list.
   dismissUploads: (id?: string) =>
     request<UploadJob[]>(`/api/uploads/dismiss${qs({ id })}`, { method: 'POST' }),
+
+  // Archives: background F3Z/F3D generation for a Fusion-native document.
+  // Same job-list shape as uploads — every write returns the whole refreshed
+  // list so the caller can set the cache rather than invalidating it.
+  archives: () => request<ArchiveJob[]>('/api/archives'),
+
+  createArchive: (args: {
+    hubId: string
+    dmProjectId: string
+    projectId?: string
+    projectName?: string
+    itemId: string
+    name?: string
+  }) => request<ArchiveJob[]>('/api/archives', { method: 'POST', body: JSON.stringify(args) }),
+
+  cancelArchive: (id: string) =>
+    request<ArchiveJob[]>(`/api/archives/cancel${qs({ id })}`, { method: 'POST' }),
+
+  dismissArchives: (id?: string) =>
+    request<ArchiveJob[]>(`/api/archives/dismiss${qs({ id })}`, { method: 'POST' }),
+
+  // archiveDownloadUrl is a same-origin attachment stream, used as an <a href>
+  // rather than fetched — the browser owns the transfer, and an F3Z is far too
+  // large to pull through JS. The server re-resolves the APS signed url per
+  // request, so this link keeps working for as long as the job is listed.
+  archiveDownloadUrl: (id: string) => `/api/archives/file${qs({ id })}`,
+
+  // Fusion desktop actions. fusionAction either performs the action (the
+  // server is on this machine) or hands back a fusionlocal:// URL to navigate
+  // to; fusionOutcome then reports what the helper managed to do.
+  fusionAction: (args: {
+    hubId: string
+    dmProjectId: string
+    projectId?: string
+    projectName?: string
+    itemId: string
+    name?: string
+    action: FusionAction
+  }) =>
+    request<FusionActionResult>('/api/fusion/action', {
+      method: 'POST',
+      body: JSON.stringify(args),
+    }),
+
+  fusionOutcome: (ticket: string) =>
+    request<FusionOutcome>(`/api/fusion/outcome${qs({ ticket })}`),
 
   // Notifications: the app-chrome bell's per-user, per-hub inbox. The server
   // is the sole author; these read, mark read, and dismiss.

@@ -26,6 +26,7 @@ import { ProductionScreen } from '../production/ProductionScreen'
 import { TasksScreen } from '../tasks/TasksScreen'
 import { BreadcrumbBar } from './BreadcrumbBar'
 import { BrowserStage } from './BrowserStage'
+import { FusionActionFeedback } from './DocumentActions'
 import { NavRail } from './NavRail'
 import { NotificationBell } from './notifications/NotificationBell'
 import { PinsDialog } from './PinsDialog'
@@ -180,6 +181,10 @@ export function AppLayout() {
       <UploadDialog />
       <UploadFooter />
       <UploadDropOverlay />
+      {/* App-wide, not per panel: an Open/Insert outlives the details panel
+          that started it, so its outcome has to land somewhere that is still
+          mounted when the helper finally reports. */}
+      <FusionActionFeedback />
     </Box>
   )
 }

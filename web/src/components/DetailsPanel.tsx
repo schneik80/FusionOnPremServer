@@ -46,8 +46,9 @@ import {
   useWhereUsed,
 } from '../api/queries'
 import type { ComponentRef, Details, DrawingRef, Item, LocalRef, Measure } from '../api/types'
-import { LOCAL_REF_KINDS } from '../api/types'
+import { FUSION_NATIVE_KINDS, LOCAL_REF_KINDS } from '../api/types'
 import { documentState, type DocumentState } from '../api/documentState'
+import { DocumentActions } from './DocumentActions'
 import { thumbnailSrc } from '../api/thumbnails'
 import { useNav } from '../state/nav'
 import { useGoToDocument } from '../state/goto'
@@ -274,6 +275,9 @@ function SelectedDetails({
               </Typography>
               {docState && <StateBadge state={docState} />}
               <Box sx={{ flex: 1 }} />
+              {/* Open / Insert / Archive — Fusion-native documents only; the
+                  component decides and renders nothing otherwise. */}
+              <DocumentActions item={item} projectAltId={projectAltId} />
               {debug && (
                 /* eslint-disable i18next/no-literal-string -- dev-only (meta.debug gated) */
                 <Tooltip title="Probe version/milestone fields (dev)">
@@ -525,11 +529,6 @@ function typeLabel(t: TFunction, kind: string, typename?: string, subtype?: stri
     subtype === 'assembly' ? t('details.subtypeAssembly') : subtype === 'part' ? t('details.subtypePart') : ''
   return sub ? t('details.typeWithSubtype', { base, sub }) : base
 }
-
-// Fusion-native document kinds. Their "extension" is an internal type marker
-// (redundant with the Type row), so the Extension row is hidden for them and
-// shown only for uploaded files like PDF, DXF, or PNG.
-const FUSION_NATIVE_KINDS = new Set(['design', 'configured', 'drawing', 'schematic', 'pcb', 'ecad'])
 
 // LabelGrid renders a two-column label/value grid, dropping empty rows.
 function LabelGrid({ rows }: { rows: Array<[string, ReactNode]> }) {

@@ -8,6 +8,7 @@ import { HubGate } from './components/HubGate'
 import { LoginScreen } from './components/LoginScreen'
 import { useColorMode } from './state/colorMode'
 import { useThemeOverrides } from './state/themeOverrides'
+import { FusionActionsProvider } from './state/fusionActions'
 import { NavProvider } from './state/nav'
 import { UploadsProvider } from './state/uploads'
 import { makeTheme } from './theme'
@@ -37,7 +38,9 @@ function Gate() {
   return (
     <NavProvider>
       <UploadsProvider>
-        <AppLayout />
+        <FusionActionsProvider>
+          <AppLayout />
+        </FusionActionsProvider>
       </UploadsProvider>
     </NavProvider>
   )

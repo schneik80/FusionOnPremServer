@@ -168,7 +168,23 @@
     "whereUsedTruncated": "affichage des {{count}} premières",
     "whereUsedLocalUnavailable": "Références locales indisponibles",
     "noActivityRecorded": "Aucune activité enregistrée",
-    "noDrawingsReference": "Aucun dessin ne référence cette conception"
+    "noDrawingsReference": "Aucun dessin ne référence cette conception",
+    "actions": {
+      "open": "Ouvrir dans Fusion",
+      "insert": "Insérer dans la conception Fusion active",
+      "archive": "Télécharger une archive",
+      "archiving": "Préparation de l’archive…"
+    },
+    "fusion": {
+      "openFailedTitle": "Impossible d’ouvrir dans Fusion",
+      "insertFailedTitle": "Impossible d’insérer dans Fusion",
+      "genericFailure": "Fusion n’a pas terminé la demande.",
+      "helperMissingTitle": "Aucune application d’assistance n’a répondu",
+      "helperMissingBody": "L’ouverture et l’insertion de documents nécessitent l’application d’assistance Fusion Local Server sur cet ordinateur. Installez-la, puis exécutez :",
+      "archiveFailedTitle": "Impossible de télécharger l’archive",
+      "archiveGenericFailure": "Autodesk n’a pas renvoyé l’archive."
+    },
+    "archiveGone": "Cette archive n’est plus disponible — générez-la à nouveau"
   },
   "permissions": {
     "selectDocument": "Sélectionnez un document dans un projet pour voir les accès",

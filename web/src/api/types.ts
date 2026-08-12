@@ -179,6 +179,25 @@ export type ItemKind =
   | 'ecad'
   | 'unknown'
 
+// Fusion-native document kinds — everything Fusion itself authored, as opposed
+// to a file someone uploaded (which is 'unknown'). Two things key off this: the
+// Extension row is hidden for them (their "extension" is an internal type
+// marker, redundant with the Type row), and the Open / Insert / Archive actions
+// are offered only for them.
+export const FUSION_NATIVE_KINDS: ReadonlySet<string> = new Set([
+  'design',
+  'configured',
+  'drawing',
+  'schematic',
+  'pcb',
+  'ecad',
+])
+
+// INSERTABLE_KINDS is narrower: Fusion inserts an occurrence into an open
+// design, which only makes sense for a 3D document. Asking it to insert a
+// drawing or a schematic would fail inside Fusion with an unhelpful message.
+export const INSERTABLE_KINDS: ReadonlySet<string> = new Set(['design', 'configured'])
+
 export interface Item {
   id: string
   name: string
@@ -583,6 +602,56 @@ export interface UploadJob {
   itemId?: string
   versionId?: string
   createdOn?: string
+}
+
+// ArchiveStatus mirrors server/archives.go. 'preparing' covers the whole APS
+// side — pick a format, create the download, poll it — because there is no
+// progress to report: APS tells us "queued", "processing" or "done", never a
+// percentage.
+export type ArchiveStatus = 'queued' | 'preparing' | 'ready' | 'error' | 'canceled'
+
+// ArchiveJob is one background archive generation (a Fusion design turned into
+// an F3Z/F3D by APS). fileType is empty until APS has said which native format
+// this version can actually produce; errorCode is a stable token the errors
+// catalog localizes.
+export interface ArchiveJob {
+  id: string
+  docName: string
+  fileName?: string
+  fileType?: string
+  status: ArchiveStatus | string
+  error?: string
+  errorCode?: string
+  hubId?: string
+  projectId?: string
+  dmProjectId?: string
+  itemId?: string
+  createdOn?: string
+}
+
+// FusionAction is what the SPA can ask the user's Fusion desktop client to do.
+export type FusionAction = 'open' | 'insert'
+
+// FusionActionResult mirrors server/handlers_fusion.go's FusionActionDTO.
+//
+// mode 'proxy' means the server and the browser are the same machine, so the
+// server already did it and ok/errorCode are final. mode 'launch' means the
+// action has to go through the helper app: navigate to url, then poll the
+// outcome by ticket.
+export interface FusionActionResult {
+  mode: 'proxy' | 'launch'
+  ticket?: string
+  url?: string
+  ok?: boolean
+  errorCode?: string
+}
+
+// FusionOutcome is the result of a launched action. 'pending' means the helper
+// hasn't reported yet — which is also what "the helper isn't installed" looks
+// like, since a URL-scheme navigation gives the page no feedback either way.
+export interface FusionOutcome {
+  status: 'pending' | 'ok' | 'error'
+  errorCode?: string
 }
 
 // Pin mirrors pins.Pin (snake_case json tags, unlike the camelCase DTOs).

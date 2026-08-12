@@ -168,7 +168,23 @@
     "whereUsedTruncated": "mostrati i primi {{count}}",
     "whereUsedLocalUnavailable": "Riferimenti locali non disponibili",
     "noActivityRecorded": "Nessuna attività registrata",
-    "noDrawingsReference": "Nessun disegno fa riferimento a questa progettazione"
+    "noDrawingsReference": "Nessun disegno fa riferimento a questa progettazione",
+    "actions": {
+      "open": "Apri in Fusion",
+      "insert": "Inserisci nel progetto Fusion attivo",
+      "archive": "Scarica un archivio",
+      "archiving": "Preparazione dell’archivio…"
+    },
+    "fusion": {
+      "openFailedTitle": "Impossibile aprire in Fusion",
+      "insertFailedTitle": "Impossibile inserire in Fusion",
+      "genericFailure": "Fusion non ha completato la richiesta.",
+      "helperMissingTitle": "Nessuna app di supporto ha risposto",
+      "helperMissingBody": "L’apertura e l’inserimento di documenti richiedono l’app di supporto Fusion Local Server su questo computer. Installala, quindi esegui:",
+      "archiveFailedTitle": "Impossibile scaricare l’archivio",
+      "archiveGenericFailure": "Autodesk non ha restituito l’archivio."
+    },
+    "archiveGone": "Questo archivio non è più disponibile: generalo di nuovo"
   },
   "permissions": {
     "selectDocument": "Seleziona un documento in un progetto per vederne gli accessi",

@@ -9,5 +9,13 @@
   "conflict": "La requête est en conflit avec l’état actuel — rechargez et réessayez.",
   "whiteboard_stale": "Ce tableau blanc a changé depuis son ouverture.",
   "logo_unsupported": "Ce fichier n'est pas une image prise en charge. Utilisez un PNG, JPEG, GIF, WebP ou SVG.",
-  "logo_too_large": "Cette image est trop volumineuse. Le logo de connexion ne doit pas dépasser 2 Mo."
+  "logo_too_large": "Cette image est trop volumineuse. Le logo de connexion ne doit pas dépasser 2 Mo.",
+  "fusion_not_running": "Autodesk Fusion n’est pas en cours d’exécution sur votre ordinateur.",
+  "fusion_wrong_hub": "Fusion est connecté à un autre hub et ne peut donc pas voir ce document.",
+  "fusion_no_active_design": "Aucune conception n’est ouverte dans Fusion pour y insérer l’élément.",
+  "fusion_failed": "Fusion n’a pas pu terminer la demande.",
+  "archive_format_unavailable": "Autodesk ne peut pas créer d’archive Fusion de cette version.",
+  "archive_expired": "Cette archive n’est plus disponible chez Autodesk. Essayez de la générer à nouveau.",
+  "archive_not_ready": "Cette archive est encore en cours de préparation.",
+  "archive_already_running": "Une archive de ce document est déjà en préparation."
 }

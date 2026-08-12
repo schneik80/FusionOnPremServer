@@ -58,7 +58,7 @@
   },
   "about": {
     "label": "À propos",
-    "buildNote": "L'ouverture/insertion dans Fusion et le téléchargement STEP ne sont pas encore disponibles dans cette version."
+    "buildNote": "Ouvrir, Insérer et Archiver sont disponibles pour les documents natifs Fusion."
   },
   "uptime": {
     "startedAt": "Démarré",
@@ -177,5 +177,11 @@
     "previewAlt": "Aperçu du logo de connexion",
     "details": "{{size}} Ko",
     "detailsSized": "{{width}} × {{height}} px · {{size}} Ko"
+  },
+  "helper": {
+    "label": "Assistant Fusion",
+    "localMode": "Ce navigateur se trouve sur le même ordinateur que le serveur : Ouvrir et Insérer fonctionnent sans rien installer.",
+    "remoteMode": "Ce navigateur n’est pas sur l’ordinateur du serveur : Ouvrir et Insérer nécessitent l’application d’assistance installée ici. Installez-la, puis exécutez :",
+    "help": "L’appairage est ce qui autorise ce serveur à piloter Fusion sur votre ordinateur ; rien d’autre ne le peut. Exécutez « fls-helper status » pour le vérifier."
   }
 }

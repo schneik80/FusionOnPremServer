@@ -4,7 +4,8 @@
     "title": "Notifications",
     "empty": "Vous êtes à jour",
     "markAllRead": "Tout marquer comme lu",
-    "dismiss": "Ignorer"
+    "dismiss": "Ignorer",
+    "downloadArchive": "Télécharger l’archive"
   },
   "text": {
     "mention": "{{actor}} vous a mentionné dans {{channel}}",
@@ -16,7 +17,11 @@
     "production": "{{actor}} a mis à jour « {{subject}} »",
     "production_noactor": "« {{subject}} » a changé",
     "chat_unread_one": "{{count}} nouveau message dans {{channel}}",
-    "chat_unread_other": "{{count}} nouveaux messages dans {{channel}}"
+    "chat_unread_other": "{{count}} nouveaux messages dans {{channel}}",
+    "archive": "L’archive de « {{subject}} » est prête",
+    "archive_failed": "Impossible de créer une archive de « {{subject}} »",
+    "fusion_failed_open": "Impossible d’ouvrir « {{subject}} » dans Fusion",
+    "fusion_failed_insert": "Impossible d’insérer « {{subject}} » dans Fusion"
   },
   "unknownUser": "Quelqu’un"
 }

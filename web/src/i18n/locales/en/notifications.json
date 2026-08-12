@@ -4,7 +4,8 @@
     "title": "Notifications",
     "empty": "You’re all caught up",
     "markAllRead": "Mark all as read",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "downloadArchive": "Download the archive"
   },
   "text": {
     "mention": "{{actor}} mentioned you in {{channel}}",
@@ -16,7 +17,11 @@
     "production": "{{actor}} updated “{{subject}}”",
     "production_noactor": "“{{subject}}” changed",
     "chat_unread_one": "{{count}} new message in {{channel}}",
-    "chat_unread_other": "{{count}} new messages in {{channel}}"
+    "chat_unread_other": "{{count}} new messages in {{channel}}",
+    "archive": "The archive of “{{subject}}” is ready",
+    "archive_failed": "Could not build an archive of “{{subject}}”",
+    "fusion_failed_open": "Could not open “{{subject}}” in Fusion",
+    "fusion_failed_insert": "Could not insert “{{subject}}” into Fusion"
   },
   "unknownUser": "Someone"
 }

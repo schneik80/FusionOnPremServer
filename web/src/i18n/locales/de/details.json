@@ -168,7 +168,23 @@
     "whereUsedTruncated": "zeigt die ersten {{count}}",
     "whereUsedLocalUnavailable": "Lokale Verweise nicht verfügbar",
     "noActivityRecorded": "Keine Aktivität erfasst",
-    "noDrawingsReference": "Keine Zeichnungen verweisen auf diese Konstruktion"
+    "noDrawingsReference": "Keine Zeichnungen verweisen auf diese Konstruktion",
+    "actions": {
+      "open": "In Fusion öffnen",
+      "insert": "In den aktiven Fusion-Entwurf einfügen",
+      "archive": "Archiv herunterladen",
+      "archiving": "Archiv wird vorbereitet …"
+    },
+    "fusion": {
+      "openFailedTitle": "Öffnen in Fusion nicht möglich",
+      "insertFailedTitle": "Einfügen in Fusion nicht möglich",
+      "genericFailure": "Fusion hat die Anfrage nicht abgeschlossen.",
+      "helperMissingTitle": "Keine Hilfsanwendung hat geantwortet",
+      "helperMissingBody": "Zum Öffnen und Einfügen von Dokumenten muss die Fusion-Local-Server-Hilfsanwendung auf diesem Computer installiert sein. Installieren Sie sie und führen Sie dann aus:",
+      "archiveFailedTitle": "Archiv konnte nicht heruntergeladen werden",
+      "archiveGenericFailure": "Autodesk hat das Archiv nicht zurückgegeben."
+    },
+    "archiveGone": "Dieses Archiv ist nicht mehr verfügbar – erstellen Sie es erneut"
   },
   "permissions": {
     "selectDocument": "Wählen Sie ein Dokument in einem Projekt, um den Zugriff zu sehen",

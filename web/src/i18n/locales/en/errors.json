@@ -9,5 +9,13 @@
   "conflict": "The request conflicts with the current state — reload and try again.",
   "whiteboard_stale": "This whiteboard changed since you opened it.",
   "logo_unsupported": "That file is not a supported image. Use a PNG, JPEG, GIF, WebP or SVG.",
-  "logo_too_large": "That image is too large. The sign-in logo must be 2 MB or smaller."
+  "logo_too_large": "That image is too large. The sign-in logo must be 2 MB or smaller.",
+  "fusion_not_running": "Autodesk Fusion is not running on your computer.",
+  "fusion_wrong_hub": "Fusion is signed in to a different hub, so it cannot see this document.",
+  "fusion_no_active_design": "Fusion has no design open to insert into.",
+  "fusion_failed": "Fusion could not complete the request.",
+  "archive_format_unavailable": "Autodesk cannot build a Fusion archive of this version.",
+  "archive_expired": "This archive is no longer available from Autodesk. Try generating it again.",
+  "archive_not_ready": "This archive is still being prepared.",
+  "archive_already_running": "An archive of this document is already being prepared."
 }

@@ -58,7 +58,7 @@
   },
   "about": {
     "label": "About",
-    "buildNote": "Fusion open/insert and STEP download are not yet available in this build."
+    "buildNote": "Open, Insert and Archive are available for Fusion-native documents."
   },
   "uptime": {
     "startedAt": "Started",
@@ -177,5 +177,11 @@
     "previewAlt": "Sign-in logo preview",
     "details": "{{size}} KB",
     "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
+  },
+  "helper": {
+    "label": "Fusion helper",
+    "localMode": "This browser is on the same computer as the server, so Open and Insert work with nothing installed.",
+    "remoteMode": "This browser is not on the server’s computer, so Open and Insert need the helper app installed here. Install it, then run:",
+    "help": "Pairing is what lets this server drive Fusion on your computer; nothing else can. Run “fls-helper status” to check it."
   }
 }

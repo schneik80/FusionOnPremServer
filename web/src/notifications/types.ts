@@ -11,7 +11,29 @@
 // cursors rather than stored: one row per channel with unread messages. It has
 // no store id, so it cannot be marked read or dismissed — reading the channel
 // is what clears it.
-export type NotifKind = 'mention' | 'assigned' | 'due_soon' | 'overdue' | 'production' | 'chat_unread'
+//
+// 'archive' / 'archive_failed' report a background F3Z/F3D generation, which
+// takes minutes — long enough that the user has usually navigated away, so the
+// bell is the only place the answer can reliably land. An 'archive' row carries
+// `ref` = "fls:archive?id=<jobId>", which the bell resolves to the download
+// endpoint. That token is notification-only and is deliberately NOT in the
+// card-token allow-list (components/reftokens.ts): it is never embedded in a
+// message body, and nothing should render it as a card.
+//
+// 'fusion_failed' reports an Open/Insert that did not work. There is no success
+// twin: when it works, Fusion coming to the front is the feedback, and a bell
+// badge per click would be noise. Its `ref` carries the action and the outcome
+// code as an enum token the client localizes.
+export type NotifKind =
+  | 'mention'
+  | 'assigned'
+  | 'due_soon'
+  | 'overdue'
+  | 'production'
+  | 'archive'
+  | 'archive_failed'
+  | 'fusion_failed'
+  | 'chat_unread'
 
 export interface NotifUser {
   id: string

@@ -168,7 +168,23 @@
     "whereUsedTruncated": "showing the first {{count}}",
     "whereUsedLocalUnavailable": "local references unavailable",
     "noActivityRecorded": "No activity recorded",
-    "noDrawingsReference": "No drawings reference this design"
+    "noDrawingsReference": "No drawings reference this design",
+    "actions": {
+      "open": "Open in Fusion",
+      "insert": "Insert into the active Fusion design",
+      "archive": "Download an archive",
+      "archiving": "Preparing the archive…"
+    },
+    "fusion": {
+      "openFailedTitle": "Could not open in Fusion",
+      "insertFailedTitle": "Could not insert into Fusion",
+      "genericFailure": "Fusion did not complete the request.",
+      "helperMissingTitle": "No helper app responded",
+      "helperMissingBody": "Opening and inserting documents needs the Fusion Local Server helper installed on this computer. Install it, then run:",
+      "archiveFailedTitle": "Could not download the archive",
+      "archiveGenericFailure": "Autodesk did not return the archive."
+    },
+    "archiveGone": "This archive is no longer available — generate it again"
   },
   "permissions": {
     "selectDocument": "Select a document within a project to see access",

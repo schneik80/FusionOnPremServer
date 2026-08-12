@@ -58,7 +58,7 @@
   },
   "about": {
     "label": "Info",
-    "buildNote": "Öffnen/Einfügen in Fusion und STEP-Download sind in diesem Build noch nicht verfügbar."
+    "buildNote": "Öffnen, Einfügen und Archivieren stehen für Fusion-eigene Dokumente zur Verfügung."
   },
   "uptime": {
     "startedAt": "Gestartet",
@@ -177,5 +177,11 @@
     "previewAlt": "Vorschau des Anmelde-Logos",
     "details": "{{size}} KB",
     "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
+  },
+  "helper": {
+    "label": "Fusion-Hilfsanwendung",
+    "localMode": "Dieser Browser läuft auf demselben Computer wie der Server – Öffnen und Einfügen funktionieren ohne Installation.",
+    "remoteMode": "Dieser Browser läuft nicht auf dem Servercomputer – Öffnen und Einfügen benötigen daher die hier installierte Hilfsanwendung. Installieren Sie sie und führen Sie dann aus:",
+    "help": "Die Kopplung erlaubt es diesem Server, Fusion auf Ihrem Computer zu steuern – sonst nichts. Mit „fls-helper status“ prüfen Sie sie."
   }
 }

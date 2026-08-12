@@ -58,7 +58,7 @@
   },
   "about": {
     "label": "Acerca de",
-    "buildNote": "Abrir/inserir no Fusion e a transferência de STEP ainda não estão disponíveis nesta compilação."
+    "buildNote": "Abrir, Inserir e Arquivar estão disponíveis para documentos nativos do Fusion."
   },
   "uptime": {
     "startedAt": "Iniciado",
@@ -177,5 +177,11 @@
     "previewAlt": "Pré-visualização do logótipo de início de sessão",
     "details": "{{size}} KB",
     "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
+  },
+  "helper": {
+    "label": "Auxiliar do Fusion",
+    "localMode": "Este navegador está no mesmo computador que o servidor, então Abrir e Inserir funcionam sem instalar nada.",
+    "remoteMode": "Este navegador não está no computador do servidor, portanto Abrir e Inserir exigem o aplicativo auxiliar instalado aqui. Instale-o e execute:",
+    "help": "O emparelhamento é o que permite que este servidor controle o Fusion no seu computador; nada mais consegue. Execute “fls-helper status” para verificar."
   }
 }

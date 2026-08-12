@@ -1205,8 +1205,18 @@ export const useNotifications = (enabled: boolean): UseQueryResult<NotificationL
     queryKey: ['notifs'],
     queryFn: () => api.notifications(),
     enabled,
+    // The interval is the FLOOR on how stale the bell can get, not how it
+    // normally learns things: writes this app makes itself invalidate ['notifs']
+    // as soon as they land (see FusionActionsProvider), and opening the bell
+    // refetches. 45s is the backstop for events that happen elsewhere — someone
+    // else's @mention — where nothing local can announce them.
     staleTime: 15_000,
     refetchInterval: enabled ? 45_000 : false,
+    // Opted in against the global default (main.tsx turns this off for the
+    // browsing queries, which are APS-quota'd). The inbox is one small local
+    // file read, and returning to the tab is exactly when a stale bell is most
+    // obvious.
+    refetchOnWindowFocus: enabled,
   })
 
 // useNotificationActions bundles the bell's writes: mark-read (a set of ids),

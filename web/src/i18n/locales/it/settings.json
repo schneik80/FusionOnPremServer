@@ -58,7 +58,7 @@
   },
   "about": {
     "label": "Informazioni",
-    "buildNote": "L'apertura/inserimento in Fusion e il download STEP non sono ancora disponibili in questa build."
+    "buildNote": "Apri, Inserisci e Archivia sono disponibili per i documenti nativi di Fusion."
   },
   "uptime": {
     "startedAt": "Avviato",
@@ -177,5 +177,11 @@
     "previewAlt": "Anteprima del logo di accesso",
     "details": "{{size}} KB",
     "detailsSized": "{{width}} × {{height}} px · {{size}} KB"
+  },
+  "helper": {
+    "label": "Assistente Fusion",
+    "localMode": "Questo browser si trova sullo stesso computer del server, quindi Apri e Inserisci funzionano senza installare nulla.",
+    "remoteMode": "Questo browser non si trova sul computer del server, quindi Apri e Inserisci richiedono l’app di supporto installata qui. Installala, quindi esegui:",
+    "help": "L’associazione è ciò che consente a questo server di controllare Fusion sul tuo computer; nient’altro può farlo. Esegui «fls-helper status» per verificarla."
   }
 }

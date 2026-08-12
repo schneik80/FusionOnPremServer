@@ -168,7 +168,23 @@
     "whereUsedTruncated": "mostrando las primeras {{count}}",
     "whereUsedLocalUnavailable": "Referencias locales no disponibles",
     "noActivityRecorded": "Sin actividad registrada",
-    "noDrawingsReference": "Ningún plano hace referencia a este diseño"
+    "noDrawingsReference": "Ningún plano hace referencia a este diseño",
+    "actions": {
+      "open": "Abrir en Fusion",
+      "insert": "Insertar en el diseño activo de Fusion",
+      "archive": "Descargar un archivo",
+      "archiving": "Preparando el archivo…"
+    },
+    "fusion": {
+      "openFailedTitle": "No se pudo abrir en Fusion",
+      "insertFailedTitle": "No se pudo insertar en Fusion",
+      "genericFailure": "Fusion no completó la solicitud.",
+      "helperMissingTitle": "Ninguna aplicación auxiliar respondió",
+      "helperMissingBody": "Abrir e insertar documentos requiere la aplicación auxiliar de Fusion Local Server en este equipo. Instálela y luego ejecute:",
+      "archiveFailedTitle": "No se pudo descargar el archivo",
+      "archiveGenericFailure": "Autodesk no devolvió el archivo."
+    },
+    "archiveGone": "Este archivo ya no está disponible: vuelva a generarlo"
   },
   "permissions": {
     "selectDocument": "Seleccione un documento dentro de un proyecto para ver el acceso",

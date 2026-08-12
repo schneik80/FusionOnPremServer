@@ -42,6 +42,10 @@ export function ConnectionTool({ active }: { active: boolean }) {
         </Typography>
       </Field>
 
+      <Field label={t('helper.label')}>
+        <HelperSetting />
+      </Field>
+
       <Field label={t('about.label')}>
         <Typography variant="caption" color="text.secondary">
           {t('about.buildNote')}
@@ -49,6 +53,54 @@ export function ConnectionTool({ active }: { active: boolean }) {
       </Field>
     </Stack>
   )
+}
+
+// HelperSetting explains what this browser needs in order to drive the Fusion
+// desktop client, and gives the exact two commands for it.
+//
+// It cannot detect whether the helper is installed — a URL-scheme registration
+// is invisible to a web page, by design — so it does not pretend to. What it
+// can say is whether the helper is needed at all: when the page is being served
+// from this same machine, the server talks to Fusion itself and there is
+// nothing to install. That is the question users actually ask.
+function HelperSetting() {
+  const { t } = useTranslation('settings')
+  const local = isLoopbackHost(window.location.hostname)
+
+  return (
+    <Stack spacing={1}>
+      <Typography variant="body2">
+        {local ? t('helper.localMode') : t('helper.remoteMode')}
+      </Typography>
+      {!local && (
+        <Box
+          component="pre"
+          sx={{
+            m: 0,
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor: 'action.hover',
+            fontFamily: 'monospace',
+            fontSize: 12,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}
+        >
+          {`fls-helper register\nfls-helper pair ${window.location.origin}`}
+        </Box>
+      )}
+      <Typography variant="caption" color="text.secondary">
+        {t('helper.help')}
+      </Typography>
+    </Stack>
+  )
+}
+
+// isLoopbackHost mirrors the server's own loopback test (handlers_fusion.go).
+// It is a display hint only — the server decides for real, on the connection,
+// because a client claim could be wrong or forged.
+function isLoopbackHost(host: string): boolean {
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]'
 }
 
 // HubSetting lists the user's hubs with the session's locked hub marked.
@@ -158,7 +210,9 @@ function PortSetting({ open }: { open: boolean }) {
           t={t}
           i18nKey="port.restarting"
           values={{ url: reconnectTo }}
-          components={{ lnk: <Box component="a" href={reconnectTo} sx={{ wordBreak: 'break-all' }} /> }}
+          components={{
+            lnk: <Box component="a" href={reconnectTo} sx={{ wordBreak: 'break-all' }} />,
+          }}
         />
       </Alert>
     )

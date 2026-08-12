@@ -9,5 +9,13 @@
   "conflict": "La solicitud entra en conflicto con el estado actual: recargue e inténtelo de nuevo.",
   "whiteboard_stale": "Esta pizarra ha cambiado desde que la abriste.",
   "logo_unsupported": "Ese archivo no es una imagen compatible. Utilice PNG, JPEG, GIF, WebP o SVG.",
-  "logo_too_large": "Esa imagen es demasiado grande. El logotipo de inicio de sesión no debe superar los 2 MB."
+  "logo_too_large": "Esa imagen es demasiado grande. El logotipo de inicio de sesión no debe superar los 2 MB.",
+  "fusion_not_running": "Autodesk Fusion no se está ejecutando en su equipo.",
+  "fusion_wrong_hub": "Fusion ha iniciado sesión en otro centro, por lo que no puede ver este documento.",
+  "fusion_no_active_design": "Fusion no tiene ningún diseño abierto en el que insertar.",
+  "fusion_failed": "Fusion no pudo completar la solicitud.",
+  "archive_format_unavailable": "Autodesk no puede crear un archivo de Fusion de esta versión.",
+  "archive_expired": "Este archivo ya no está disponible en Autodesk. Intente generarlo de nuevo.",
+  "archive_not_ready": "Este archivo todavía se está preparando.",
+  "archive_already_running": "Ya se está preparando un archivo de este documento."
 }

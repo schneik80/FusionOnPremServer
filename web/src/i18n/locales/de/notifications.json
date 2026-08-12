@@ -4,7 +4,8 @@
     "title": "Benachrichtigungen",
     "empty": "Alles erledigt",
     "markAllRead": "Alle als gelesen markieren",
-    "dismiss": "Entfernen"
+    "dismiss": "Entfernen",
+    "downloadArchive": "Archiv herunterladen"
   },
   "text": {
     "mention": "{{actor}} hat dich in {{channel}} erwähnt",
@@ -16,7 +17,11 @@
     "production": "{{actor}} hat „{{subject}}“ aktualisiert",
     "production_noactor": "„{{subject}}“ wurde geändert",
     "chat_unread_one": "{{count}} neue Nachricht in {{channel}}",
-    "chat_unread_other": "{{count}} neue Nachrichten in {{channel}}"
+    "chat_unread_other": "{{count}} neue Nachrichten in {{channel}}",
+    "archive": "Das Archiv von „{{subject}}“ ist fertig",
+    "archive_failed": "Archiv von „{{subject}}“ konnte nicht erstellt werden",
+    "fusion_failed_open": "„{{subject}}“ konnte nicht in Fusion geöffnet werden",
+    "fusion_failed_insert": "„{{subject}}“ konnte nicht in Fusion eingefügt werden"
   },
   "unknownUser": "Jemand"
 }
