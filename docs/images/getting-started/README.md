@@ -28,7 +28,7 @@ belongs to; drop the matching file in here and the guide renders complete.
 | 04 | `04-layout.png` | The whole app at a project root: header (hub name, bell, theme toggle, user), left rail, Projects/Contents column, project panel, breadcrumb. This is the orientation shot — everything visible at once. |
 | 05 | `05-browser-contents.png` | The Contents column inside a folder: type icons, thumbnails, a hovered row showing the pin star, with the sort menu open. |
 | 06 | `06-details-panel.png` | A selected design's details panel: thumbnail, name, lifecycle badge, metadata block, and the tab strip below it. |
-| 07 | `07-history-graph.png` | The History tab — the horizontal branch graph with several versions, ideally including a branch and a milestone marker. |
+| 07 | `07-history-graph.png` | The History tab — several day rows newest-first with alternating bands, ideally one multi-author day showing two tracks with identity avatars, a milestone dot, and an elapsed-time label ("3 months and 2 days later") between two rows. Redact real names. |
 | 08 | `08-activity-heatmap.png` | The Activity tab — the isometric heat map with a visible spread of activity and the day/week/month/year toggle. |
 | 09 | `09-relation-graph.png` | The Uses or Where Used tab — the pan/zoom relation graph with bezier edges and several nodes. |
 | 10 | `10-permissions.png` | The Permissions tab — the "With access" list showing groups and members by role, with the path-layers spine beside it. Redact real names. |

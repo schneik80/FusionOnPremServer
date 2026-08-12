@@ -256,7 +256,7 @@ Below that, the tabs vary by document kind:
 
 | Tab | What it shows |
 |---|---|
-| **History** | Version history drawn as a horizontal **branch graph** — lanes, merges, milestone markers |
+| **History** | Version history as a stack of **day rows**, newest first — each day on a 24-hour axis, one track per author, with elapsed-time labels between days and an optional cross-day thread |
 | **Activity** | An **isometric heat map** of the design's activity, with day/week/month/year windows and a prev/next stepper |
 | **Properties** | Physical/mass properties — mass, volume, surface area, density, bounding box |
 | **BOM** | Flat bill of materials — Component / Part № / Material / Qty |
@@ -267,7 +267,7 @@ Below that, the tabs vary by document kind:
 | **Preview** | For uploaded (non-Fusion) files: inline viewer for images, video, PDF, markdown, G-code, text and code, with a download fallback |
 
 <!-- SHOT 07 -->
-![The History branch graph](images/getting-started/07-history-graph.png)
+![The History day timeline](images/getting-started/07-history-graph.png)
 
 <!-- SHOT 08 -->
 ![The Activity isometric heat map](images/getting-started/08-activity-heatmap.png)

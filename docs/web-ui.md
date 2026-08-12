@@ -97,7 +97,7 @@ reads as a friendly label and, for designs, appends the classification —
 
 | Tab | Shows |
 |-----|-------|
-| **History** | Version history as a horizontal branch graph (lanes, milestone markers) |
+| **History** | Version history as a stack of day rows, newest first — a 24-hour clock axis per day, one track per author with an identity avatar, milestone/release markers on the dots, elapsed-time labels between days, and an optional cross-day thread |
 | **Activity** | An isometric heat map of design activity over time |
 | **Properties** | Physical/mass properties — mass, volume, surface area, density, bounding box |
 | **BOM** | Flat bill of materials — Component / Part № / Material / Qty (occurrence count) |

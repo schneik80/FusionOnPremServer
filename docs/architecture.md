@@ -324,7 +324,7 @@ The SPA (React 18 + Vite + TypeScript + MUI v6 + TanStack Query) is a single sta
 
 - **i18n** — i18next with six locales (`en` source of truth + `de`/`fr`/`es`/`it`/`pt`), semantic keys only, enum tokens via `src/i18n/enums.ts`, server error codes mapped by `src/i18n/apiError.ts`, and an eslint ratchet forbidding literal strings. Grapheme-safe text helpers live in `src/fmt/graphemes.ts`. See [`docs/i18n/STATUS.md`](i18n/STATUS.md).
 - **Settings console** — `components/settings/`, a master-detail dialog: Appearance (theme, language, custom colors — per hub), Connection (port, region, hub switch), Uptime, Logs, Backups (run/verify/restore/config), Data (disk usage, per-project deletion).
-- **Visualizations are hand-drawn inline SVG** (`RelationGraph`, `HistoryGraph`, `ActivityHeatmap`, the production flow canvas); the only chart library is one recharts donut. The only CSS file is `whiteboards/whiteboard.css`, which reskins tldraw — everything else is MUI `sx`.
+- **Visualizations are hand-drawn inline SVG** (`RelationGraph`, `history/HistoryTimeline`, `ActivityHeatmap`, the production flow canvas); the only chart library is one recharts donut. The only CSS file is `whiteboards/whiteboard.css`, which reskins tldraw — everything else is MUI `sx`.
 - **Shared inputs** — `components/DateField.tsx` is the app's date picker: a read-only field plus a hand-drawn month-grid popover, Monday-first in every locale so it agrees with the Gantt's calendar bands. There is no date library; the whole-day helpers live in `src/fmt/dates.ts` (re-exported by `tasks/gantt/ganttMath.ts`, their oldest caller).
 - **Hub-scoped client state** — theme mode, colors, and remembered hub key off the hub (`state/hubKeys.ts`); switching hubs runs a full teardown + reload (`state/teardown.ts`).
 
@@ -457,7 +457,9 @@ fusionlocalserver/
 │   ├── src/
 │   │   ├── api/             Typed request() wrapper + react-query hooks
 │   │   ├── components/      Browser columns, details tabs, graphs (RelationGraph,
-│   │   │                    HistoryGraph, ActivityHeatmap), HubGate, RefCard, viewers
+│   │   │                    ActivityHeatmap), HubGate, RefCard, viewers
+│   │   │   └── history/     Version-history day timeline (HistoryTimeline, DayRow,
+│   │   │                    ThreadOverlay, historyLayout)
 │   │   │   └── settings/    Settings console (Appearance, Connection, Uptime, Logs,
 │   │   │                    Backups, Data)
 │   │   ├── chat/ tasks/ wiki/ production/ whiteboards/   The five project apps
