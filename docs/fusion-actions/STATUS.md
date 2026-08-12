@@ -344,10 +344,13 @@ SPA's locale, and its message is the fallback for when nobody is watching the ta
 - **Code signing.** The macOS and Windows binaries are unsigned, so first run
   is quarantined / SmartScreen-flagged. This is the thing most likely to block
   adoption in practice, and it is not addressed here.
-- **The helper is untested on macOS and Windows.** It cross-compiles and its
-  shared logic is covered by tests, but scheme registration, the native
-  dialogs, and the `-H windowsgui` console reattachment have only ever run on
-  Linux.
+- **The helper is untested on macOS.** Scheme registration (the `.app` bundle
+  and `lsregister`) and the `osascript` dialog have only ever run on Linux.
+  **Windows is verified end to end** — registry registration, pairing with
+  certificate pinning, Open, Insert, every failure path, the unpaired-server
+  refusal, and both of the things that could only be reasoned about before:
+  `-H windowsgui` plus `AttachConsole` does let the CLI print, and a protocol
+  launch flashes no console window.
 - **The Fusion palette already knows Fusion is running.** Inside `embed.html`
   the add-in bridge (`web/src/embed/bridge.ts`) is a strictly better route than
   the helper — it is in-process. Out of scope here; the obvious follow-up.
