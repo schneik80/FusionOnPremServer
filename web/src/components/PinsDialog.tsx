@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowUpRightFromSquare,
+  faCirclePlus,
   faLocationArrow,
   faTrash,
 } from '@fortawesome/free-solid-svg-icons'
@@ -23,7 +24,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useProjects } from '../api/queries'
 import { usePinMutations, usePins } from '../api/queries'
-import type { Item, Pin } from '../api/types'
+import type { FusionAction, Item, Pin } from '../api/types'
+import { FUSION_NATIVE_KINDS, INSERTABLE_KINDS } from '../api/types'
+import { useFusionActions } from '../state/fusionActions'
 import { useNav } from '../state/nav'
 import { ItemIcon } from './entityIcons'
 import { RefTokenDialog, useRefTokenNavigate } from './RefTokenDialog'
@@ -160,16 +163,7 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                                 <FontAwesomeIcon icon={faLocationArrow} style={{ fontSize: 13 }} />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title={t('pins.openInsertSoon')}>
-                              <span>
-                                <IconButton size="small" disabled>
-                                  <FontAwesomeIcon
-                                    icon={faArrowUpRightFromSquare}
-                                    style={{ fontSize: 13 }}
-                                  />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
+                            <PinFusionActions pin={pin} />
                             <Tooltip title={t('pins.removePin')}>
                               <IconButton
                                 size="small"
@@ -194,7 +188,9 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                           secondary={pin.ref ? pin.project_name : undefined}
                           primaryTypographyProps={{ variant: 'body2', noWrap: true }}
                           secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
-                          sx={{ pr: 10 }}
+                          // Room for navigate + remove, plus whatever Fusion
+                          // buttons this pin earns.
+                          sx={{ pr: 10 + fusionActionCount(pin) * 3.5 }}
                         />
                       </ListItem>
                     ))}
@@ -211,5 +207,89 @@ export function PinsDialog({ open, onClose }: { open: boolean; onClose: () => vo
           who dismissed the list expects. */}
       {openToken && <RefTokenDialog token={openToken} onClose={() => setOpenToken(null)} />}
     </Dialog>
+  )
+}
+
+// fusionActionCount is how many Fusion buttons a pin shows: 0 for anything that
+// is not an addressable native document, 1 for Open, 2 with Insert. The row's
+// text reserve is computed from the same number, so the two can never disagree
+// and let a long name run under the buttons.
+//
+// Local records (pin.ref), projects and folders are not documents Fusion can
+// open; a pin with no captured project DM id cannot be addressed at all.
+function fusionActionCount(pin: Pin): number {
+  if (pin.ref || !pin.project_alt_id || !FUSION_NATIVE_KINDS.has(pin.kind)) return 0
+  return INSERTABLE_KINDS.has(pin.kind) ? 2 : 1
+}
+
+// PinFusionActions is Open (and, for a 3D design, Insert) on a document pin.
+// The pin list is the one place in the app that already knew where a document
+// lives without a lookup — it captured the project's DM id at pin time — so
+// these need no per-row APS call, which is the only reason a list can offer
+// them at all (see the no-fan-out rule in CLAUDE.md).
+//
+// The kind is trusted here, unlike on a card. A pin can only be created from a
+// browser row, and isPinnable (state/pins.ts) admits none of the kinds that a
+// listing gets wrong: 'unknown' is not pinnable, so a document pin is always a
+// Fusion-native one.
+function PinFusionActions({ pin }: { pin: Pin }) {
+  const { t } = useTranslation('browse')
+  const { runAction, pendingFor } = useFusionActions()
+
+  if (fusionActionCount(pin) === 0) return null
+
+  const item: Item = { id: pin.id, name: pin.name, kind: pin.kind, isContainer: false }
+  const pending = pendingFor(pin.id)
+  const run = (action: FusionAction) => void runAction(item, pin.project_alt_id!, action)
+
+  return (
+    <>
+      <PinActionButton
+        label={t('pins.openInFusion')}
+        icon={faArrowUpRightFromSquare}
+        busy={pending === 'open'}
+        disabled={pending !== null}
+        onClick={() => run('open')}
+      />
+      {INSERTABLE_KINDS.has(pin.kind) && (
+        <PinActionButton
+          label={t('pins.insertInFusion')}
+          icon={faCirclePlus}
+          busy={pending === 'insert'}
+          disabled={pending !== null}
+          onClick={() => run('insert')}
+        />
+      )}
+    </>
+  )
+}
+
+function PinActionButton({
+  label,
+  icon,
+  busy,
+  disabled,
+  onClick,
+}: {
+  label: string
+  icon: typeof faCirclePlus
+  busy: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <Tooltip title={label}>
+      {/* A disabled IconButton swallows pointer events, and the tooltip with
+          them — the span keeps the label reachable. */}
+      <span>
+        <IconButton size="small" aria-label={label} disabled={disabled} onClick={onClick}>
+          {busy ? (
+            <CircularProgress size={13} />
+          ) : (
+            <FontAwesomeIcon icon={icon} style={{ fontSize: 13 }} />
+          )}
+        </IconButton>
+      </span>
+    </Tooltip>
   )
 }
