@@ -46,7 +46,7 @@ import {
   useWhereUsed,
 } from '../api/queries'
 import type { ComponentRef, Details, DrawingRef, Item, LocalRef, Measure } from '../api/types'
-import { FUSION_NATIVE_KINDS, LOCAL_REF_KINDS } from '../api/types'
+import { FUSION_NATIVE_KINDS, LOCAL_REF_KINDS, kindFromTypename } from '../api/types'
 import { documentState, type DocumentState } from '../api/documentState'
 import { DocumentActions } from './DocumentActions'
 import { thumbnailSrc } from '../api/thumbnails'
@@ -157,7 +157,7 @@ export function DetailsPanel() {
 
 function SelectedDetails({
   hubId,
-  item,
+  item: selected,
   projectAltId,
 }: {
   hubId: string | null
@@ -166,6 +166,23 @@ function SelectedDetails({
 }) {
   const { t } = useTranslation('details')
   const nav = useNav()
+
+  // Whatever the caller believed this document's kind was, the details query's
+  // GraphQL typename settles it — and this panel decides everything off kind:
+  // which tabs exist, whether Open / Insert / Archive are offered, whether a
+  // thumbnail is even attempted.
+  //
+  // Callers get it wrong for real reasons, not carelessness: a card token
+  // captured a kind months ago, and the DM-backed hub browser derives one from
+  // the file extension, which a Fusion Team design does not have. Rather than
+  // trust each entry point to be right, this is the one place that has to be.
+  const detailsQ = useItemDetails(hubId, selected.id)
+  const resolvedKind = kindFromTypename(detailsQ.data?.typename) ?? selected.kind
+  const item = useMemo(
+    () => (resolvedKind === selected.kind ? selected : { ...selected, kind: resolvedKind }),
+    [selected, resolvedKind],
+  )
+
   const available = useMemo(() => tabsFor(item.kind), [item.kind])
   // Open the tab a cross-document jump requested (nav.selectedTab), if valid for
   // this item; else default to History. Read once at mount — this component
@@ -176,9 +193,11 @@ function SelectedDetails({
       : available[0],
   )
 
-  // Reset to a valid tab whenever the selected item (and thus its tab set)
-  // changes. key={item.id} already remounts this, but guard anyway. Falls back
-  // to the first available tab (Preview for uploaded files, else History).
+  // Reset to a valid tab whenever the tab set changes. Two things change it:
+  // a new selection (key={item.id} already remounts this, but guard anyway),
+  // and the kind resolving from the details query — a document that arrived
+  // hinted as an uploaded file and turned out to be a design starts on Preview
+  // and has to be moved off it. Falls back to the first available tab.
   useEffect(() => {
     if (!available.includes(tab)) setTab(available[0])
   }, [available, tab])
@@ -209,7 +228,6 @@ function SelectedDetails({
     didMount.current = true
   }, [])
 
-  const detailsQ = useItemDetails(hubId, item.id)
   const cvId = item.componentVersionId || detailsQ.data?.rootComponentVersionId
   // Lazy assembly/part classification (cached, shared with the Contents column);
   // used to refine the Type label to "3D Design — Assembly" / "… — Part".
