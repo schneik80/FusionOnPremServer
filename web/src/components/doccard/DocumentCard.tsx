@@ -1,15 +1,17 @@
-import { faDownload, faFileImage, faImage } from '@fortawesome/free-solid-svg-icons'
+import { faFileImage, faImage } from '@fortawesome/free-solid-svg-icons'
 import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { useItemDetails, useItemLocation } from '../../api/queries'
 import { thumbnailSrc } from '../../api/thumbnails'
+import { kindFromTypename } from '../../api/types'
 import { useGoToDocument } from '../../state/goto'
 import { useNav } from '../../state/nav'
 import { CardHostContext, EntityCard, type CardAction } from '../entitycard/EntityCard'
 import { docMeta } from '../entitycard/meta'
 import { iconForItem } from '../icons'
 import { viewerKindFor } from '../viewers/kind'
+import { useDocActions } from './docActions'
 import type { DocRef } from './docref'
 
 // DocumentCard is the unfurled form of a DocRef (see docref.ts): the shared
@@ -61,21 +63,22 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
         ? t('docCard.locating')
         : t('docCard.locationUnavailable')
 
-  // Only uploaded files have bytes to hand back. A native Fusion design is
-  // stored as a lineage the browser can't just save, so the action is offered
-  // disabled with a reason rather than silently missing.
+  // Open / Insert / Archive for a native document, a plain download for an
+  // uploaded file — the shared set, so a card in a chat message offers exactly
+  // what the details header does. A card from another hub gets none of it: the
+  // session is locked elsewhere and every one of these would 403.
   const altId = loc?.projectAltId
-  const canDownload = !otherHub && !!altId
-  const actions: CardAction[] = [
-    {
-      key: 'download',
-      icon: faDownload,
-      label: canDownload ? t('card.download') : t('card.downloadUnavailable'),
-      href: altId ? api.downloadUrl(altId, docRef.itemId, name) : undefined,
-      download: true,
-      disabled: !canDownload,
-    },
-  ]
+  const actions: CardAction[] = useDocActions(
+    otherHub
+      ? null
+      : {
+          itemId: docRef.itemId,
+          name,
+          kind,
+          kindPending: !details && detailsQ.isLoading,
+          dmProjectId: altId,
+        },
+  )
 
   // Whiteboard-only: an image-typed document offers "show as image" — the host
   // swaps this card's shape for a full, resizable image of the file's bytes.
@@ -114,22 +117,4 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
       selectable
     />
   )
-}
-
-// kindFromTypename maps the details query's GraphQL typename onto the app's
-// Item.kind vocabulary; null when details haven't loaded (caller falls back
-// to the token's hint).
-function kindFromTypename(typename?: string): string | null {
-  switch (typename) {
-    case 'DesignItem':
-      return 'design'
-    case 'DrawingItem':
-      return 'drawing'
-    case 'ConfiguredDesignItem':
-      return 'configured'
-    case 'BasicItem':
-      return 'unknown'
-    default:
-      return null
-  }
 }

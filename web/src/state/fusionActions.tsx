@@ -70,10 +70,14 @@ interface FusionActionsCtx {
   feedback: FusionFeedback | null
   dismissFeedback: () => void
 
-  /** start archiving a document; the bell announces completion */
-  startArchive: (item: Item, dmProjectId: string) => Promise<void>
+  /**
+   * Start archiving a document; the bell announces completion. versionId pins
+   * the archive to one version (a production card's) — omit it for the tip.
+   */
+  startArchive: (item: Item, dmProjectId: string, versionId?: string) => Promise<void>
   archives: ArchiveJob[]
-  archiveFor: (itemId: string) => ArchiveJob | undefined
+  /** the live job for this exact document version, if one is running */
+  archiveFor: (itemId: string, versionId?: string) => ArchiveJob | undefined
   /** is this archive job still on the server and downloadable? */
   archiveReady: (id: string) => boolean
   /** fetch a finished archive and save it; surfaces failures as feedback */
@@ -144,17 +148,32 @@ export function FusionActionsProvider({ children }: { children: ReactNode }) {
   }, [archives, qc])
 
   const startArchive = useCallback(
-    async (item: Item, dmProjectId: string) => {
+    async (item: Item, dmProjectId: string, versionId?: string) => {
       if (!hubId) return
-      const list = await api.createArchive({
-        hubId,
-        dmProjectId,
-        projectId,
-        projectName,
-        itemId: item.id,
-        name: item.name,
-      })
-      qc.setQueryData(['archives'], list)
+      try {
+        const list = await api.createArchive({
+          hubId,
+          dmProjectId,
+          projectId,
+          projectName,
+          itemId: item.id,
+          versionId,
+          name: item.name,
+        })
+        qc.setQueryData(['archives'], list)
+      } catch (e) {
+        // Only the request to our own server can fail here — generation itself
+        // is a background job that reports through the bell. Callers fire this
+        // and forget (there is nothing to await), so a rejection left to escape
+        // would be an unhandled one and the click would look like it did
+        // nothing. The code carries the reason (a hub gate, a duplicate job).
+        setFeedback({
+          kind: 'archive',
+          docName: item.name,
+          status: 'error',
+          code: e instanceof ApiError ? e.code : undefined,
+        })
+      }
     },
     [hubId, projectId, projectName, qc],
   )
@@ -173,8 +192,14 @@ export function FusionActionsProvider({ children }: { children: ReactNode }) {
     [qc],
   )
 
+  // Matched on the version as well as the document: the details header archives
+  // the tip and a production card archives the version it pinned, so a card
+  // must not show the other one's spinner — nor be disabled by it.
   const archiveFor = useCallback(
-    (itemId: string) => archives.find((j) => j.itemId === itemId && isActiveArchive(j)),
+    (itemId: string, versionId?: string) =>
+      archives.find(
+        (j) => j.itemId === itemId && (j.versionId ?? '') === (versionId ?? '') && isActiveArchive(j),
+      ),
     [archives],
   )
 

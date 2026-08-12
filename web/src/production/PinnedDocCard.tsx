@@ -1,8 +1,9 @@
-import { faDownload, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faTrash } from '@fortawesome/free-solid-svg-icons'
 import { useTranslation } from 'react-i18next'
-import { api } from '../api/client'
 import { useItemDetails } from '../api/queries'
 import { thumbnailSrc } from '../api/thumbnails'
+import { FUSION_NATIVE_KINDS, kindFromTypename } from '../api/types'
+import { useDocActions } from '../components/doccard/docActions'
 import { EntityCard, type CardAction, type CardBadge } from '../components/entitycard/EntityCard'
 import { docMeta } from '../components/entitycard/meta'
 import { iconForItem } from '../components/icons'
@@ -56,7 +57,6 @@ export function PinnedDocCard({
   const { t: tp } = useTranslation('production')
   const goTo = useGoToDocument()
   const [inViewRef, inView] = useInView<HTMLSpanElement>()
-  const kind = normalizeKind(doc.kind)
 
   // The tip lookup is one APS call PER CARD, so it waits for the row to near
   // the viewport — the same rule the item rows and thumbnails follow. Until it
@@ -65,6 +65,15 @@ export function PinnedDocCard({
   const details = detailsQ.data
   const tipVersion = details?.versionNumber
   const outdated = !!tipVersion && !!doc.versionNumber && tipVersion > doc.versionNumber
+
+  // The GraphQL typename is the kind; the snapshot's own field is only a hint.
+  // It has to be, because a pin supplied by the hub browser was kinded from the
+  // file EXTENSION (api/browse.go) and a Fusion Team design has none — so every
+  // design attached that way is stored as "unknown". Trusting that hint sent a
+  // click from a batch to the two-tab uploaded-file view instead of the design's
+  // own history, BOM and references, and hid Open, Insert and Archive with it.
+  const kind = normalizeKind(kindFromTypename(details?.typename) ?? doc.kind)
+  const kindPending = !details && detailsQ.isLoading
 
   // Version-accurate only: cvId renders the pinned version; no tip fallbacks.
   const thumb = doc.rootComponentVersionId
@@ -79,27 +88,42 @@ export function PinnedDocCard({
       : []),
   ]
 
-  const canDownload = !!doc.dmProjectId
+  // Open / Insert / Archive, or a plain download for an uploaded file — the
+  // same set every document card offers. The archive is pinned to the version
+  // this card shows: the badge says v{n}, so the file it hands back has to be
+  // v{n} and not whatever the lineage tip has become since.
+  //
+  // Open and Insert cannot be pinned that way — Fusion opens a lineage, and
+  // opens it at its tip. That is Fusion's own behaviour, not something this
+  // card can qualify, so it is left alone rather than dressed up.
+  const docActions = useDocActions({
+    itemId: doc.itemId,
+    name: doc.name,
+    kind,
+    kindPending,
+    dmProjectId: doc.dmProjectId,
+    versionId: doc.versionId,
+  })
   const actions: CardAction[] = [
-    {
-      key: 'download',
-      icon: faDownload,
-      label: canDownload ? t('card.download') : t('card.downloadUnavailable'),
-      href: canDownload ? api.downloadUrl(doc.dmProjectId!, doc.itemId, doc.name) : undefined,
-      download: true,
-      disabled: !canDownload,
-    },
+    ...docActions,
     ...(onRemove
       ? [{ key: 'remove', icon: faTrash, label: t('card.remove'), onClick: onRemove, danger: true }]
       : []),
   ]
 
-  // Ask for Preview explicitly. DetailsPanel validates the request against the
-  // kind's available tabs and falls back to available[0], so a design pin still
-  // lands on History (designs have no preview tab) — this only makes the intent
-  // survive any future reordering of tabsFor().
+  // Ask for Preview only where a Preview exists. DetailsPanel validates the
+  // request against the kind's available tabs, so a native design lands on its
+  // own default (History) rather than being pointed at a tab it does not have.
+  //
+  // No componentVersionId: navigating means "take me to this document", and the
+  // panel is a view of the lineage, not of a pin. Handing it the pinned cvId
+  // would draw this version's thumbnail, properties and BOM under the tip's
+  // version number — a mix of two versions in one panel.
   const navigate = () => {
-    void goTo({ itemId: doc.itemId, name: doc.name, kind }, { tab: 'preview' })
+    void goTo(
+      { itemId: doc.itemId, name: doc.name, kind },
+      { tab: FUSION_NATIVE_KINDS.has(kind) ? undefined : 'preview' },
+    )
   }
 
   return (

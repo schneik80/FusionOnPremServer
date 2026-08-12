@@ -976,12 +976,16 @@ export const api = {
   // list so the caller can set the cache rather than invalidating it.
   archives: () => request<ArchiveJob[]>('/api/archives'),
 
+  // versionId is optional and pins the archive to one version — a production
+  // card asks for the version it froze, so the file it hands back matches the
+  // v{n} badge on its face. Omit it and APS archives the lineage tip.
   createArchive: (args: {
     hubId: string
     dmProjectId: string
     projectId?: string
     projectName?: string
     itemId: string
+    versionId?: string
     name?: string
   }) => request<ArchiveJob[]>('/api/archives', { method: 'POST', body: JSON.stringify(args) }),
 

@@ -198,6 +198,32 @@ export const FUSION_NATIVE_KINDS: ReadonlySet<string> = new Set([
 // drawing or a schematic would fail inside Fusion with an unhelpful message.
 export const INSERTABLE_KINDS: ReadonlySet<string> = new Set(['design', 'configured'])
 
+// kindFromTypename maps the details query's GraphQL typename onto Item.kind.
+// Returns null when details haven't loaded, so the caller can fall back to
+// whatever hint it holds.
+//
+// This is the app's source of truth for a document's kind, and every card that
+// was handed a kind by something else has to consult it. The hints are not
+// reliable: a token captures the kind at insert time, and the DM-backed hub
+// browser (api/browse.go) recovers a kind from the file EXTENSION — which a
+// Fusion design in Fusion Team does not have, so it lists as 'unknown'. A card
+// that trusts that hint offers a design the uploaded-file treatment: a preview
+// tab instead of history/BOM/references, and no Open, Insert or Archive.
+export function kindFromTypename(typename?: string): string | null {
+  switch (typename) {
+    case 'DesignItem':
+      return 'design'
+    case 'DrawingItem':
+      return 'drawing'
+    case 'ConfiguredDesignItem':
+      return 'configured'
+    case 'BasicItem':
+      return 'unknown'
+    default:
+      return null
+  }
+}
+
 export interface Item {
   id: string
   name: string
@@ -626,6 +652,8 @@ export interface ArchiveJob {
   projectId?: string
   dmProjectId?: string
   itemId?: string
+  /** set only when the job was pinned to one version (a production card's) */
+  versionId?: string
   createdOn?: string
 }
 
