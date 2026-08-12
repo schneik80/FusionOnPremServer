@@ -55,6 +55,22 @@ const (
 	KindDueSoon    = "due_soon"   // a task assigned to you is due within the window
 	KindOverdue    = "overdue"    // a task assigned to you is past its due date
 	KindProduction = "production" // a production job/batch you own changed
+	// KindArchive / KindArchiveFailed announce a background archive job
+	// (Fusion design → F3Z/F3D). Generation takes minutes, so the bell is the
+	// only place the answer can reliably land: the user has usually navigated
+	// away by the time APS finishes. KindArchive carries an fls:archive?id=
+	// Ref the bell resolves to the download endpoint — a notification-only
+	// token, never embedded in a message body, so it is deliberately absent
+	// from the card-token allow-list in web/src/components/reftokens.ts.
+	KindArchive       = "archive"
+	KindArchiveFailed = "archive_failed"
+	// KindFusionFailed reports that a helper-driven Open/Insert did not work
+	// (Fusion closed, wrong hub, nothing open to insert into). There is no
+	// success twin on purpose: when it works, Fusion itself is the feedback,
+	// and a bell badge per click would be noise. The SPA still learns about
+	// success immediately by polling the ticket outcome — this entry exists so
+	// a FAILURE isn't lost when the user has already navigated away.
+	KindFusionFailed = "fusion_failed"
 	// KindChatUnread is DERIVED at inbox-read time from chat's read cursors,
 	// never stored: one row per channel with unread messages. It is not accepted
 	// by Add — validKind below deliberately excludes it — because a stored copy
@@ -64,7 +80,8 @@ const (
 
 func validKind(k string) bool {
 	switch k {
-	case KindMention, KindAssigned, KindDueSoon, KindOverdue, KindProduction:
+	case KindMention, KindAssigned, KindDueSoon, KindOverdue, KindProduction,
+		KindArchive, KindArchiveFailed, KindFusionFailed:
 		return true
 	}
 	return false
