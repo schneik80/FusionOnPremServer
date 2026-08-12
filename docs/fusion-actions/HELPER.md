@@ -51,11 +51,15 @@ Pick the one for your machine:
 
 (Or build them yourself: `make helper` writes all six into `dist/`.)
 
-Put it somewhere permanent before registering it — the registration records the
-path it was at, so moving it afterwards breaks the link. Sensible homes:
+**Rename it to `fls-helper`** (`fls-helper.exe` on Windows) and put it somewhere
+permanent before registering it — the registration records the path *and the
+name* it was at, so renaming or moving it afterwards breaks the link. Sensible
+homes:
 
-- **Windows** — `%LOCALAPPDATA%\Programs\fls-helper\fls-helper.exe`
-- **macOS / Linux** — `/usr/local/bin/fls-helper` (`chmod +x` it)
+- **Windows** — rename to `fls-helper.exe`, at
+  `%LOCALAPPDATA%\Programs\fls-helper\fls-helper.exe`
+- **macOS / Linux** — rename to `fls-helper`, at `/usr/local/bin/fls-helper`
+  (`chmod +x` it)
 
 > **The binaries are not code-signed.** macOS will quarantine the file on first
 > run (right-click → Open, or `xattr -d com.apple.quarantine fls-helper`), and

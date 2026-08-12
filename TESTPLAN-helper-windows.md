@@ -73,14 +73,20 @@ Settings → Connection → **Fusion helper**.
 ### 1.1 Copy the binary
 
 From the Linux box, `dist/fls-helper-windows-amd64.exe` (use `-arm64` on
-Snapdragon hardware). Put it somewhere permanent **before registering** — the
-registration records the path it was at:
+Snapdragon hardware). **Rename it to `fls-helper.exe`** and put it somewhere
+permanent — every command below invokes it by that name:
 
-```
-%LOCALAPPDATA%\Programs\fls-helper\fls-helper.exe
+```powershell
+mkdir "$env:LOCALAPPDATA\Programs\fls-helper" -Force
+copy <source>\fls-helper-windows-amd64.exe "$env:LOCALAPPDATA\Programs\fls-helper\fls-helper.exe"
 ```
 
-- [ ] copied
+- [ ] copied **and renamed**
+
+> Both must happen **before phase 2**. `register` records the path *and the name*
+> the binary was at, so renaming it afterwards leaves the registry pointing at a
+> file that no longer exists — and a `fusionlocal://` launch that fails with no
+> console and no window to read it in.
 
 ### 1.2 First run — SmartScreen
 
@@ -90,8 +96,15 @@ Open **PowerShell** and `cd` to that folder.
 .\fls-helper.exe version
 ```
 
-- [ ] SmartScreen warned (expected — unsigned). "More info" → "Run anyway"
+- [ ] SmartScreen warned, *or* did not — see below. If it did: "More info" →
+      "Run anyway"
 - [ ] **prints** `fls-helper v0.1.0-205-gdbfc3fa`
+
+> **No SmartScreen warning is not a failure.** The binaries are unsigned, but
+> the warning is triggered by the mark-of-the-web, which only a browser download
+> attaches. A copy that arrived by file share, `scp`, or a sync client
+> (Dropbox, OneDrive) carries no `Zone.Identifier` stream and starts silently.
+> Check which you have with `Get-Item <path> -Stream *`.
 
 > **This is test #1 and the one most likely to fail.** The binary is linked as a
 > GUI app so protocol launches do not flash a console, and `AttachConsole`
