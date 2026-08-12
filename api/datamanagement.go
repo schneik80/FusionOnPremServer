@@ -60,6 +60,17 @@ func dmGet(ctx context.Context, token, fullURL string) ([]byte, error) {
 	return body, nil
 }
 
+// noRedirectClient shares httpClient's connection pool but stops at the first
+// redirect instead of following it. The archive-generation job (archive.go)
+// signals completion with a 303 whose Location names the finished download —
+// following it would throw away the one bit we are polling for.
+var noRedirectClient = &http.Client{
+	Transport: httpClient.Transport,
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
 // GetItemTipVersion returns the Data Management tip *version* URN for an item
 // lineage id (urn:adsk.wipprod:dm.lineage:…). This is exactly what the Model
 // Derivative API needs to render a thumbnail (see GetVersionThumbnail).

@@ -30,8 +30,11 @@ type ItemDetails struct {
 	// RESERVED — no API source today; populate it when release data becomes
 	// available so the UI's document-state badge can show "Released - Rev X".
 	Revision string
-	// RootComponentVersionID is the id of tipRootComponentVersion — required
-	// as the componentVersionId argument when requesting a STEP derivative.
+	// RootComponentVersionID is the id of tipRootComponentVersion — the
+	// componentVersionId argument for the MFGDM component-version calls
+	// (thumbnails today; a STEP derivative if one is ever added). Note that the
+	// *native* archive path does not use it: api/archive.go works in the Data
+	// Management id space, off the item's tip version urn.
 	RootComponentVersionID string
 	// Version history (most recent first)
 	Versions []VersionSummary
