@@ -38,6 +38,34 @@ Event vocabulary on the wire: `message.created/updated/deleted`,
 (Phases 1–3 checkpoints were verified when those phases landed; see git
 history around the `feat: project chat phase N` commits.)
 
+## Render failures are contained per message (2026-08-12)
+
+The chat pane had no error boundary, so an uncaught render error anywhere in
+the message list unmounted the whole subtree — React tears down the entire tree
+on a render throw. The symptom was a **blank panel with nothing said**, and it
+split by data rather than by code: a project with no messages rendered nothing
+that could throw and looked fine, while a project with history rendered every
+avatar and every `fls:` card and did not. Reported first from the Fusion
+palette, where a blank frame is the entire diagnostic.
+
+`components/ErrorBoundary` gained a `compact` form (an inline row rather than a
+centred panel) and is now wired in twice, deliberately at two depths:
+
+- **Per message** (`MessageList`), keyed on `seq` — one bad message is a
+  contained row and the conversation around it still reads.
+- **Per card token** (`ChatBody`) — a card that cannot render costs only
+  itself, so the sentence it sits in, and the other cards in the same message,
+  survive. This is the layer most likely to throw on old history: a token is a
+  durable reference to something that may since have been deleted, renamed or
+  moved.
+
+Both surface `error.message` on screen, which matters in the palette where
+there is no console to read `componentDidCatch` output.
+
+This contains the blast radius; it does not fix whatever throws. Note the
+`fls:` renderers in `wiki/Markdown.tsx` have the same exposure and are not yet
+wrapped.
+
 ## Open questions carried forward
 
 - **Resolved — group-only members** (PLAN.md open question 3). Users whose
