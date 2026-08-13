@@ -82,7 +82,9 @@
   },
   "thread": {
     "title": "Fil de discussion",
+    "titleIn": "Fil · #{{channel}}",
     "close": "fermer le fil",
+    "back": "retour aux messages",
     "notFound": "Fil de discussion introuvable.",
     "replyPlaceholder": "Répondre…"
   },

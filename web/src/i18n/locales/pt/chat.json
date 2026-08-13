@@ -82,7 +82,9 @@
   },
   "thread": {
     "title": "Fio de conversa",
+    "titleIn": "Tópico · #{{channel}}",
     "close": "fechar o fio",
+    "back": "voltar às mensagens",
     "notFound": "Fio de conversa não encontrado.",
     "replyPlaceholder": "Responder…"
   },

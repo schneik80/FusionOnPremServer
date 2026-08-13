@@ -82,7 +82,9 @@
   },
   "thread": {
     "title": "Thread",
+    "titleIn": "Thread · #{{channel}}",
     "close": "close thread",
+    "back": "back to messages",
     "notFound": "Thread not found.",
     "replyPlaceholder": "Reply…"
   },
