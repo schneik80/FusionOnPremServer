@@ -11,6 +11,7 @@ import { splitMentions } from '../notifications/mentions'
 import { TaskCard } from '../components/taskcard/TaskCard'
 import { WhiteboardCard } from '../components/whiteboardcard/WhiteboardCard'
 import { ImageCard } from '../components/imgcard/ImageCard'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { REACTION_EMOJI, type ChatCaps, type ChatMessage } from './types'
 import { fmtChatTime } from './fmt'
 
@@ -37,6 +38,7 @@ export function MessageList({
   onDelete: (seq: number) => void
   onToggleReaction: (seq: number, emoji: string, on: boolean) => void
 }) {
+  const { t } = useTranslation('chat')
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const pinnedRef = useRef(true)
 
@@ -59,17 +61,26 @@ export function MessageList({
           {emptyText}
         </Typography>
       )}
+      {/* One boundary per message, not one around the list.
+          A message body is stored data whose shape we don't fully control — it
+          carries fls: card tokens written by older builds, and a card renderer
+          that throws on one of them used to unmount the entire chat pane. React
+          tears down the whole tree on an uncaught render error, so the symptom
+          was a blank panel with nothing said: a project with no messages worked
+          and a project with history did not. Per message, a bad one shows as a
+          contained row and the conversation around it still reads. */}
       {messages.map((m) => (
-        <MessageRow
-          key={m.seq}
-          msg={m}
-          meId={meId}
-          canModerate={caps.moderate}
-          canReact={caps.post}
-          onOpenThread={onOpenThread}
-          onDelete={onDelete}
-          onToggleReaction={onToggleReaction}
-        />
+        <ErrorBoundary key={m.seq} compact label={t('message.label')} resetKey={String(m.seq)}>
+          <MessageRow
+            msg={m}
+            meId={meId}
+            canModerate={caps.moderate}
+            canReact={caps.post}
+            onOpenThread={onOpenThread}
+            onDelete={onDelete}
+            onToggleReaction={onToggleReaction}
+          />
+        </ErrorBoundary>
       ))}
     </Box>
   )
@@ -121,26 +132,34 @@ function MentionChip({ name }: { name: string }) {
 // HTML/markdown; a card is a React component, not injected markup, so the
 // XSS posture is unchanged).
 function ChatBody({ body }: { body: string }) {
+  const { t } = useTranslation('chat')
   const parts = useMemo(() => splitRefTokens(body), [body])
   return (
     <>
-      {parts.map((p, i) =>
-        'doc' in p ? (
-          <DocumentCard key={i} docRef={p.doc} />
-        ) : 'task' in p ? (
-          <TaskCard key={i} taskRef={p.task} />
-        ) : 'batch' in p ? (
-          <ProductionCard key={i} jobRef={p.batch} batchRef={p.batch} />
-        ) : 'job' in p ? (
-          <ProductionCard key={i} jobRef={p.job} />
-        ) : 'whiteboard' in p ? (
-          <WhiteboardCard key={i} whiteboardRef={p.whiteboard} />
-        ) : 'img' in p ? (
-          <ImageCard key={i} imgRef={p.img} />
-        ) : (
-          <MentionText key={i} text={p.text} />
-        ),
-      )}
+      {parts.map((p, i) => (
+        // A second boundary, inside the per-message one, so a card that cannot
+        // render costs only itself: the sentence around it, and the other cards
+        // in the same message, still read. A token is a durable reference to
+        // something that may since have been deleted, renamed or moved between
+        // projects, so this is the layer most likely to throw on old history.
+        <ErrorBoundary key={i} compact label={t('card.label')} resetKey={body}>
+          {'doc' in p ? (
+            <DocumentCard docRef={p.doc} />
+          ) : 'task' in p ? (
+            <TaskCard taskRef={p.task} />
+          ) : 'batch' in p ? (
+            <ProductionCard jobRef={p.batch} batchRef={p.batch} />
+          ) : 'job' in p ? (
+            <ProductionCard jobRef={p.job} />
+          ) : 'whiteboard' in p ? (
+            <WhiteboardCard whiteboardRef={p.whiteboard} />
+          ) : 'img' in p ? (
+            <ImageCard imgRef={p.img} />
+          ) : (
+            <MentionText text={p.text} />
+          )}
+        </ErrorBoundary>
+      ))}
     </>
   )
 }

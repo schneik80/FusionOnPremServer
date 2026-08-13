@@ -77,7 +77,8 @@
     "replyInThread": "Im Thread antworten",
     "delete": "Nachricht löschen",
     "replies_one": "{{count}} Antwort",
-    "replies_other": "{{count}} Antworten"
+    "replies_other": "{{count}} Antworten",
+    "label": "Nachricht"
   },
   "thread": {
     "title": "Thread",
@@ -101,5 +102,8 @@
     "clear": "Alles löschen",
     "attach": "Anhängen",
     "cancel": "Abbrechen"
+  },
+  "card": {
+    "label": "Karte"
   }
 }

@@ -77,7 +77,8 @@
     "replyInThread": "Responder no fio",
     "delete": "Eliminar mensagem",
     "replies_one": "{{count}} resposta",
-    "replies_other": "{{count}} respostas"
+    "replies_other": "{{count}} respostas",
+    "label": "elemento"
   },
   "thread": {
     "title": "Fio de conversa",
@@ -101,5 +102,8 @@
     "clear": "Limpar tudo",
     "attach": "Anexar",
     "cancel": "Cancelar"
+  },
+  "card": {
+    "label": "elemento"
   }
 }
