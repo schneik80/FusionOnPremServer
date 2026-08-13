@@ -77,7 +77,8 @@
     "replyInThread": "Rispondi nel thread",
     "delete": "Elimina messaggio",
     "replies_one": "{{count}} risposta",
-    "replies_other": "{{count}} risposte"
+    "replies_other": "{{count}} risposte",
+    "label": "messaggio"
   },
   "thread": {
     "title": "Thread",
@@ -101,5 +102,8 @@
     "clear": "Cancella tutto",
     "attach": "Allega",
     "cancel": "Annulla"
+  },
+  "card": {
+    "label": "scheda"
   }
 }

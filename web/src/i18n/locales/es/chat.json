@@ -77,7 +77,8 @@
     "replyInThread": "Responder en hilo",
     "delete": "Eliminar mensaje",
     "replies_one": "{{count}} respuesta",
-    "replies_other": "{{count}} respuestas"
+    "replies_other": "{{count}} respuestas",
+    "label": "mensaje"
   },
   "thread": {
     "title": "Hilo",
@@ -101,5 +102,8 @@
     "clear": "Borrar todo",
     "attach": "Adjuntar",
     "cancel": "Cancelar"
+  },
+  "card": {
+    "label": "elemento"
   }
 }

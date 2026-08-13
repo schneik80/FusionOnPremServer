@@ -14,6 +14,12 @@ interface Props {
   label: string
   /** changing this resets the boundary (e.g. selecting a different board) */
   resetKey?: string
+  /**
+   * Render as one inline row rather than a centred full-region panel. Use when
+   * the boundary wraps an ITEM in a list — a chat message, a card — where the
+   * rest of the list should carry on around the failure.
+   */
+  compact?: boolean
 }
 
 interface State {
@@ -43,6 +49,40 @@ class ErrorBoundaryInner extends Component<Props & WithTranslation, State> {
   render() {
     const { t } = this.props
     if (!this.state.error) return this.props.children
+
+    // Inline form: one muted row that names what failed and shows the error,
+    // so a single bad item in a list is legible in place instead of taking the
+    // whole list down with it.
+    if (this.props.compact) {
+      return (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 1,
+            px: 1,
+            py: 0.75,
+            my: 0.25,
+            borderRadius: 1,
+            border: 1,
+            borderColor: 'divider',
+            bgcolor: 'action.hover',
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 600, flexShrink: 0 }}>
+            {t('errorBoundary.failed', { label: this.props.label })}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
+          >
+            {this.state.error.message || t('errorBoundary.unexpected')}
+          </Typography>
+        </Box>
+      )
+    }
+
     return (
       <Box
         sx={{
