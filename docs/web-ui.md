@@ -15,10 +15,11 @@ On load the SPA probes `GET /api/auth/me`:
 
 - **Loading** — a centered spinner while the probe is in flight.
 - **Signed out** — the **login screen**: a "Sign in with Autodesk" button that
-  navigates to `/api/auth/login`. The server redirects to Autodesk; after you
-  consent it redirects back, sets your session cookie, and the app loads. If a
-  sign-in attempt fails, the server returns to `/?auth_error=<reason>` and the
-  login screen shows a readable message.
+  navigates to `/api/auth/login`, carrying wherever you were in `?next=` so a
+  permalink (or a Fusion deep link) survives the round trip. The server
+  redirects to Autodesk; after you consent it redirects back, sets your session
+  cookie, and the app loads. If a sign-in attempt fails, the server returns to
+  `/?auth_error=<reason>` and the login screen shows a readable message.
 - **Signed in** — the hub gate, or the app if your session is already locked
   to a hub.
 
@@ -47,6 +48,36 @@ Settings → Connection** and performs a full teardown and reload (caches
 cleared, page reloaded on the new hub — no re-sign-in needed). The hub's name
 in the header is a shortcut: clicking it opens Settings directly on the
 Connection tool.
+
+## Opening from Fusion
+
+The FusionProjectChat add-in's **Open Web App** command launches this app in
+the system browser, on the project the active Fusion document belongs to:
+
+```
+https://<server>/?dmHubId=…&dmProjectId=…&projectName=…
+```
+
+Fusion knows only **Data Management** ids; every route here is keyed by the
+**GraphQL** ids. So that URL is not a permalink, it is a request for one. A
+gate ahead of the hub gate resolves it (`GET /api/resolve/project` — the same
+call the chat palette makes), locks the session to that project's hub, and
+rewrites the URL to the ordinary `?hub=…&proj=…` permalink before the app
+mounts. Nothing downstream ever sees a DM id, and the deep link is *replaced*,
+not pushed: it is a launcher, not a place to go back to.
+
+Three ways it can go other than straight through:
+
+- **Signed out** — the login button carries the link across the OAuth round
+  trip, so you land on the project rather than the home page.
+- **Session on another hub** — a switch is session-wide, so the gate asks
+  first, and on yes runs the same teardown as Settings → Connection, reloading
+  at the same link on the new hub.
+- **Not resolvable** — no hub or project matching those ids for this account:
+  the gate says which, and offers to continue into the app without it.
+
+`projectName` is a display hint so the gate can name the project while the
+resolve is in flight; the ids are what decide anything.
 
 ## Layout
 
