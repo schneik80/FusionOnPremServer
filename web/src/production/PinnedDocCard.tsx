@@ -1,6 +1,6 @@
 import { faTrash } from '@fortawesome/free-solid-svg-icons'
 import { useTranslation } from 'react-i18next'
-import { useItemDetails } from '../api/queries'
+import { useCachedSubtype, useItemDetails } from '../api/queries'
 import { thumbnailSrc } from '../api/thumbnails'
 import { FUSION_NATIVE_KINDS, kindFromTypename } from '../api/types'
 import { useDocActions } from '../components/doccard/docActions'
@@ -80,6 +80,12 @@ export function PinnedDocCard({
     ? thumbnailSrc({ kind: 'design', cvId: doc.rootComponentVersionId })
     : null
 
+  // Assembly-or-part for the icon, but only from an answer someone already
+  // paid APS for. A pinned version is rarely the one a browse row classified,
+  // so this usually stays "" — and the part mark is the right thing to draw
+  // when the shape of the design is unknown.
+  const subtype = useCachedSubtype(doc.rootComponentVersionId)
+
   const badges: CardBadge[] = [
     { label: t('card.pinnedVersion', { num: doc.versionNumber || '?' }), tone: 'accent' },
     ...(asRun ? [{ label: t('card.asRun'), tone: 'warn' as const, title: t('card.asRunHint') }] : []),
@@ -132,8 +138,8 @@ export function PinnedDocCard({
         title={doc.name}
         subtitle={tp('pinnedDoc.pinned')}
         thumbUrl={thumb}
-        icon={iconForItem({ kind } as Item)}
-        iconItem={{ kind }}
+        icon={iconForItem({ kind, subtype } as Item)}
+        iconItem={{ kind, subtype }}
         badges={badges}
         // The back face describes the PINNED version, not the tip: its date and
         // author must match the v{n} badge on the front.

@@ -63,14 +63,19 @@ The hybrid artwork ships anyway so the set is complete the day a signal exists.
 `intentForSubtype` never returns it, and `intentArt.test.ts` asserts that — the
 assertion is deliberately the thing that has to change first.
 
-### Assembly-vs-part reaches browse rows only
+### Assembly-vs-part is best-effort, never paid for twice
 
 `Item.subtype` arrives empty from the listing API and is refined by
-`useClassify` — one APS call per design row, gated on the row nearing the
-viewport. **APS is quota'd, so nothing else may issue that call.** Browse rows
-(`ItemRow`) are therefore the one surface that shows the assembly mark; every
-other surface passes an empty subtype and draws the part mark, exactly as it
-drew `faCube` before.
+`useClassify`, one APS call per design row, gated on the row nearing the
+viewport. **APS is quota'd, so nothing else may issue that call.** Surfaces
+that want the assembly mark but are not browse rows — document cards, pinned
+production documents, Where-Used graph nodes, the details panel's nav rows —
+use `useCachedSubtype` (`web/src/api/queries.ts`), which reads a result already
+in the react-query cache with `enabled: false` and never fetches. On a miss
+they draw the part mark, which is what they drew before.
+
+`['classify', …]` keys are excluded from the localStorage persister, so those
+free upgrades are session-scoped.
 
 ## Still FontAwesome
 

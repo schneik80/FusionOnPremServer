@@ -2,7 +2,7 @@ import { faFileImage, faImage } from '@fortawesome/free-solid-svg-icons'
 import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
-import { useItemDetails, useItemLocation } from '../../api/queries'
+import { useCachedSubtype, useItemDetails, useItemLocation } from '../../api/queries'
 import { thumbnailSrc } from '../../api/thumbnails'
 import { kindFromTypename } from '../../api/types'
 import { useGoToDocument } from '../../state/goto'
@@ -54,6 +54,9 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
   if (!thumb && isImageFile && loc?.projectAltId) {
     thumb = api.fileUrl(loc.projectAltId, docRef.itemId, name)
   }
+  // Assembly-or-part only if some browse row already paid for the classify
+  // call; this never issues one of its own.
+  const subtype = useCachedSubtype(details?.rootComponentVersionId)
 
   const location = otherHub
     ? t('docCard.otherHub')
@@ -98,8 +101,8 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
       title={name}
       subtitle={location}
       thumbUrl={thumb}
-      icon={isImageFile ? faFileImage : iconForItem({ kind, subtype: '' })}
-      iconItem={isImageFile ? undefined : { kind, subtype: '' }}
+      icon={isImageFile ? faFileImage : iconForItem({ kind, subtype })}
+      iconItem={isImageFile ? undefined : { kind, subtype }}
       meta={docMeta(t, details)}
       metaLoading={detailsQ.isLoading}
       actions={otherHub ? undefined : actions}

@@ -5,6 +5,7 @@ import { useTheme } from '@mui/material/styles'
 import { useQuery } from '@tanstack/react-query'
 import { faArrowsToDot, faMagnifyingGlassMinus, faMagnifyingGlassPlus } from '@fortawesome/free-solid-svg-icons'
 import { api } from '../api/client'
+import { useCachedSubtype } from '../api/queries'
 import { thumbnailSrc } from '../api/thumbnails'
 import { ToolBtn } from './canvas/ToolBtn'
 import { useNav } from '../state/nav'
@@ -292,6 +293,9 @@ function NodeBox({
 }) {
   const { t } = useTranslation('details')
   const canNav = !node.isFocus && (!!node.navId || !!node.openable)
+  // Free only: the Uses/Where-Used tabs that open this graph classify nothing,
+  // so a node draws the part mark unless a browse row already asked APS.
+  const subtype = useCachedSubtype(node.cvId)
 
   const badges: CardBadge[] =
     node.count && node.count > 1
@@ -318,8 +322,8 @@ function NodeBox({
         title={node.name}
         subtitle={node.isFocus ? t('relation.thisDocument') : (node.kindLabel ?? node.kind)}
         thumbUrl={thumbnailSrc({ kind: node.kind, cvId: node.cvId, itemId: node.navId, projectAltId })}
-        icon={iconForItem({ kind: node.kind, subtype: '' })}
-        iconItem={{ kind: node.kind, subtype: '' }}
+        icon={iconForItem({ kind: node.kind, subtype })}
+        iconItem={{ kind: node.kind, subtype }}
         badges={badges}
         tooltip={tooltip}
         // The focus is the subject of the view, not a destination; a soft

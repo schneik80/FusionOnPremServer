@@ -305,6 +305,17 @@ export const useClassify = (cvId: string | undefined): UseQueryResult<Classify> 
     staleTime: Infinity,
   })
 
+// useCachedSubtype reads a classify result already in the cache and never
+// fetches one. Cards want the assembly mark too, but APS is quota'd and a card
+// list is a fan-out — so a card takes the answer for free if a browse row has
+// already asked (the result is cached forever), and otherwise draws the part
+// mark, exactly as it did before. Session-scoped: 'classify' keys are excluded
+// from the localStorage persister.
+export const useCachedSubtype = (cvId: string | undefined): string => {
+  const q = useQuery<Classify>({ queryKey: ['classify', cvId], enabled: false })
+  return q.data?.subtype ?? ''
+}
+
 // useThumbnail fetches a component version's thumbnail. APS generates it
 // asynchronously, so the first response may be PENDING with no URL; poll every
 // 2s until the status settles on SUCCESS or FAILED.

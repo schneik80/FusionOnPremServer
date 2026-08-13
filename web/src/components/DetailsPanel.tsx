@@ -31,6 +31,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
   useBOM,
+  useCachedSubtype,
   useClassify,
   useCustomProperties,
   useDescendants,
@@ -1129,6 +1130,8 @@ function NavRowIcon({
 }) {
   const [failed, setFailed] = useState(false)
   const src = thumbnailSrc({ kind, cvId, itemId, projectAltId })
+  // Only if the answer is already cached — these rows never classify.
+  const subtype = useCachedSubtype(cvId)
   if (src && !failed) {
     return (
       <ListItemIcon sx={{ minWidth: 36 }}>
@@ -1144,7 +1147,7 @@ function NavRowIcon({
   }
   return (
     <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
-      <ItemIcon item={{ kind }} style={{ fontSize: 16 }} />
+      <ItemIcon item={{ kind, subtype }} style={{ fontSize: 16 }} />
     </ListItemIcon>
   )
 }
