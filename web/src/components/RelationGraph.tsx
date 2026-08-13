@@ -319,6 +319,7 @@ function NodeBox({
         subtitle={node.isFocus ? t('relation.thisDocument') : (node.kindLabel ?? node.kind)}
         thumbUrl={thumbnailSrc({ kind: node.kind, cvId: node.cvId, itemId: node.navId, projectAltId })}
         icon={iconForItem({ kind: node.kind, subtype: '' })}
+        iconItem={{ kind: node.kind, subtype: '' }}
         badges={badges}
         tooltip={tooltip}
         // The focus is the subject of the view, not a destination; a soft

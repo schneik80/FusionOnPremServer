@@ -5,6 +5,8 @@ import { Box, CircularProgress, IconButton, Tooltip, Typography } from '@mui/mat
 import { alpha } from '@mui/material/styles'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { Item } from '../../api/types'
+import { ItemIcon } from '../entityIcons'
 import { CONNECTOR_OPACITY, RING_W } from '../graphstyle'
 
 // EntityCard is THE card. Every link-preview card in the app is one of these:
@@ -105,6 +107,7 @@ export function EntityCard({
   strikeTitle,
   thumbUrl,
   icon,
+  iconItem,
   iconColor,
   badges,
   meta,
@@ -124,6 +127,13 @@ export function EntityCard({
   strikeTitle?: boolean
   thumbUrl?: string | null
   icon: IconDefinition
+  /**
+   * A hub item to draw through ItemIcon instead of `icon`, so a card shows the
+   * same artwork a browse row does — the Fusion design-intent marks, the hub
+   * and project brand glyphs. Cards whose subject is not a hub item (a task, a
+   * batch) pass `icon` alone.
+   */
+  iconItem?: Pick<Item, 'kind' | 'subtype'>
   iconColor?: string
   badges?: CardBadge[]
   /** Back-face rows. Empty/omitted hides the details action. */
@@ -285,6 +295,8 @@ export function EntityCard({
             onError={() => setThumbFailed(true)}
             sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
           />
+        ) : iconItem ? (
+          <ItemIcon item={iconItem} style={{ fontSize: 24 }} />
         ) : (
           <FontAwesomeIcon icon={icon} style={{ fontSize: 24 }} />
         )}

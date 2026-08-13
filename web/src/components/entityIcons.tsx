@@ -1,18 +1,21 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { CSSProperties } from 'react'
 import type { Item } from '../api/types'
-import { iconForItem } from './icons'
+import { GLYPH_BASE, iconForItem } from './icons'
+import { DesignIntentIcon } from './intentIcons'
 
 // Custom brand glyphs for the two top-level entities, hub and project. They
 // stand in for FontAwesome's faBuilding / faDiagramProject, and are drawn to be
 // drop-in replacements for `<FontAwesomeIcon>`: sized at 1em (so a parent's
 // fontSize controls them) and painted in currentColor (so they inherit `color`
-// exactly as an FA glyph does). Every kind other than hub/project still comes
-// from iconForItem, via the ItemIcon router below.
+// exactly as an FA glyph does). A Fusion 3D design gets its own artwork too —
+// the design-intent marks in intentIcons.tsx, which are fixed-colour rather
+// than currentColor. Every other kind still comes from iconForItem, via the
+// ItemIcon router below.
 
-// FA renders its glyphs with a slight baseline drop; match it so a custom icon
-// swapped in beside FA text sits on the same line.
-const BASE: CSSProperties = { display: 'inline-block', verticalAlign: '-0.125em' }
+// GLYPH_BASE is the baseline nudge that lines a hand-drawn glyph up with an FA
+// one. It lives in ./icons — the one icon module with no JSX — so intentIcons
+// can share it without the two files importing each other.
 
 interface GlyphProps {
   style?: CSSProperties
@@ -30,7 +33,7 @@ export function ProjectIcon({ style, className }: GlyphProps) {
       height="1em"
       fill="none"
       className={className}
-      style={{ ...BASE, ...style }}
+      style={{ ...GLYPH_BASE, ...style }}
       aria-hidden
     >
       <g stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -59,7 +62,7 @@ export function HubIcon({ style, className }: GlyphProps) {
       height="1em"
       fill="none"
       className={className}
-      style={{ ...BASE, ...style }}
+      style={{ ...GLYPH_BASE, ...style }}
       aria-hidden
     >
       <path
@@ -73,9 +76,10 @@ export function HubIcon({ style, className }: GlyphProps) {
 }
 
 // ItemIcon is the single funnel for a row/entity glyph: the brand marks for hub
-// and project, and iconForItem's FontAwesome glyph for everything else. Swapped
-// in wherever a `<FontAwesomeIcon icon={iconForItem(item)}>` used to render, so
-// the new marks appear everywhere an item's kind is shown.
+// and project, the Fusion design-intent mark for a design, and iconForItem's
+// FontAwesome glyph for everything else. Swapped in wherever a
+// `<FontAwesomeIcon icon={iconForItem(item)}>` used to render, so the new marks
+// appear everywhere an item's kind is shown.
 export function ItemIcon({
   item,
   style,
@@ -87,5 +91,7 @@ export function ItemIcon({
 }) {
   if (item.kind === 'hub') return <HubIcon style={style} className={className} />
   if (item.kind === 'project') return <ProjectIcon style={style} className={className} />
+  if (item.kind === 'design')
+    return <DesignIntentIcon subtype={item.subtype} style={style} className={className} />
   return <FontAwesomeIcon icon={iconForItem(item)} style={style} className={className} />
 }

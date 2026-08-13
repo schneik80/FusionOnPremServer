@@ -14,11 +14,20 @@ import {
   faMicrochip,
   faPenRuler,
 } from '@fortawesome/free-solid-svg-icons'
+import type { CSSProperties } from 'react'
 import type { Item } from '../api/types'
+
+// FontAwesome renders its glyphs with a slight baseline drop; a hand-drawn
+// glyph has to match it so the two sit on the same line side by side. Lives
+// here, the one icon module with no JSX, so both entityIcons.tsx and
+// intentIcons.tsx can share it without importing each other.
+export const GLYPH_BASE: CSSProperties = { display: 'inline-block', verticalAlign: '-0.125em' }
 
 // iconForItem picks a glyph from kind + (for designs) the async-refined
 // subtype. An unclassified design falls back to the generic cube until its
-// classify query resolves to assembly (cubes) or part (cube).
+// classify query resolves to assembly (cubes) or part (cube) — though rendering
+// normally goes through ItemIcon, which draws a design with the Fusion
+// design-intent artwork instead and only reaches here for the other kinds.
 export function iconForItem(item: Pick<Item, 'kind' | 'subtype'>): IconDefinition {
   switch (item.kind) {
     case 'hub':

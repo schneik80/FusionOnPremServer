@@ -133,6 +133,7 @@ export function PinnedDocCard({
         subtitle={tp('pinnedDoc.pinned')}
         thumbUrl={thumb}
         icon={iconForItem({ kind } as Item)}
+        iconItem={{ kind }}
         badges={badges}
         // The back face describes the PINNED version, not the tip: its date and
         // author must match the v{n} badge on the front.

@@ -99,6 +99,7 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
       subtitle={location}
       thumbUrl={thumb}
       icon={isImageFile ? faFileImage : iconForItem({ kind, subtype: '' })}
+      iconItem={isImageFile ? undefined : { kind, subtype: '' }}
       meta={docMeta(t, details)}
       metaLoading={detailsQ.isLoading}
       actions={otherHub ? undefined : actions}
