@@ -24,8 +24,10 @@ import { channelRefFrom, encodeChannelRef } from '../components/chatcard/chanref
 import { PinStar } from '../components/PinStar'
 import { useNav } from '../state/nav'
 import { useLocalPin } from '../state/pins'
+import { useElementWidth } from '../components/useElementWidth'
 import { ChannelMenu } from './ChannelMenu'
 import { ChannelSidebar } from './ChannelSidebar'
+import { isCompact } from './chatLayout'
 import { MessageComposer } from './MessageComposer'
 import { MessageList } from './MessageList'
 import { ThreadPanel } from './ThreadPanel'
@@ -59,6 +61,15 @@ export function ChatApp({
   const meId = useAuthMe().data?.user?.id ?? ''
   const [railOpen, setRailOpen] = useState(!collapsibleChannels)
 
+  // Whether a thread can sit BESIDE the message list is a question about the
+  // space this pane was given, not about who is hosting it: the Fusion palette
+  // is resizable and a desktop project panel narrows with the window. Measuring
+  // the container means the palette needs no special-casing — EmbedApp passes
+  // nothing for this — and the desktop app gets the same treatment when it is
+  // squeezed. See chatLayout.ts for the arithmetic.
+  const [paneRef, paneW] = useElementWidth<HTMLDivElement>()
+  const compact = isCompact(paneW, railOpen)
+
   const channelsQ = useChatChannels(projectId, active, live)
   const channels = channelsQ.data?.channels ?? []
   const caps = channelsQ.data?.capabilities ?? NO_CAPS
@@ -77,6 +88,9 @@ export function ChatApp({
     channels[0] ??
     null
   const archived = !!current?.archivedAt
+  // Too narrow to split: the thread takes the whole pane and the message list
+  // steps aside behind a back arrow.
+  const threadPage = compact && threadRoot !== null
 
   // The thread panel closes when switching channels.
   useEffect(() => {
@@ -154,7 +168,11 @@ export function ChatApp({
   for (const n of unread.values()) unreadTotal += n
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0 }}>
+    <Box ref={paneRef} sx={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0 }}>
+      {/* The rail stays put in page mode — only its toggle hides (below), so
+          `back` has one meaning. Hiding the rail itself would also make
+          isCompact lie: it subtracts APP_RAIL_WIDTH from the space the columns
+          share, and that has to describe what is actually on screen. */}
       {railOpen && (
         <ChannelSidebar
           projectId={projectId}
@@ -168,7 +186,20 @@ export function ChatApp({
           }}
         />
       )}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+      {/* Hidden, not unmounted, while a thread page is up: MessageList keeps
+          its scroll position in a ref and re-pins to the bottom on mount, so
+          unmounting would snap the reader back to the newest message every time
+          they read a thread and came back. Same move AppLayout makes for its
+          browser/tasks/production panes. */}
+      <Box
+        sx={{
+          flex: 1,
+          display: threadPage ? 'none' : 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          minHeight: 0,
+        }}
+      >
         {current && (
           <Stack
             direction="row"
@@ -176,7 +207,7 @@ export function ChatApp({
             alignItems="baseline"
             sx={{ px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider' }}
           >
-            {collapsibleChannels && (
+            {collapsibleChannels && !threadPage && (
               <Tooltip title={t('header.channels')}>
                 <IconButton
                   size="small"
@@ -266,6 +297,8 @@ export function ChatApp({
           meId={meId}
           caps={caps}
           archived={archived}
+          variant={threadPage ? 'page' : 'panel'}
+          channelName={current.name}
           onClose={() => setThreadRoot(null)}
           onSend={(body, root) => send(body, root)}
           onDelete={doDelete}

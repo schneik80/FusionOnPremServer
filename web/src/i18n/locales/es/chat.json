@@ -82,7 +82,9 @@
   },
   "thread": {
     "title": "Hilo",
+    "titleIn": "Hilo · #{{channel}}",
     "close": "cerrar hilo",
+    "back": "volver a los mensajes",
     "notFound": "Hilo no encontrado.",
     "replyPlaceholder": "Responder…"
   },
