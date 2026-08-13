@@ -1,5 +1,8 @@
 {
   "connecting": "Connexion à {{name}}…",
+  "deepLink": {
+    "continue": "Continuer sans le projet"
+  },
   "noContext": {
     "title": "Aucun contexte de projet",
     "body": "Cette page s'ouvre via la commande « Project Chat » dans Fusion. Ouvrez une conception appartenant à un projet Fusion Team, puis relancez la commande."

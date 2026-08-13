@@ -1,5 +1,8 @@
 {
   "connecting": "Verbinde mit {{name}}…",
+  "deepLink": {
+    "continue": "Ohne Projekt fortfahren"
+  },
   "noContext": {
     "title": "Kein Projektkontext",
     "body": "Diese Seite wird über den Befehl „Project Chat“ in Fusion geöffnet. Öffnen Sie eine Konstruktion aus einem Fusion-Team-Projekt und führen Sie den Befehl erneut aus."

@@ -63,10 +63,14 @@ createRoot(document.getElementById('root')!).render(
           // whenever the Settings console opens; 'notif' covers the bell's
           // per-user inbox + unread count, which are realtime and per-user;
           // 'localRefs' is the Where-Used graph's local sources, which read
-          // all of the above and inherit the same posture.)
+          // all of the above and inherit the same posture; 'resolveProject' is
+          // the Fusion deep link's id resolution, whose answer reports the
+          // session's CURRENT hub lock — the gate branches on that, so a
+          // day-old copy would send it down the wrong path.)
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
             q.queryKey[0] !== 'authMe' &&
+            q.queryKey[0] !== 'resolveProject' &&
             q.queryKey[0] !== 'uploads' &&
             q.queryKey[0] !== 'archives' &&
             !String(q.queryKey[0]).startsWith('chat') &&

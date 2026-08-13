@@ -37,6 +37,19 @@ function authErrorKey(reason: string): string {
   }
 }
 
+// signInUrl carries the current location across the OAuth round trip, so a
+// permalink — or the Fusion add-in's ?dmHubId=…&dmProjectId=… deep link —
+// still lands where it pointed after signing in. auth_error is dropped: it
+// belongs to the attempt that just failed, not the next one. The server
+// sanitizes next down to a same-origin path (sanitizeNext in server/auth.go).
+function signInUrl(): string {
+  const p = new URLSearchParams(window.location.search)
+  p.delete('auth_error')
+  const search = p.toString()
+  const next = window.location.pathname + (search ? `?${search}` : '')
+  return next === '/' ? '/api/auth/login' : `/api/auth/login?next=${encodeURIComponent(next)}`
+}
+
 export function LoginScreen() {
   const { t } = useTranslation('browse')
   // /api/meta is public, which is what makes this possible before sign-in.
@@ -121,7 +134,7 @@ export function LoginScreen() {
             variant="contained"
             size="large"
             fullWidth
-            onClick={() => window.location.assign('/api/auth/login')}
+            onClick={() => window.location.assign(signInUrl())}
           >
             {t('login.signInButton')}
           </Button>
