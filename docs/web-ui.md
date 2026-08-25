@@ -269,8 +269,7 @@ Selecting a card reveals its action bar. A document card carries **Navigate**
 to a metadata back face), and the same Fusion actions as the details header:
 **Open**, **Insert** and **Archive** on a Fusion-native document, or a plain
 **Download** on an uploaded file. A production card's Archive is pinned to the
-version on its badge. See
-[`docs/fusion-actions/STATUS.md`](fusion-actions/STATUS.md).
+version on its badge.
 
 ## Settings console
 

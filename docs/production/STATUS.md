@@ -180,7 +180,7 @@ picks whether `+` creates a step or a decision.
   `PinnedDocCard` renders a pin with its exact version badge, jumps to the
   document via `useGoToDocument`, and carries the shared Fusion actions —
   **Open**, **Insert**, and an **Archive pinned to the version on the badge**
-  (`docs/fusion-actions/STATUS.md`).
+  (`web/src/components/doccard/docActions.ts`).
 
   It resolves the document's **kind from the GraphQL typename**, never from the
   kind stored in the snapshot. That hint comes from the hub browser, which

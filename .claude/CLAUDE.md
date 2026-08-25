@@ -47,7 +47,28 @@ make run                                 # build UI + binary, serve over HTTPS (
 - Commit/push only when asked.
 
 ## Active work
-**Fusion document actions** (merged to `main`; helper released as
+**Opening from Fusion** — the FusionProjectChat add-in's *Open Web App* command
+launches `https://<server>/?dmHubId=…&dmProjectId=…&projectName=…`. Fusion knows
+only **Data Management** ids while every route here is keyed by **GraphQL** ids,
+so that URL is a *request* for a permalink, not one. `components/DmDeepLinkGate.tsx`
+sits ahead of the hub gate, resolves it through `GET /api/resolve/project` (the
+same call the chat palette makes), locks the session to that project's hub, and
+**replaces** the URL with the ordinary `?hub=…&proj=…` permalink before the app
+mounts — nothing downstream ever sees a DM id, and the deep link is a launcher,
+not a place to go back to. Parsing is pure and unit-tested in
+`state/dmDeepLink.ts`; `projectName` is only a display hint while the resolve is
+in flight. The login button now carries `?next=`, so the link survives the OAuth
+round trip; a link into another hub asks first, then runs the same teardown as
+Settings → Connection. See `docs/web-ui.md` ("Opening from Fusion").
+
+**Chat robustness** — two fixes that came out of that work: `MessageList` wraps
+each message in `components/ErrorBoundary.tsx`, so one unrenderable body shows an
+inline error instead of blanking the pane; and a thread stops trying to split a
+pane it has no room for — `chat/chatLayout.ts` (pure, unit-tested) picks
+split-vs-page from the width `components/useElementWidth.ts` measures, so a
+narrow host gets the thread as a full page. See `docs/chat/STATUS.md`.
+
+Previously: **Fusion document actions** (merged to `main`; helper released as
 `helper/v0.1.0`, verified end to end on Windows and macOS) — **Open**,
 **Insert** and **Archive** on a Fusion-native document, offered on the details
 header (`components/DocumentActions.tsx`), on **every document card**
@@ -79,11 +100,16 @@ Event, never in `argv` — and its bundle must declare
 **ticket** (`server/fusiontickets.go`); the helper refuses any server it has not
 been **paired** with and pins that server's certificate. Shared contracts in
 `internal/fusionlink` (scheme + outcome codes) and `internal/fusionact`;
-`internal/fusionmcp` is vendored from the sibling **FusionDataCLI** repo. See
-`docs/fusion-actions/STATUS.md` (design) and `docs/fusion-actions/HELPER.md`
-(install + user docs). Helper release binaries are committed under `dist/`.
+`internal/fusionmcp` is vendored from the sibling **FusionDataCLI** repo. The
+design notes and the helper's install guide (`docs/fusion-actions/`) were
+deleted on 2026-08-24 — `cmd/fls-helper` and `internal/fusionlink` are now the
+only description of the contract. Helper binaries are **not committed** — `dist/` is a
+git-ignored build output; `make helper` fills it locally, and pushing a
+`helper/vX.Y.Z` tag runs `.github/workflows/helper-release.yml`, which builds
+the six static binaries plus `SHA256SUMS` and publishes them as GitHub release
+assets. The server releases separately off `v*` tags.
 
-**History day timeline** — the details panel's History tab was rebuilt from one
+Previously: **History day timeline** — the details panel's History tab was rebuilt from one
 long horizontal strip into a stack of **day rows, newest first**: alternating
 bands, an elapsed-time label between days ("3 months and 2 days later"), and one
 **track per author** with an identity avatar. Day view puts each row on a fixed

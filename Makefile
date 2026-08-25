@@ -60,8 +60,8 @@ dev:
 # The Fusion helper app (cmd/fls-helper): a tiny per-user binary that lets a
 # browser on THIS machine drive the local Fusion desktop client. It is only
 # needed when the browser and the server are different machines — a
-# same-machine setup goes through the server directly. See
-# docs/fusion-actions/STATUS.md.
+# same-machine setup goes through the server directly. The contract it speaks
+# lives in internal/fusionlink; the helper itself is cmd/fls-helper.
 #
 # It carries no APS credentials and never talks to APS, so it takes none of
 # the ldflags above beyond its version stamp.

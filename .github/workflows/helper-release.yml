@@ -15,7 +15,7 @@
 # version independently because the fusionlocal:// URL carries a version segment
 # and outcome codes are validated — an old helper meeting a newer server is told
 # the version is unsupported rather than misbehaving. A helper release is only
-# REQUIRED when that segment changes. See docs/fusion-actions/HELPER.md.
+# REQUIRED when that segment changes.
 
 name: Helper Release
 
@@ -82,8 +82,8 @@ jobs:
             fls-helper status
             ```
 
-            Full instructions, the security model, and what each failure message
-            means: [docs/fusion-actions/HELPER.md](https://github.com/schneik80/fusionlocalserver/blob/main/docs/fusion-actions/HELPER.md)
+            `fls-helper help` explains each command, and a failed action tells
+            you which step refused it (pairing, certificate, or ticket).
 
             > These binaries are **not code-signed**. macOS quarantines the file
             > on first run (right-click → Open) and Windows SmartScreen warns

@@ -12,8 +12,7 @@
 > In particular, everything below that calls Fusion **Open / Insert** a `501`
 > stub with disabled buttons is out of date: both actions shipped, they drive
 > the user's running Fusion through its local MCP server, and they are offered
-> on the details header, on every document card and in the Pins dialog. See
-> [`fusion-actions/STATUS.md`](fusion-actions/STATUS.md).
+> on the details header, on every document card and in the Pins dialog.
 
 ## Context
 
