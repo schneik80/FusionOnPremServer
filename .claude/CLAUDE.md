@@ -100,10 +100,13 @@ Event, never in `argv` — and its bundle must declare
 **ticket** (`server/fusiontickets.go`); the helper refuses any server it has not
 been **paired** with and pins that server's certificate. Shared contracts in
 `internal/fusionlink` (scheme + outcome codes) and `internal/fusionact`;
-`internal/fusionmcp` is vendored from the sibling **FusionDataCLI** repo. The
-design notes and the helper's install guide (`docs/fusion-actions/`) were
-deleted on 2026-08-24 — `cmd/fls-helper` and `internal/fusionlink` are now the
-only description of the contract. Helper binaries are **not committed** — `dist/` is a
+`internal/fusionmcp` is vendored from the sibling **FusionDataCLI** repo. See
+`docs/fusion-actions/HELPER.md` — install, the security model and what each
+failure message means; it is the **user-facing** doc for the helper and is
+linked from the published helper release, so keep it current. (The design
+notes that sat beside it were deleted on 2026-08-24; `cmd/fls-helper` and
+`internal/fusionlink` describe the contract now.) Helper binaries are
+**not committed** — `dist/` is a
 git-ignored build output; `make helper` fills it locally, and pushing a
 `helper/vX.Y.Z` tag runs `.github/workflows/helper-release.yml`, which builds
 the six static binaries plus `SHA256SUMS` and publishes them as GitHub release
