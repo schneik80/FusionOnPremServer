@@ -34,6 +34,7 @@ import type {
   Thumbnail,
   WikiPage,
   WikiPageContent,
+  WikiVersion,
 } from './types'
 import type {
   ChatChannelList,
@@ -1178,6 +1179,55 @@ export const useWikiPage = (
     enabled: enabled && !!dmProjectId && !!itemId,
     staleTime: STALE,
   })
+
+// useWikiVersions lists a page's history (newest first). Fetched only while the
+// history dialog is open; a short stale window so reopening after a publish
+// shows the new version.
+export const useWikiVersions = (
+  dmProjectId: string | null | undefined,
+  itemId: string | null,
+  enabled = true,
+): UseQueryResult<WikiVersion[]> =>
+  useQuery({
+    queryKey: ['wikiVersions', dmProjectId, itemId],
+    queryFn: () => api.wikiVersions(dmProjectId!, itemId!),
+    enabled: enabled && !!dmProjectId && !!itemId,
+    staleTime: 30 * 1000,
+  })
+
+// useWikiPageVersion fetches one specific version's markdown for the history
+// preview. A version is immutable, so it never goes stale.
+export const useWikiPageVersion = (
+  dmProjectId: string | null | undefined,
+  itemId: string | null,
+  versionId: string | null,
+  enabled = true,
+): UseQueryResult<WikiPageContent> =>
+  useQuery({
+    queryKey: ['wikiPageVersion', dmProjectId, itemId, versionId],
+    queryFn: () => api.wikiPage(dmProjectId!, itemId!, versionId!),
+    enabled: enabled && !!dmProjectId && !!itemId && !!versionId,
+    staleTime: Infinity,
+  })
+
+// useWikiRestore makes an older version of a page its newest one. On success
+// the page list, the page's tip content and its history are refreshed; the tip
+// content is seeded from the response so the reader updates without a refetch.
+export function useWikiRestore(hubId: string | null, dmProjectId: string | null | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { itemId: string; versionId: string; baseVersion?: string; force?: boolean }) =>
+      api.wikiRestore({ hubId: hubId!, dmProjectId: dmProjectId!, ...body }),
+    onSuccess: (res, body) => {
+      qc.setQueryData<WikiPageContent>(['wikiPage', dmProjectId, body.itemId], {
+        itemId: body.itemId,
+        markdown: res.markdown,
+      })
+      void qc.invalidateQueries({ queryKey: ['wikiPages', hubId, dmProjectId] })
+      void qc.invalidateQueries({ queryKey: ['wikiVersions', dmProjectId, body.itemId] })
+    },
+  })
+}
 
 // useWikiPublish uploads the working copy of a page to the project's Wiki folder
 // and refreshes the published-pages list on success. A 409 ApiError means the

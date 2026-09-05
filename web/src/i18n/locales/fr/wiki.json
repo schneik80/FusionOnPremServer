@@ -31,7 +31,8 @@
     "pagesLoadFailed": "Impossible de charger les pages publiées. Les brouillons locaux restent disponibles.",
     "publishFailed": "Échec de la publication.",
     "renameFailed": "Échec du renommage.",
-    "refreshFailed": "Échec de l'actualisation."
+    "refreshFailed": "Échec de l'actualisation.",
+    "restoreFailed": "La restauration a échoué."
   },
   "publish": {
     "conflictConfirm": "Cette page a changé depuis que vous l'avez ouverte. Écraser la version publiée ?"
@@ -44,6 +45,20 @@
     "conflictBody": "Une version plus récente a été publiée depuis un autre appareil, et vous avez des modifications locales non publiées. « Prendre la dernière version » abandonne vos modifications ; Modifier → Publier conserve les vôtres.",
     "editAsDraft": "Modifier en brouillon",
     "downloadFailed": "Impossible de télécharger cette page."
+  },
+  "history": {
+    "open": "Historique",
+    "title": "Historique des versions",
+    "loadFailed": "Impossible de charger l'historique de cette page.",
+    "empty": "Aucune version pour le moment.",
+    "version": "Version {{number}}",
+    "current": "Actuelle",
+    "previewFailed": "Impossible de charger cette version.",
+    "restore": "Restaurer cette version",
+    "restoring": "Restauration…",
+    "confirmBody": "La version {{number}} devient la version actuelle de « {{title}} ». Rien n'est perdu : la version d'aujourd'hui reste dans l'historique et la restauration est enregistrée comme version {{next}}.",
+    "confirm": "Restaurer",
+    "conflictConfirm": "Cette page a changé depuis l'ouverture de son historique. Restaurer malgré tout ?"
   },
   "renameDialog": {
     "title": "Renommer la page",

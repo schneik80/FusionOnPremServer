@@ -19,9 +19,49 @@ type WikiPageDTO struct {
 }
 
 // WikiPageContentDTO is the markdown body of a single page (GET /api/wiki/page).
+// versionId names the version the body came from when the caller asked for a
+// specific one; it is empty for the tip.
 type WikiPageContentDTO struct {
-	ItemID   string `json:"itemId"`
-	Markdown string `json:"markdown"`
+	ItemID    string `json:"itemId"`
+	VersionID string `json:"versionId,omitempty"`
+	Markdown  string `json:"markdown"`
+}
+
+// WikiVersionDTO mirrors api.WikiVersion — one entry of a page's history
+// (GET /api/wiki/versions), newest first.
+type WikiVersionDTO struct {
+	VersionID string `json:"versionId"`
+	Number    int    `json:"number"`
+	CreatedOn string `json:"createdOn,omitempty"`
+	CreatedBy string `json:"createdBy,omitempty"`
+}
+
+func wikiVersionDTOs(vs []api.WikiVersion) []WikiVersionDTO {
+	out := make([]WikiVersionDTO, 0, len(vs))
+	for _, v := range vs {
+		out = append(out, WikiVersionDTO{VersionID: v.VersionID, Number: v.Number, CreatedOn: v.CreatedOn, CreatedBy: v.CreatedBy})
+	}
+	return out
+}
+
+// WikiRestoreRequest is the POST /api/wiki/restore body: make versionId the
+// page's newest version again. baseVersion is the tip the caller saw when it
+// chose to restore (stale → 409, like publish); force overrides.
+type WikiRestoreRequest struct {
+	HubID       string `json:"hubId"`
+	DMProjectID string `json:"dmProjectId"`
+	ItemID      string `json:"itemId"`
+	VersionID   string `json:"versionId"`
+	BaseVersion string `json:"baseVersion"`
+	Force       bool   `json:"force"`
+}
+
+// WikiRestoreResult is the restore's answer: the page with its new tip, plus
+// the restored markdown so a linked draft can adopt it without a second
+// download.
+type WikiRestoreResult struct {
+	Page     WikiPageDTO `json:"page"`
+	Markdown string      `json:"markdown"`
 }
 
 // WikiPublishRequest is the POST /api/wiki/publish body. itemId is the known

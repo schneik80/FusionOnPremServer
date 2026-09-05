@@ -15,10 +15,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../api/client'
-import { useWikiPage, useWikiPages, useWikiPublish, useWikiRename } from '../api/queries'
+import { useWikiPage, useWikiPages, useWikiPublish, useWikiRename, useWikiRestore } from '../api/queries'
+import type { WikiVersion } from '../api/types'
 import { useNav } from '../state/nav'
 import { slugify, type WikiDraft } from './draftStore'
 import { MarkdownView } from './MarkdownView'
+import { WikiHistoryDialog, type WikiHistoryTarget } from './WikiHistoryDialog'
 import { useWikiDrafts } from './useDrafts'
 import { WikiEditor } from './WikiEditor'
 import { WikiSidebar, type WikiEntry, type WikiEntryStatus } from './WikiSidebar'
@@ -60,8 +62,9 @@ export function WikiApp({ active = true }: { active?: boolean }) {
   const { drafts, loading: draftsLoading, save, remove, create, importPage } = useWikiDrafts(projectId)
   const publishMut = useWikiPublish(hubId, dmProjectId)
   const renameMut = useWikiRename(hubId, dmProjectId)
+  const restoreMut = useWikiRestore(hubId, dmProjectId)
 
-  // Writes (publish, image upload, rename) need the project's data-management id.
+  // Writes (publish, image upload, rename, restore) need the project's data-management id.
   const canWrite = !!hubId && !!dmProjectId
 
   // Keep a ref to the latest drafts so effects/handlers can read them without
@@ -82,11 +85,15 @@ export function WikiApp({ active = true }: { active?: boolean }) {
   const [renameTarget, setRenameTarget] = useState<WikiEntry | null>(null)
   const [renameValue, setRenameValue] = useState('')
 
+  // History dialog: the published page whose versions are being browsed.
+  const [historyTarget, setHistoryTarget] = useState<WikiHistoryTarget | null>(null)
+
   // This pane stays mounted across project switches (BrowserStage keeps slot B
   // panes alive), so clear any selection/edit that belongs to the prior project.
   useEffect(() => {
     setSelectedId(null)
     setEditingKey(null)
+    setHistoryTarget(null)
   }, [projectId])
 
   // Freshen the published-pages list when the tab is opened, so a page another
@@ -304,6 +311,60 @@ export function WikiApp({ active = true }: { active?: boolean }) {
     }
   }
 
+  // openHistory browses a published page's versions. A linked draft opens the
+  // history of the page it is linked to; a local-only draft has no history.
+  function openHistory(entry: WikiEntry) {
+    const draft = entry.draftKey ? drafts.find((d) => d.key === entry.draftKey) ?? null : null
+    const itemId = draft?.baseItemId ?? entry.itemId
+    if (!itemId) return
+    const page = pagesQ.data?.find((p) => p.itemId === itemId)
+    setHistoryTarget({ itemId, title: page?.title ?? entry.title, tipVersion: page?.tipVersion })
+  }
+
+  // handleRestore makes an older version the page's current one. The server
+  // republishes that version's bytes as a new version (history intact). A clean
+  // linked draft adopts the restored text as its new base, exactly like
+  // "Update" does for a page that moved ahead; a draft with unpublished edits is
+  // left alone and will show as a conflict, which is the truth. On a 409 (someone
+  // published while the history was open) it asks before forcing.
+  async function handleRestore(version: WikiVersion, force = false): Promise<void> {
+    const target = historyTarget
+    if (!target || !canWrite) return
+    try {
+      const res = await restoreMut.mutateAsync({
+        itemId: target.itemId,
+        versionId: version.versionId,
+        baseVersion: target.tipVersion ?? '',
+        force,
+      })
+      const draft = draftsRef.current.find((d) => d.baseItemId === target.itemId)
+      if (draft && draft.status !== 'modified') {
+        await save({
+          ...draft,
+          markdown: res.markdown,
+          baseVersion: res.page.tipVersion,
+          status: 'published',
+          updatedAt: Date.now(),
+        })
+        if (editingKey === draft.key) {
+          setWorkingMd(res.markdown)
+          setSaved(true)
+        }
+      }
+      setHistoryTarget(null)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        // eslint-disable-next-line no-alert
+        if (window.confirm(t('history.conflictConfirm'))) {
+          await handleRestore(version, true)
+        }
+        return
+      }
+      // eslint-disable-next-line no-alert
+      alert(e instanceof Error ? e.message : t('alerts.restoreFailed'))
+    }
+  }
+
   return (
     <Box sx={{ display: 'flex', flex: 1, minWidth: 0, minHeight: 0 }}>
       <WikiSidebar
@@ -352,6 +413,11 @@ export function WikiApp({ active = true }: { active?: boolean }) {
             onDelete={handleDelete}
             onRename={() => selectedEntry && openRename(selectedEntry)}
             onRefresh={() => selectedEntry && handleRefresh(selectedEntry)}
+            onHistory={
+              drafts.find((d) => d.key === selectedEntry.draftKey)?.baseItemId
+                ? () => selectedEntry && openHistory(selectedEntry)
+                : undefined
+            }
           />
         ) : selectedEntry?.kind === 'page' ? (
           <PublishedReader
@@ -359,6 +425,7 @@ export function WikiApp({ active = true }: { active?: boolean }) {
             page={pagesQ.data?.find((p) => p.itemId === selectedEntry.itemId) ?? null}
             onEditAsDraft={handleEditAsDraft}
             onRename={canWrite ? () => selectedEntry && openRename(selectedEntry) : undefined}
+            onHistory={() => selectedEntry && openHistory(selectedEntry)}
           />
         ) : (
           <EmptyState onNew={handleNew} />
@@ -372,6 +439,16 @@ export function WikiApp({ active = true }: { active?: boolean }) {
         onChange={setRenameValue}
         onCancel={() => setRenameTarget(null)}
         onSave={doRename}
+      />
+
+      <WikiHistoryDialog
+        open={!!historyTarget}
+        target={historyTarget}
+        dmProjectId={dmProjectId}
+        canRestore={canWrite}
+        restoring={restoreMut.isPending}
+        onRestore={handleRestore}
+        onClose={() => setHistoryTarget(null)}
       />
     </Box>
   )
@@ -447,6 +524,7 @@ function DraftReader({
   onDelete,
   onRename,
   onRefresh,
+  onHistory,
 }: {
   draft: WikiDraft | null
   status: WikiEntryStatus
@@ -454,6 +532,8 @@ function DraftReader({
   onDelete: (key: string) => void
   onRename: () => void
   onRefresh: () => void
+  /** present only for a draft linked to a published page — a local-only draft has no history */
+  onHistory?: () => void
 }) {
   const { t } = useTranslation('wiki')
   if (!draft) return <EmptyState onNew={() => {}} />
@@ -477,6 +557,11 @@ function DraftReader({
         <Button size="small" color="inherit" onClick={onRename}>
           {t('reader.rename')}
         </Button>
+        {onHistory && (
+          <Button size="small" color="inherit" onClick={onHistory}>
+            {t('history.open')}
+          </Button>
+        )}
         <Button size="small" color="error" onClick={() => onDelete(draft.key)}>
           {t('common:delete')}
         </Button>
@@ -507,11 +592,13 @@ function PublishedReader({
   page,
   onEditAsDraft,
   onRename,
+  onHistory,
 }: {
   dmProjectId: string | null
   page: { itemId: string; title: string; tipVersion?: string } | null
   onEditAsDraft: (payload: { itemId: string; title: string; tipVersion?: string; markdown: string }) => void
   onRename?: () => void
+  onHistory: () => void
 }) {
   const { t } = useTranslation('wiki')
   const contentQ = useWikiPage(dmProjectId, page?.itemId ?? null, !!page)
@@ -550,6 +637,9 @@ function PublishedReader({
             {t('reader.rename')}
           </Button>
         )}
+        <Button size="small" color="inherit" onClick={onHistory}>
+          {t('history.open')}
+        </Button>
       </Stack>
       {contentQ.isLoading ? (
         <Box sx={{ flex: 1, p: 2, textAlign: 'center' }}>

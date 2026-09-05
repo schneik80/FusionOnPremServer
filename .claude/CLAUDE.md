@@ -47,6 +47,20 @@ make run                                 # build UI + binary, serve over HTTPS (
 - Commit/push only when asked.
 
 ## Active work
+**Wiki version restore** — a published page (or a draft linked to one) has a
+**History** button opening `web/src/wiki/WikiHistoryDialog.tsx`: the item's DM
+versions newest-first, a rendered preview, and *Restore this version*. A
+restore is **copy-forward** (`api/wiki_history.go` `RestoreWikiPageVersion`
+→ `POST /api/wiki/restore`): the old version's bytes are uploaded as a *new*
+version under the item's current name, so history only grows and the restore
+is itself the newest entry — never shorten a DM lineage. It carries the tip the
+dialog opened on as `baseVersion` (409 on a concurrent publish, same confirm
+as publish), refuses the tip itself and foreign version urns
+(`VersionBelongsToItem`) before any upload, and a clean linked draft adopts the
+restored text as its base. `GET /api/wiki/page` takes an optional `versionId`;
+`GET /api/wiki/versions` lists the history. See `docs/wiki/STATUS.md`
+("History and restore").
+
 **History: other changes + paged versions** — the History tab has a second
 checkbox, *Show other changes*, that adds the **non-save history** (property
 edits, milestones, part-number changes, each with its own author — people who

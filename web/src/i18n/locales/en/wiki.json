@@ -31,7 +31,8 @@
     "pagesLoadFailed": "Couldn't load published pages. Local drafts are still available.",
     "publishFailed": "Publish failed.",
     "renameFailed": "Rename failed.",
-    "refreshFailed": "Refresh failed."
+    "refreshFailed": "Refresh failed.",
+    "restoreFailed": "Restore failed."
   },
   "publish": {
     "conflictConfirm": "This page changed since you opened it. Overwrite the published version?"
@@ -44,6 +45,20 @@
     "conflictBody": "A newer version was published on another device, and you have unpublished local edits. Take latest discards your edits; Edit → Publish keeps yours.",
     "editAsDraft": "Edit as draft",
     "downloadFailed": "Couldn't download this page."
+  },
+  "history": {
+    "open": "History",
+    "title": "Version history",
+    "loadFailed": "Couldn't load this page's history.",
+    "empty": "No versions yet.",
+    "version": "Version {{number}}",
+    "current": "Current",
+    "previewFailed": "Couldn't load this version.",
+    "restore": "Restore this version",
+    "restoring": "Restoring…",
+    "confirmBody": "Version {{number}} becomes the current version of \"{{title}}\". Nothing is lost: today's version stays in the history, and the restore is recorded as version {{next}}.",
+    "confirm": "Restore",
+    "conflictConfirm": "This page changed since you opened its history. Restore anyway?"
   },
   "renameDialog": {
     "title": "Rename page",

@@ -31,7 +31,8 @@
     "pagesLoadFailed": "Veröffentlichte Seiten konnten nicht geladen werden. Lokale Entwürfe sind weiterhin verfügbar.",
     "publishFailed": "Veröffentlichen fehlgeschlagen.",
     "renameFailed": "Umbenennen fehlgeschlagen.",
-    "refreshFailed": "Aktualisieren fehlgeschlagen."
+    "refreshFailed": "Aktualisieren fehlgeschlagen.",
+    "restoreFailed": "Wiederherstellen fehlgeschlagen."
   },
   "publish": {
     "conflictConfirm": "Diese Seite wurde geändert, seit Sie sie geöffnet haben. Veröffentlichte Version überschreiben?"
@@ -44,6 +45,20 @@
     "conflictBody": "Auf einem anderen Gerät wurde eine neuere Version veröffentlicht, und Sie haben unveröffentlichte lokale Änderungen. „Neueste übernehmen“ verwirft Ihre Änderungen; Bearbeiten → Veröffentlichen behält Ihre Fassung.",
     "editAsDraft": "Als Entwurf bearbeiten",
     "downloadFailed": "Diese Seite konnte nicht heruntergeladen werden."
+  },
+  "history": {
+    "open": "Verlauf",
+    "title": "Versionsverlauf",
+    "loadFailed": "Der Verlauf dieser Seite konnte nicht geladen werden.",
+    "empty": "Noch keine Versionen.",
+    "version": "Version {{number}}",
+    "current": "Aktuell",
+    "previewFailed": "Diese Version konnte nicht geladen werden.",
+    "restore": "Diese Version wiederherstellen",
+    "restoring": "Wird wiederhergestellt…",
+    "confirmBody": "Version {{number}} wird die aktuelle Version von „{{title}}“. Es geht nichts verloren: Die heutige Version bleibt im Verlauf, und die Wiederherstellung wird als Version {{next}} festgehalten.",
+    "confirm": "Wiederherstellen",
+    "conflictConfirm": "Diese Seite hat sich geändert, seit Sie den Verlauf geöffnet haben. Trotzdem wiederherstellen?"
   },
   "renameDialog": {
     "title": "Seite umbenennen",

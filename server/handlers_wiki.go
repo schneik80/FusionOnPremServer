@@ -46,9 +46,47 @@ func (s *Server) handleWikiPages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, wikiPageDTOs(pages))
 }
 
-// handleWikiPage returns the markdown body of a single published page.
-// GET /api/wiki/page?dmProjectId=<project altId>&itemId=<item lineage urn>
+// handleWikiPage returns the markdown body of a single published page — its
+// tip, or with versionId, one specific version from its history. A version urn
+// must belong to the addressed item (checked before any APS call is spent).
+// GET /api/wiki/page?dmProjectId=<project altId>&itemId=<item lineage urn>[&versionId=<version urn>]
 func (s *Server) handleWikiPage(w http.ResponseWriter, r *http.Request) {
+	dmProjectID, ok := reqParam(w, r, "dmProjectId")
+	if !ok {
+		return
+	}
+	itemID, ok := reqParam(w, r, "itemId")
+	if !ok {
+		return
+	}
+	versionID := r.URL.Query().Get("versionId")
+	if versionID != "" && !api.VersionBelongsToItem(versionID, itemID) {
+		writeError(w, http.StatusBadRequest, "versionId does not belong to itemId")
+		return
+	}
+	ctx, cancel := s.reqCtx(r)
+	defer cancel()
+	token, ok := s.token(ctx, w, r)
+	if !ok {
+		return
+	}
+	var md string
+	var err error
+	if versionID != "" {
+		md, err = api.DownloadWikiPageVersion(ctx, token, dmProjectID, versionID)
+	} else {
+		md, err = api.DownloadWikiPage(ctx, token, dmProjectID, itemID)
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, WikiPageContentDTO{ItemID: itemID, VersionID: versionID, Markdown: md})
+}
+
+// handleWikiVersions lists a page's history — every DM version, newest first.
+// GET /api/wiki/versions?dmProjectId=<project altId>&itemId=<item lineage urn>
+func (s *Server) handleWikiVersions(w http.ResponseWriter, r *http.Request) {
 	dmProjectID, ok := reqParam(w, r, "dmProjectId")
 	if !ok {
 		return
@@ -63,12 +101,62 @@ func (s *Server) handleWikiPage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	md, err := api.DownloadWikiPage(ctx, token, dmProjectID, itemID)
+	versions, err := api.ListWikiPageVersions(ctx, token, dmProjectID, itemID)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, WikiPageContentDTO{ItemID: itemID, Markdown: md})
+	writeJSON(w, http.StatusOK, wikiVersionDTOs(versions))
+}
+
+// handleWikiRestore makes an older version of a page its newest one by
+// re-publishing that version's bytes as a new version (history is kept; the
+// restore is itself a version). 409 means the page moved upstream since the
+// caller looked at its history — retry with force=true to overwrite anyway.
+// POST /api/wiki/restore  (JSON WikiRestoreRequest)
+func (s *Server) handleWikiRestore(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := s.reqCtx(r)
+	defer cancel()
+	token, ok := s.token(ctx, w, r)
+	if !ok {
+		return
+	}
+	var req WikiRestoreRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid restore body")
+		return
+	}
+	if req.HubID == "" || req.DMProjectID == "" || req.ItemID == "" || req.VersionID == "" {
+		writeError(w, http.StatusBadRequest, "hubId, dmProjectId, itemId and versionId are required")
+		return
+	}
+	set, ok := reqStores(w, r)
+	if !ok {
+		return
+	}
+	if !hubMatches(w, set.hubID, req.HubID) {
+		return
+	}
+	dmHubID, err := api.GetHubDataManagementID(ctx, token, req.HubID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	page, md, err := api.RestoreWikiPageVersion(ctx, token, dmHubID, req.DMProjectID, req.ItemID, req.VersionID, req.BaseVersion, req.Force)
+	if err != nil {
+		switch {
+		case errors.Is(err, api.ErrWikiConflict):
+			writeError(w, http.StatusConflict, "this page changed upstream; refresh or overwrite")
+		case errors.Is(err, api.ErrWikiVersionIsTip):
+			writeError(w, http.StatusBadRequest, "that version is already the current version")
+		case errors.Is(err, api.ErrWikiVersionMismatch):
+			writeError(w, http.StatusBadRequest, "versionId does not belong to itemId")
+		default:
+			s.fail(w, r, err)
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, WikiRestoreResult{Page: wikiPageDTO(page), Markdown: md})
 }
 
 // handleWikiPublish uploads a page's markdown to the project's Wiki folder as

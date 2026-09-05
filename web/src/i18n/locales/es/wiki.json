@@ -31,7 +31,8 @@
     "pagesLoadFailed": "No se pudieron cargar las páginas publicadas. Los borradores locales siguen disponibles.",
     "publishFailed": "La publicación falló.",
     "renameFailed": "El cambio de nombre falló.",
-    "refreshFailed": "La actualización falló."
+    "refreshFailed": "La actualización falló.",
+    "restoreFailed": "Error al restaurar."
   },
   "publish": {
     "conflictConfirm": "Esta página cambió desde que la abrió. ¿Sobrescribir la versión publicada?"
@@ -44,6 +45,20 @@
     "conflictBody": "Se publicó una versión más reciente desde otro dispositivo y usted tiene ediciones locales sin publicar. Tomar la más reciente descarta sus ediciones; Editar → Publicar conserva las suyas.",
     "editAsDraft": "Editar como borrador",
     "downloadFailed": "No se pudo descargar esta página."
+  },
+  "history": {
+    "open": "Historial",
+    "title": "Historial de versiones",
+    "loadFailed": "No se pudo cargar el historial de esta página.",
+    "empty": "Aún no hay versiones.",
+    "version": "Versión {{number}}",
+    "current": "Actual",
+    "previewFailed": "No se pudo cargar esta versión.",
+    "restore": "Restaurar esta versión",
+    "restoring": "Restaurando…",
+    "confirmBody": "La versión {{number}} pasa a ser la versión actual de «{{title}}». No se pierde nada: la versión de hoy permanece en el historial y la restauración se registra como versión {{next}}.",
+    "confirm": "Restaurar",
+    "conflictConfirm": "Esta página cambió desde que abrió su historial. ¿Restaurar de todos modos?"
   },
   "renameDialog": {
     "title": "Renombrar página",

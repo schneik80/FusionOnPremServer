@@ -47,6 +47,8 @@ import type {
   WikiImageResult,
   WikiPage,
   WikiPageContent,
+  WikiRestoreResult,
+  WikiVersion,
 } from './types'
 import type {
   ChatChannel,
@@ -897,8 +899,26 @@ export const api = {
   wikiPages: (hubId: string, dmProjectId: string) =>
     request<WikiPage[]>(`/api/wiki/pages${qs({ hubId, dmProjectId })}`),
 
-  wikiPage: (dmProjectId: string, itemId: string) =>
-    request<WikiPageContent>(`/api/wiki/page${qs({ dmProjectId, itemId })}`),
+  // wikiPage fetches a page's tip markdown, or with versionId one specific
+  // version from its history.
+  wikiPage: (dmProjectId: string, itemId: string, versionId?: string) =>
+    request<WikiPageContent>(`/api/wiki/page${qs({ dmProjectId, itemId, versionId })}`),
+
+  // wikiVersions lists a page's history — every DM version, newest first.
+  wikiVersions: (dmProjectId: string, itemId: string) =>
+    request<WikiVersion[]>(`/api/wiki/versions${qs({ dmProjectId, itemId })}`),
+
+  // wikiRestore makes an older version the page's newest one (copy-forward: a
+  // new version with the old bytes, history intact). baseVersion + force drive
+  // the same stale-overwrite 409 as publish.
+  wikiRestore: (body: {
+    hubId: string
+    dmProjectId: string
+    itemId: string
+    versionId: string
+    baseVersion?: string
+    force?: boolean
+  }) => request<WikiRestoreResult>('/api/wiki/restore', { method: 'POST', body: JSON.stringify(body) }),
 
   // wikiPublish uploads a page's markdown to the project's Wiki folder. itemId
   // links to an already-published page (empty for a new one); baseVersion + force

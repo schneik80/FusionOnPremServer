@@ -622,9 +622,27 @@ export interface WikiPage {
   modifiedBy?: string
 }
 
-// WikiPageContent is the markdown body of a single published page.
+// WikiPageContent is the markdown body of a single published page — its tip, or
+// (versionId set) one specific version from its history.
 export interface WikiPageContent {
   itemId: string
+  versionId?: string
+  markdown: string
+}
+
+// WikiVersion is one entry of a page's history (every publish is a DM version),
+// listed newest first.
+export interface WikiVersion {
+  versionId: string
+  number: number
+  createdOn?: string
+  createdBy?: string
+}
+
+// WikiRestoreResult answers a restore: the page with its new tip, plus the
+// restored markdown so a linked draft can adopt it without a second download.
+export interface WikiRestoreResult {
+  page: WikiPage
   markdown: string
 }
 

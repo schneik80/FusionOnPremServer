@@ -284,7 +284,9 @@ func (s *Server) routes() http.Handler {
 	// Wiki (project-scoped markdown pages in a project-root "Wiki" folder).
 	mux.HandleFunc("GET /api/wiki/pages", protHub(s.handleWikiPages))
 	mux.HandleFunc("GET /api/wiki/page", protHub(s.handleWikiPage))
+	mux.HandleFunc("GET /api/wiki/versions", protHub(s.handleWikiVersions))
 	mux.HandleFunc("POST /api/wiki/publish", protHub(s.handleWikiPublish))
+	mux.HandleFunc("POST /api/wiki/restore", protHub(s.handleWikiRestore))
 	mux.HandleFunc("POST /api/wiki/rename", protHub(s.handleWikiRename))
 	mux.HandleFunc("POST /api/wiki/image", protHub(s.handleWikiImageUpload))
 	mux.HandleFunc("GET /api/wiki/image", protHub(s.handleWikiImage))

@@ -35,6 +35,28 @@ retries with `force: true`, which overwrites (linked) or adopts the existing
 item (new page). The `behind`/`conflict` banners offer the inverse: pull the
 live tip into the draft ("update" / "take theirs").
 
+### History and restore
+
+Every publish is a DM version, so a page's history is simply its item's
+version list. The **History** button on a published page (and on a draft linked
+to one) opens `WikiHistoryDialog`: versions newest-first on the left
+(number, date, author, a *Current* chip on the tip), the selected version
+rendered on the right, and **Restore this version** in the footer.
+
+A restore is **copy-forward**: `RestoreWikiPageVersion` (`api/wiki_history.go`)
+downloads the chosen version's bytes and uploads them as a *new* version under
+the item's *current* display name (a renamed page keeps its new name). DM has
+no "move the tip back", and we would not want one — the versions after the
+restored one stay in the history, and the restore itself is the newest entry,
+so nothing is ever lost and the confirm step says exactly that ("recorded as
+version N+1"). The restore carries the tip the dialog was opened on as
+`baseVersion`, so a concurrent publish returns the same **409** as publish
+and the client asks before forcing. Restoring the tip itself, or a version urn
+that does not belong to the page (`VersionBelongsToItem`), is a 400 before any
+upload. After a restore a **clean** linked draft adopts the restored text as
+its new base (like "Update"); a draft with unpublished edits is left alone and
+shows as `conflict`, which is the truth.
+
 ## Backend
 
 - `api/wiki.go` — read side, all in Data-Management id space: the GraphQL hub
@@ -54,6 +76,10 @@ live tip into the draft ("update" / "take theirs").
   Rename PATCHes the item's `displayName` (the lineage id — and therefore
   links, versions, and a linked draft's base — survives) and best-effort
   renames the page's images subfolder to match.
+- `api/wiki_history.go` — history. `ListWikiPageVersions` walks
+  `items/{id}/versions` (100/page, newest-first), `DownloadWikiPageVersion`
+  fetches one version's markdown, `RestoreWikiPageVersion` copies an older
+  version forward as the new tip (see "History and restore").
 - `server/handlers_wiki.go` + routes in `server/routes.go`. There is **no
   chat-authorizer layer here**: every call runs on the caller's own APS
   token, so Fusion Team's project permissions are the authorization. Publish,
@@ -81,6 +107,9 @@ live tip into the draft ("update" / "take theirs").
   no stylesheet.
 - `MarkdownView.tsx` — the reader: scroll container plus a sticky "On this
   page" TOC (H1–H3, scroll-spy) once a page has ≥ 3 headings.
+- `WikiHistoryDialog.tsx` — version list + preview + restore with an inline
+  confirm step; `WikiApp.handleRestore` owns the mutation, the 409 retry and
+  the linked-draft update.
 
 ### Images
 
@@ -98,15 +127,18 @@ project's Data-Management id (altId); `itemId` is the DM item lineage urn.
 
 ```
 GET  /api/wiki/pages    ?hubId&dmProjectId                    list published pages
-GET  /api/wiki/page     ?dmProjectId&itemId                   one page's markdown
+GET  /api/wiki/page     ?dmProjectId&itemId[&versionId]       one page's markdown (tip, or one version)
+GET  /api/wiki/versions ?dmProjectId&itemId                   a page's history, newest first
 POST /api/wiki/publish  {hubId,dmProjectId,itemId?,slug,markdown,baseVersion?,force?}
                                                               409 on stale/name conflict
+POST /api/wiki/restore  {hubId,dmProjectId,itemId,versionId,baseVersion?,force?}
+                                                              → {page,markdown}; 409 stale, 400 tip/foreign version
 POST /api/wiki/rename   {hubId,dmProjectId,itemId,oldSlug?,newSlug}
 POST /api/wiki/image    multipart: hubId,dmProjectId,slug,file   → {itemId,name}
 GET  /api/wiki/image    ?dmProjectId&itemId                   stream tip bytes
 ```
 
-Publish bodies are capped at 8 MiB, rename at 1 MiB, images at 32 MiB.
+Publish bodies are capped at 8 MiB, rename and restore at 1 MiB, images at 32 MiB.
 
 ## Residual risks / known gaps
 
@@ -138,4 +170,6 @@ End-to-end (needs APS login; upload sequence verified live against Fusion
 Team): create a draft → publish (confirm `Wiki/<slug>.md` appears in Fusion
 Team) → edit + republish (new version) → upload an image and embed it → edit
 the same page from a second browser/device and confirm the first gets the 409
-→ force-overwrite → rename and confirm the lineage (and draft link) survive.
+→ force-overwrite → rename and confirm the lineage (and draft link) survive
+→ open History, preview an older version, restore it and confirm Fusion Team
+shows a new version (not a shortened history) carrying the renamed file name.

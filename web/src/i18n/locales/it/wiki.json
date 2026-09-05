@@ -31,7 +31,8 @@
     "pagesLoadFailed": "Impossibile caricare le pagine pubblicate. Le bozze locali restano disponibili.",
     "publishFailed": "Pubblicazione non riuscita.",
     "renameFailed": "Rinomina non riuscita.",
-    "refreshFailed": "Aggiornamento non riuscito."
+    "refreshFailed": "Aggiornamento non riuscito.",
+    "restoreFailed": "Ripristino non riuscito."
   },
   "publish": {
     "conflictConfirm": "Questa pagina è cambiata da quando l'hai aperta. Sovrascrivere la versione pubblicata?"
@@ -44,6 +45,20 @@
     "conflictBody": "Una versione più recente è stata pubblicata da un altro dispositivo e hai modifiche locali non pubblicate. \"Prendi l'ultima versione\" scarta le tue modifiche; Modifica → Pubblica conserva le tue.",
     "editAsDraft": "Modifica come bozza",
     "downloadFailed": "Impossibile scaricare questa pagina."
+  },
+  "history": {
+    "open": "Cronologia",
+    "title": "Cronologia delle versioni",
+    "loadFailed": "Impossibile caricare la cronologia di questa pagina.",
+    "empty": "Nessuna versione ancora.",
+    "version": "Versione {{number}}",
+    "current": "Attuale",
+    "previewFailed": "Impossibile caricare questa versione.",
+    "restore": "Ripristina questa versione",
+    "restoring": "Ripristino in corso…",
+    "confirmBody": "La versione {{number}} diventa la versione attuale di “{{title}}”. Nulla va perduto: la versione di oggi resta nella cronologia e il ripristino viene registrato come versione {{next}}.",
+    "confirm": "Ripristina",
+    "conflictConfirm": "Questa pagina è cambiata da quando ne ha aperto la cronologia. Ripristinare comunque?"
   },
   "renameDialog": {
     "title": "Rinomina pagina",
