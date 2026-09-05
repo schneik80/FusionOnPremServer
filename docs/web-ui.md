@@ -128,7 +128,7 @@ reads as a friendly label and, for designs, appends the classification —
 
 | Tab | Shows |
 |-----|-------|
-| **History** | Version history as a stack of day rows, newest first — a 24-hour clock axis per day, one track per author with an identity avatar, milestone/release markers on the dots, elapsed-time labels between days, and an optional cross-day thread that scrolls both ways with the author gutter frozen |
+| **History** | Version history as a stack of day rows, newest first — a 24-hour clock axis per day, one track per author with an identity avatar, elapsed-time labels between days, and an optional cross-day thread that scrolls both ways with the author gutter frozen. Markers: a plain grey dot is a save; the accent ring marks a milestone; the ring with the dot filled in is a release; an outer ring is a public share. **Show other changes** adds the edits that made no version (property changes, milestones, part numbers) as small open rings on their author's track — this can add people who never saved — and needs a Collaborative Editing hub |
 | **Activity** | An isometric heat map of design activity over time |
 | **Properties** | Physical/mass properties — mass, volume, surface area, density, bounding box |
 | **BOM** | Flat bill of materials — Component / Part № / Material / Qty (occurrence count) |

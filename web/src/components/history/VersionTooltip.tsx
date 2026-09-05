@@ -55,8 +55,13 @@ export default function VersionTooltip({ v }: { v: VersionSummary }) {
       )}
       <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
         {t('history.versionShort', { number: v.number })}
-        {v.isMilestone ? ` · ${t('history.milestone')}` : ''}
-        {v.revision ? ` · ${t('history.release', { revision: v.revision })}` : ''}
+        {v.revision
+          ? ` · ${t('history.release', { revision: v.revision })}`
+          : v.milestoneName
+            ? ` · ${t('history.milestoneNamed', { name: v.milestoneName })}`
+            : v.isMilestone
+              ? ` · ${t('history.milestone')}`
+              : ''}
       </Typography>
       {v.publicShare && (
         <Typography

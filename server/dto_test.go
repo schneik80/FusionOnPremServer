@@ -82,3 +82,35 @@ func TestDetailsDTO_VersionsNeverNil(t *testing.T) {
 		t.Errorf("versions = %s, want []", round.Versions)
 	}
 }
+
+func TestItemHistoryDTO_ChangesNeverNil(t *testing.T) {
+	b, err := json.Marshal(itemHistoryDTO(&api.ItemHistory{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != `{"changes":[],"saves":[]}` {
+		t.Errorf("empty history marshals as %s, want {\"changes\":[],\"saves\":[]}", b)
+	}
+}
+
+func TestItemHistoryDTO_Maps(t *testing.T) {
+	at := time.Date(2024, 2, 20, 13, 0, 0, 0, time.UTC)
+	got := itemHistoryDTO(&api.ItemHistory{
+		Changes: []api.HistoryChange{{
+			Type: "PropertiesUpdatedHistoryChange", CreatedOn: at,
+			CreatedBy: "Cyan Perry", CreatedByID: "user-cyan", Comment: "Category: Beverage",
+		}},
+		Saves: []api.HistorySave{{CreatedOn: at, Milestone: "Rev B", Revision: "Rev B"}},
+	})
+	if len(got.Saves) != 1 || got.Saves[0].Revision != "Rev B" || got.Saves[0].Milestone != "Rev B" || got.Saves[0].CreatedOn == "" {
+		t.Errorf("Saves = %+v", got.Saves)
+	}
+	if len(got.Changes) != 1 {
+		t.Fatalf("len = %d", len(got.Changes))
+	}
+	c := got.Changes[0]
+	if c.Type != "PropertiesUpdatedHistoryChange" || c.CreatedBy != "Cyan Perry" ||
+		c.CreatedByID != "user-cyan" || c.Comment != "Category: Beverage" || c.CreatedOn == "" {
+		t.Errorf("mapped DTO = %+v", c)
+	}
+}

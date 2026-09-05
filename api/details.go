@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -68,9 +69,155 @@ type VersionSummary struct {
 	PublicShare bool
 }
 
-// GetItemDetails fetches rich metadata for a single item plus its version list.
+// versionRowFields is the per-version selection every itemVersions query in
+// this package shares — the details query, the activity twin, and the
+// follow-on page query. One constant, so the three cannot drift apart again
+// (they did: activity once selected no author id at all).
+//
+// itemVersions.results is typed ItemVersion (an interface); the per-version
+// root component version (carrying isMilestone + the cvId for that version's
+// thumbnail) lives on the concrete DesignItemVersion. Type-conditional, so
+// non-design versions (drawings, etc.) simply omit it rather than erroring.
+const versionRowFields = `
+	versionNumber
+	name
+	createdOn
+	createdBy { id userName firstName lastName }
+	... on DesignItemVersion {
+		rootComponentVersion {
+			id
+			isMilestone
+		}
+	}`
+
+// itemVersionsNextQuery fetches the second and later pages of a version list.
+// The first page rides inside the caller's own query (with the item fields),
+// so the common short history still costs exactly one request.
+//
+// Pages are 50 rows: the ceiling the v2 API enforces on PaginationInput.limit
+// elsewhere (occurrences, whereUsed), and — with the DesignItemVersion fragment
+// on every row — comfortably under the 1000-point query-complexity cap. The
+// PowerTools add-in found the internal endpoint's versions list accepts 100;
+// nothing here needs to find out whether the public one does.
+const itemVersionsNextQuery = `
+	query GetItemVersionsNext($hubId: ID!, $itemId: ID!, $cursor: String!) {
+		itemVersions(hubId: $hubId, itemId: $itemId, pagination: { cursor: $cursor, limit: 50 }) {
+			pagination { cursor }
+			results {` + versionRowFields + `
+			}
+		}
+	}`
+
+// rawVersion is one itemVersions row as the API returns it.
+type rawVersion struct {
+	VersionNumber        int     `json:"versionNumber"`
+	Name                 string  `json:"name"`
+	CreatedOn            string  `json:"createdOn"`
+	CreatedBy            apiUser `json:"createdBy"`
+	RootComponentVersion struct {
+		ID          string `json:"id"`
+		IsMilestone bool   `json:"isMilestone"`
+	} `json:"rootComponentVersion"`
+}
+
+// rawVersionsPage is one page of itemVersions: the rows plus the cursor that
+// says whether there is another.
+type rawVersionsPage struct {
+	Pagination struct {
+		Cursor string `json:"cursor"`
+	} `json:"pagination"`
+	Results []rawVersion `json:"results"`
+}
+
+// versionsNewestFirst maps the rows of every page to VersionSummary, most
+// recent first. The order is imposed here, by version number, not inherited:
+// this code once reversed the list on the belief that APS returns oldest-first,
+// and the 2026-09-04 probe (docs/history/STATUS.md) showed a paginated
+// itemVersions answering newest-first (65 → 16, then a cursor). Sorting is
+// correct whichever way a page arrives. Each design version's
+// rootComponentVersion carries the per-version cvId (for that version's
+// thumbnail) and its milestone flag; non-design versions leave these
+// empty/false.
+func versionsNewestFirst(rows []rawVersion) []VersionSummary {
+	out := make([]VersionSummary, 0, len(rows))
+	for _, v := range rows {
+		out = append(out, VersionSummary{
+			Number:                 v.VersionNumber,
+			Comment:                v.Name,
+			CreatedOn:              parseTime(v.CreatedOn),
+			CreatedBy:              v.CreatedBy.fullName(),
+			CreatedByID:            v.CreatedBy.ID,
+			RootComponentVersionID: v.RootComponentVersion.ID,
+			IsMilestone:            v.RootComponentVersion.IsMilestone,
+			// Revision: reserved, no API source today.
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Number > out[j].Number })
+	return out
+}
+
+// itemWithVersions runs qFirst — a query selecting `item` plus the FIRST page
+// of `itemVersions(pagination: { limit: 50 }) { pagination { cursor } results
+// { versionRowFields } }` — and then pages the rest of the versions with
+// itemVersionsNextQuery. The item is decoded (into I) from whichever page
+// carries it, which is only the first; the follow-on query does not select it.
+//
+// This is the fix for the long-standing "itemVersions is not paginated" gap:
+// a history longer than one page used to be silently truncated by APS before
+// the UI ever saw it, and a day-by-day History view makes that far more
+// visible than the old strip did. `what` prefixes errors ("item details").
+func itemWithVersions[I any](ctx context.Context, token, hubID, itemID, qFirst, what string) (I, []VersionSummary, error) {
+	var item I
+	rows, err := allPages(ctx, token, qFirst, itemVersionsNextQuery,
+		map[string]any{"hubId": hubID, "itemId": itemID},
+		func(data json.RawMessage) (string, []rawVersion, error) {
+			var r struct {
+				Item         *I              `json:"item"`
+				ItemVersions rawVersionsPage `json:"itemVersions"`
+			}
+			if err := json.Unmarshal(data, &r); err != nil {
+				return "", nil, fmt.Errorf("decode: %w", err)
+			}
+			if r.Item != nil {
+				item = *r.Item
+			}
+			return r.ItemVersions.Pagination.Cursor, r.ItemVersions.Results, nil
+		})
+	if err != nil {
+		return item, nil, fmt.Errorf("%s: %w", what, err)
+	}
+	return item, versionsNewestFirst(rows), nil
+}
+
+// rawDetailsItem is the `item` selection of GetItemDetails as the API returns it.
+type rawDetailsItem struct {
+	Typename      string  `json:"__typename"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	Size          string  `json:"size"`
+	MimeType      string  `json:"mimeType"`
+	ExtensionType string  `json:"extensionType"`
+	FusionWebURL  string  `json:"fusionWebUrl"`
+	CreatedOn     string  `json:"createdOn"`
+	CreatedBy     apiUser `json:"createdBy"`
+	ModifiedOn    string  `json:"lastModifiedOn"`
+	ModifiedBy    apiUser `json:"lastModifiedBy"`
+	TipVersion    struct {
+		VersionNumber int `json:"versionNumber"`
+	} `json:"tipVersion"`
+	TipRootComponentVersion struct {
+		ID          string `json:"id"`
+		PartNumber  string `json:"partNumber"`
+		PartDesc    string `json:"partDescription"`
+		Material    string `json:"materialName"`
+		IsMilestone bool   `json:"isMilestone"`
+	} `json:"tipRootComponentVersion"`
+}
+
+// GetItemDetails fetches rich metadata for a single item plus its complete
+// version list — every page of it, newest first.
 func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDetails, error) {
-	const q = `
+	const qFirst = `
 		query GetItemDetails($hubId: ID!, $itemId: ID!) {
 			item(hubId: $hubId, itemId: $itemId) {
 				__typename
@@ -80,9 +227,9 @@ func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDeta
 				mimeType
 				extensionType
 				createdOn
-				createdBy  { id firstName lastName }
+				createdBy  { id userName firstName lastName }
 				lastModifiedOn
-				lastModifiedBy { id firstName lastName }
+				lastModifiedBy { id userName firstName lastName }
 				... on DesignItem {
 					fusionWebUrl
 					tipVersion { versionNumber }
@@ -103,121 +250,53 @@ func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDeta
 					tipVersion { versionNumber }
 				}
 			}
-			itemVersions(hubId: $hubId, itemId: $itemId) {
-				results {
-					versionNumber
-					name
-					createdOn
-					createdBy { id firstName lastName }
-					# itemVersions.results is typed ItemVersion (an interface); the
-					# per-version root component version (carrying isMilestone + the
-					# cvId for that version's thumbnail) lives on the concrete
-					# DesignItemVersion. Type-conditional, so non-design versions
-					# (drawings, etc.) simply omit it rather than erroring.
-					... on DesignItemVersion {
-						rootComponentVersion {
-							id
-							isMilestone
-						}
-					}
+			itemVersions(hubId: $hubId, itemId: $itemId, pagination: { limit: 50 }) {
+				pagination { cursor }
+				results {` + versionRowFields + `
 				}
 			}
 		}`
 
-	data, err := gqlQuery(ctx, token, q, map[string]any{"hubId": hubID, "itemId": itemID})
+	item, versions, err := itemWithVersions[rawDetailsItem](ctx, token, hubID, itemID, qFirst, "item details")
 	if err != nil {
-		return nil, fmt.Errorf("item details: %w", err)
+		return nil, err
 	}
 
-	var raw struct {
-		Item struct {
-			Typename      string  `json:"__typename"`
-			ID            string  `json:"id"`
-			Name          string  `json:"name"`
-			Size          string  `json:"size"`
-			MimeType      string  `json:"mimeType"`
-			ExtensionType string  `json:"extensionType"`
-			FusionWebURL  string  `json:"fusionWebUrl"`
-			CreatedOn     string  `json:"createdOn"`
-			CreatedBy     apiUser `json:"createdBy"`
-			ModifiedOn    string  `json:"lastModifiedOn"`
-			ModifiedBy    apiUser `json:"lastModifiedBy"`
-			TipVersion    struct {
-				VersionNumber int `json:"versionNumber"`
-			} `json:"tipVersion"`
-			TipRootComponentVersion struct {
-				ID          string `json:"id"`
-				PartNumber  string `json:"partNumber"`
-				PartDesc    string `json:"partDescription"`
-				Material    string `json:"materialName"`
-				IsMilestone bool   `json:"isMilestone"`
-			} `json:"tipRootComponentVersion"`
-		} `json:"item"`
-		ItemVersions struct {
-			Results []struct {
-				VersionNumber        int     `json:"versionNumber"`
-				Name                 string  `json:"name"`
-				CreatedOn            string  `json:"createdOn"`
-				CreatedBy            apiUser `json:"createdBy"`
-				RootComponentVersion struct {
-					ID          string `json:"id"`
-					IsMilestone bool   `json:"isMilestone"`
-				} `json:"rootComponentVersion"`
-			} `json:"results"`
-		} `json:"itemVersions"`
-	}
-
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("item details decode: %w", err)
-	}
-
-	d := &ItemDetails{
-		ID:                     raw.Item.ID,
-		Name:                   raw.Item.Name,
-		Typename:               raw.Item.Typename,
-		Size:                   raw.Item.Size,
-		MimeType:               raw.Item.MimeType,
-		ExtensionType:          raw.Item.ExtensionType,
-		FusionWebURL:           raw.Item.FusionWebURL,
-		CreatedOn:              parseTime(raw.Item.CreatedOn),
-		CreatedBy:              raw.Item.CreatedBy.fullName(),
-		ModifiedOn:             parseTime(raw.Item.ModifiedOn),
-		ModifiedBy:             raw.Item.ModifiedBy.fullName(),
-		VersionNumber:          raw.Item.TipVersion.VersionNumber,
-		PartNumber:             raw.Item.TipRootComponentVersion.PartNumber,
-		PartDesc:               raw.Item.TipRootComponentVersion.PartDesc,
-		Material:               raw.Item.TipRootComponentVersion.Material,
-		IsMilestone:            raw.Item.TipRootComponentVersion.IsMilestone,
-		RootComponentVersionID: raw.Item.TipRootComponentVersion.ID,
-	}
-
-	// Versions — most recent first. Each design version's rootComponentVersion
-	// carries the per-version cvId (for that version's thumbnail) and its
-	// milestone flag; non-design versions leave these empty/false.
-	for i := len(raw.ItemVersions.Results) - 1; i >= 0; i-- {
-		v := raw.ItemVersions.Results[i]
-		d.Versions = append(d.Versions, VersionSummary{
-			Number:                 v.VersionNumber,
-			Comment:                v.Name,
-			CreatedOn:              parseTime(v.CreatedOn),
-			CreatedBy:              v.CreatedBy.fullName(),
-			CreatedByID:            v.CreatedBy.ID,
-			RootComponentVersionID: v.RootComponentVersion.ID,
-			IsMilestone:            v.RootComponentVersion.IsMilestone,
-			// Revision: reserved, no API source today.
-		})
-	}
-
-	return d, nil
+	return &ItemDetails{
+		ID:                     item.ID,
+		Name:                   item.Name,
+		Typename:               item.Typename,
+		Size:                   item.Size,
+		MimeType:               item.MimeType,
+		ExtensionType:          item.ExtensionType,
+		FusionWebURL:           item.FusionWebURL,
+		CreatedOn:              parseTime(item.CreatedOn),
+		CreatedBy:              item.CreatedBy.fullName(),
+		ModifiedOn:             parseTime(item.ModifiedOn),
+		ModifiedBy:             item.ModifiedBy.fullName(),
+		VersionNumber:          item.TipVersion.VersionNumber,
+		PartNumber:             item.TipRootComponentVersion.PartNumber,
+		PartDesc:               item.TipRootComponentVersion.PartDesc,
+		Material:               item.TipRootComponentVersion.Material,
+		IsMilestone:            item.TipRootComponentVersion.IsMilestone,
+		RootComponentVersionID: item.TipRootComponentVersion.ID,
+		Versions:               versions,
+	}, nil
 }
 
 // apiUser is a helper for deserialising User objects.
 type apiUser struct {
-	ID    string `json:"id"`
-	First string `json:"firstName"`
-	Last  string `json:"lastName"`
+	ID       string `json:"id"`
+	UserName string `json:"userName"`
+	First    string `json:"firstName"`
+	Last     string `json:"lastName"`
 }
 
+// fullName is "First Last", whichever of the two exists, else the account's
+// userName, else "". The userName fallback is what keeps a track from being a
+// blank avatar: a service account or an unfinished profile carries no first
+// or last name, and the History view's per-author tracks and hover cards
+// still need to say who.
 func (u apiUser) fullName() string {
 	name := u.First
 	if u.Last != "" {
@@ -225,6 +304,9 @@ func (u apiUser) fullName() string {
 			name += " "
 		}
 		name += u.Last
+	}
+	if name == "" {
+		return u.UserName
 	}
 	return name
 }

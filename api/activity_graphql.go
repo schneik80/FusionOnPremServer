@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 )
@@ -75,13 +74,15 @@ func RollUpDesignActivity(ctx context.Context, token, hubID, parentItemID string
 // NOT requesting tipRootComponentVersion property fields. Those properties fail
 // with "Individual property data … not yet available in the Fusion Cloud
 // Information Model" for items not yet migrated, which would nullify the whole
-// query; activity reports don't need them.
+// query; activity reports don't need them. The version rows themselves are the
+// shared versionRowFields selection, paged like the Details query, so a long
+// history is reported in full rather than cut at APS's first page.
 func GetDesignActivity(ctx context.Context, token, hubID, itemID string) ([]ActivityEvent, error) {
 	// Deliberately minimal — the report doesn't need fusionWebUrl, so it is not
 	// requested. (gqlQuery now surfaces partial data when a leaf field like
 	// item.fusionWebUrl flakily 500s, so requesting it would be safe; it is just
 	// unused here.)
-	const q = `
+	const qFirst = `
 		query DesignActivity($hubId: ID!, $itemId: ID!) {
 			item(hubId: $hubId, itemId: $itemId) {
 				__typename
@@ -89,60 +90,37 @@ func GetDesignActivity(ctx context.Context, token, hubID, itemID string) ([]Acti
 				name
 				extensionType
 				createdOn
-				createdBy { firstName lastName }
+				createdBy { id userName firstName lastName }
 			}
-			itemVersions(hubId: $hubId, itemId: $itemId) {
-				results {
-					versionNumber
-					name
-					createdOn
-					createdBy { firstName lastName }
+			itemVersions(hubId: $hubId, itemId: $itemId, pagination: { limit: 50 }) {
+				pagination { cursor }
+				results {` + versionRowFields + `
 				}
 			}
 		}`
 
-	data, err := gqlQuery(ctx, token, q, map[string]any{"hubId": hubID, "itemId": itemID})
-	if err != nil {
-		return nil, fmt.Errorf("design activity: %w", err)
+	type rawActivityItem struct {
+		Typename      string  `json:"__typename"`
+		ID            string  `json:"id"`
+		Name          string  `json:"name"`
+		ExtensionType string  `json:"extensionType"`
+		CreatedOn     string  `json:"createdOn"`
+		CreatedBy     apiUser `json:"createdBy"`
 	}
 
-	var raw struct {
-		Item struct {
-			Typename      string  `json:"__typename"`
-			ID            string  `json:"id"`
-			Name          string  `json:"name"`
-			ExtensionType string  `json:"extensionType"`
-			CreatedOn     string  `json:"createdOn"`
-			CreatedBy     apiUser `json:"createdBy"`
-		} `json:"item"`
-		ItemVersions struct {
-			Results []struct {
-				VersionNumber int     `json:"versionNumber"`
-				Name          string  `json:"name"`
-				CreatedOn     string  `json:"createdOn"`
-				CreatedBy     apiUser `json:"createdBy"`
-			} `json:"results"`
-		} `json:"itemVersions"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("design activity decode: %w", err)
+	item, versions, err := itemWithVersions[rawActivityItem](ctx, token, hubID, itemID, qFirst, "design activity")
+	if err != nil {
+		return nil, err
 	}
 
 	d := &ItemDetails{
-		ID:            raw.Item.ID,
-		Name:          raw.Item.Name,
-		Typename:      raw.Item.Typename,
-		ExtensionType: raw.Item.ExtensionType,
-		CreatedOn:     parseTime(raw.Item.CreatedOn),
-		CreatedBy:     raw.Item.CreatedBy.fullName(),
-	}
-	for _, v := range raw.ItemVersions.Results {
-		d.Versions = append(d.Versions, VersionSummary{
-			Number:    v.VersionNumber,
-			Comment:   v.Name,
-			CreatedOn: parseTime(v.CreatedOn),
-			CreatedBy: v.CreatedBy.fullName(),
-		})
+		ID:            item.ID,
+		Name:          item.Name,
+		Typename:      item.Typename,
+		ExtensionType: item.ExtensionType,
+		CreatedOn:     parseTime(item.CreatedOn),
+		CreatedBy:     item.CreatedBy.fullName(),
+		Versions:      versions,
 	}
 	return designEventsFromDetails(d, hubID), nil
 }

@@ -52,14 +52,24 @@ something else". It is off by default and not persisted.
   over the whole stack carrying the polyline and the day seams.
 - `history/GapLabel.tsx` — the elapsed-time band between two rows.
 - `history/VersionTooltip.tsx` — the hover card (moved out of the old file).
+- `history/ChangeTooltip.tsx` — the hover card for an edit that made no version.
+- `web/src/i18n/enums.ts` — `historyChangeLabel` (+ `enums:historyChange.*`).
 - `web/src/components/userColor.ts` — the identity-colour hash (see below).
 - `web/src/fmt/dates.ts` — `calendarBreakdown(from, to)`.
 - `web/src/fmt/index.ts` — `fmtDuration(breakdown)` + an `Intl.ListFormat` cache.
 - 🗑️ **Removed:** `web/src/components/HistoryGraph.tsx`.
 
 **Backend**
-- `api/details.go` — the GraphQL selection now asks for `createdBy { id … }`;
-  `apiUser.ID`, `api.VersionSummary.CreatedByID`.
+- `api/details.go` — the GraphQL selection asks for
+  `createdBy { id userName firstName lastName }`; `apiUser.fullName()` falls back
+  to `userName`; `versionRowFields` / `itemVersionsNextQuery` /
+  `itemWithVersions` page the version list (shared with
+  `api/activity_graphql.go`); `api.VersionSummary.CreatedByID`.
+- `api/history.go` + `api/client.go` (`graphqlEndpointV3`, `gqlQueryV3`) +
+  `server/handlers_nav.go` (`handleItemHistory`, `GET /api/items/history`) —
+  the non-save history, the app's only v3 query (below).
+- `api/probe_history.go` + `GET /api/debug/history-probe` — the `-v`-only
+  schema probe that found it.
 - `server/dto.go` — `VersionDTO.CreatedByID` → `createdById` (omitempty).
 - Tests: `api/details_test.go` (asserts the id round-trips *and* that the query
   text still selects it), new `server/dto_test.go`.
@@ -71,11 +81,19 @@ first→last save would avoid all overlap, but the same clock time would land at
 different x on every row and a two-save day would look like a full day's work.
 A fixed axis makes rows comparable; overlap is handled by relaxation instead.
 
-**Milestones decorate the dot in place.** Vertical space now belongs to days and
-people, so the old milestone/release/share *lanes* became dot treatments on the
-author's own track: milestone = accent fill + halo, release = darker accent +
-halo, public share = an outer rust-orange ring. Nothing is lost, and no row
-height is spent on `revision`/`publicShare`, which still have no API source.
+**Milestones decorate the dot in place — the ring means "marked", the fill
+means "released".** Vertical space now belongs to days and people, so the old
+milestone/release/share *lanes* became dot treatments on the author's own
+track: a save is a grey dot; a milestone is that same grey dot wearing the
+accent ring; a release is the accent ring with the dot filled accent; a public
+share is an outer ring in the secondary colour. This is the PowerTools
+vocabulary (its commit c919351): the earlier scheme — accent-filled milestone,
+darker-accent release — asked the reader to tell two similar blues apart at
+14 px. One step to learn instead of two hues, and a release still reads as the
+heavier of the two. The legend swatches take `halo` / `ring` as colours, not
+flags, because a milestone's ring colour is not its dot colour. Nothing is
+lost, and no row height is spent on `revision`/`publicShare`, which still have
+no API source (see Known gaps).
 
 **Tracks key on the APS user id.** Grouping by display name merges two people
 who share one and splits one person across a rename. The id is a one-field
@@ -181,15 +199,18 @@ here — the second is worth chasing, the first is not.
 
 ## Known gaps
 
-- **`itemVersions` is not paginated** (`api/details.go`). Long histories are
-  already truncated by APS's page before the UI sees them, and nothing says so.
-  A day-by-day view makes this far more visible than the old strip did. The fix
-  is to route the versions query through the existing `allPages` helper
-  (`api/queries.go`) the way `api/bom.go` does. `api/activity_graphql.go` has
-  the identical gap.
-- **`revision` and `publicShare` have no API source** — reserved fields, always
-  empty/false. Their legend entries and dot decorations are written and will
-  light up the day a source is wired in.
+- ~~**`itemVersions` is not paginated**~~ — fixed (2026-09-04). `api/details.go`
+  pages through `allPages` at 50 a page with the item on the first page only
+  (`itemWithVersions`), and `api/activity_graphql.go` shares the same
+  `versionRowFields` selection and page query. `allPages` now refuses a cursor
+  that never ends (`maxPages`) with an error rather than a silent stop.
+- **Other changes need a Collaborative Editing hub** — v3 has no data for an
+  older hub; the toggle's caption says so. See "Other changes" below.
+- **`publicShare` has no API source** — reserved, always false; its legend
+  entry and outer ring are written and will light up the day a source is wired
+  in (PowerTools reads it from the desktop `DataFile.sharedLink`; neither v2
+  nor v3 exposes it). `revision` *is* sourced now — from the v3 history, see
+  "Releases and milestone names" below.
 - **Hue collisions.** `hash % 360` can put two authors a few degrees apart;
   initials and the avatar tooltip disambiguate. A golden-angle stride would
   spread hues better.
@@ -200,6 +221,119 @@ here — the second is worth chasing, the first is not.
 - **The `toLocaleString` locale bug still exists** in
   `production/BatchTimeline.tsx` and `hub/HubRiver.tsx` — same one-line fix,
   out of scope here.
+
+## Other changes — the edits that made no version
+
+**Show other changes**, the second checkbox in the header, adds the history
+entries that produced no version: `PropertiesUpdatedHistoryChange`,
+`ComponentPrimaryHistoryChange`, `ComponentPartNumberHistoryChange`,
+`VersionCreatedHistoryChange` (a milestone), and the rest of the
+`HistoryChange` family — each with its **own author**. It came from the
+PowerTools add-in's Document History (built from this view): on its test design
+15 of 42 history entries were non-saves and **two of nine contributors had
+never saved a version at all**, so a saves-only history credited the design to
+seven people.
+
+What it does:
+- **Same rows, same tracks.** Changes go through `toEvents` → `bucketByDay`
+  exactly like saves (`HistoryEvent = {kind:'save'} & VersionSummary |
+  {kind:'change'} & HistoryChange`), so a change lands on its author's existing
+  track (by id) or opens a new one, on its own local calendar day, in the same
+  `index` sequence — thread view threads them too. Every dot has a stable
+  `key` (`v<number>` / `c<index>`), which is also the hover state.
+- **A small open ring** (`CHANGE_R = NODE_R - 2.5`) stroked in the track's rail
+  colour — the author's identity colour — with paper fill, so it reads as a
+  lighter event on the same rail and can never be mistaken for a save.
+- **The row header counts what is on it:** "N saves", "M changes", or
+  "N saves · M changes" (`rowTally`; `HistoryDay.saves` / `.changes`), and the
+  row's `aria-label` carries the same tally.
+- **Hover card** (`ChangeTooltip.tsx`): the change label, the recorded detail
+  ("Estimated Cost: 100"), the exact local time, the author. No version number,
+  no thumbnail — resting on one spends no quota.
+- **Labels:** the server ships the raw `__typename`; `historyChangeLabel`
+  (`i18n/enums.ts`, catalog `enums:historyChange.*`) names the nine known
+  types and de-camel-cases anything else (`humanizeChangeType`). An unknown
+  type still says something truthful rather than vanishing.
+- **Legend** entry "Other changes" only while the toggle is on and a change
+  exists. **Off by default, not persisted** — same as the thread checkbox.
+
+### Releases and milestone names — from the same history
+
+v2 knows only `isMilestone`. The v3 history knows more: a
+`VersionCreatedHistoryChange` is a **milestone** and its `description` is the
+milestone's name ("Milestone V2", "Item Update", or what the user typed); a
+`RevisionCreatedHistoryChange` is a **release** and its `description` is the
+revision label ("1", "A", "Rev B"), and it has **no author**. Both are stamped
+with the exact timestamp of the save they mark (to the millisecond, in every
+row seen on 2026-09-04), and there is one `ModelWrittenHistoryChange` per
+version. So:
+
+- `api/history.go` returns `Saves` — every `*Written` row, newest first — with
+  each marker folded onto the save at its instant (else the newest save at or
+  before it). A user-typed milestone name is a release (`isReleaseName`, the
+  PowerTools rule: not "Milestone …", not "Item Update"); a release row's label
+  is always one. Marker rows are **not** also shown as change rings: the ring
+  / fill on the dot is their representation, and drawing them twice put a
+  second marker on the same track at the same instant (seen on a real document
+  on 2026-09-05). This is a deliberate departure from the PowerTools palette,
+  whose milestone data comes from the desktop API rather than these rows.
+- `applyHistoryMarkers` (`historyLayout.ts`) joins `saves` to `versions` **by
+  position**, newest first, and only when the lengths agree — a marker on the
+  wrong version is worse than none. It sets `isMilestone`, `milestoneName` and
+  `revision`; the dot's ring and fill, the legend, and the hover card ("Release
+  1", "Milestone Item Update") follow from those.
+- **Consequence for fetching:** the history is now needed for the dots, not
+  only the rings, so `useItemHistory` runs **whenever the History tab is
+  mounted** — one v3 call per document viewed on that tab, beside the details
+  call. The checkbox only decides whether the rings are drawn. (The tab is
+  the default for designs; DetailsPanel mounts only the active tab, so a
+  document viewed on another tab costs nothing here.) The probe found
+  `VersionCreatedHistoryChange.version` and `RevisionCreatedHistoryChange
+  .revision` exist; their sub-fields (`v3_version_type` / `v3_revision_type`
+  candidates) could one day name the version directly instead of by position.
+
+### Where the data comes from — v2 and v3 mixed
+
+Saves come from v2 `itemVersions` as before. The non-save history is **not in
+the v2 schema at all** — probed live on 2026-09-04 against a 65-version
+design: `Cannot query field "history"` on `DesignItem` and on `Component`, no
+`model` on the `Query` root, `__type` null for both `Model` and
+`HistoryChange`. It *is* in the **v3** ("Collaborative Editing") schema, where
+`history` hangs straight off the item at the same `item(hubId, itemId)` root —
+the `feat/v3api` branch verified that live (`origin/feat/v3api:api/details.go`).
+So this app stays a v2 app and reaches for v3 for exactly one query:
+
+- `api/client.go` — `graphqlEndpointV3`
+  (`https://developer.api.autodesk.com/mfg/v3/graphql/public`), `gqlQueryV3`,
+  and `gqlQueryAt`; one transport, same token, same retry / 429 posture.
+  `allPagesAt` is `allPages` against an explicit endpoint.
+- `api/history.go` — `GetItemHistoryChanges`: twin queries through
+  `allPagesAt` at **50 a page** (PowerTools: "Pagination limit 100 exceeds
+  maximum allowed value of 50" for this list), fragments for `DesignItem` /
+  `ConfiguredDesignItem` / `DrawingItem`, `author { id userName firstName
+  lastName }`. Rows whose typename ends in `WrittenHistoryChange` are **dropped**
+  — those are the saves, and saves already come from `itemVersions` with
+  numbers and thumbnails. Sorted newest-first; the API's order is not relied on.
+- `GET /api/items/history?hubId=&itemId=` (`server/handlers_nav.go`
+  `handleItemHistory`, `protHub`) → `ItemHistoryDTO{ changes }` (never nil).
+- `useItemHistory(hubId, itemId)` — one call per document viewed on the
+  History tab (see above for why it is not behind the checkbox). With the
+  toggle on the caption reads "N versions · M other changes" (or "No other
+  changes", "Loading…", or a warning-coloured "could not be loaded for this
+  document"). The failure is inline and small on purpose: the saves-only
+  history is still right, only the rings and release fills are missing.
+
+**Verified on the 2026-09-04 probe:** the hub is Collaborative Editing
+(`hubDataVersion` 2.0.0); the v3 `author.id` **is** the same id space as v2
+`createdBy.id` (`X6MHRWZ3VKGH` on both), so one person is one track; a
+`limit: 100` on `history` does not error — it returns `item: null`, which
+would read as an empty history, so the page stays at 50; the full
+`HistoryChange` family is the ten types in `enums:historyChange` plus the
+`*Written` saves. **Known limit:** v3 resolves only on Collaborative Editing
+hubs; on an older hub the caption shows the failure every time and the dots
+carry only the v2 milestone flag. The probe (`api/probe_history.go`,
+`GET /api/debug/history-probe`, `-v` only, the clock dev button next to the
+bug) carries the v2 evidence and the v3 candidates the query relies on.
 
 ## Verification
 
@@ -236,6 +370,24 @@ Eyeball, in light **and** dark and at two panel widths:
    honours only the standard `scrollbar-color` properties.
 10. A design with >60 days shows "Show all N days" and the caption still reports
     the true total.
+11. With `-v`, a design of ≤50 versions costs **one** GraphQL request and a
+    longer one costs one per 50 with nothing truncated; a version by a profile
+    with no first/last name shows the `userName` instead of a blank.
+12. **History call.** Opening a design on the History tab makes one
+    `/api/items/history` request (the v3 endpoint in the `-v` log) beside the
+    details call; opening it on another tab makes none. A released version
+    shows the accent-filled dot with the accent ring and "Release 1" on hover;
+    a milestone the grey dot with the ring and "Milestone Item Update"; the
+    legend lists Releases / Milestones only when they occur.
+13. **Other changes.** Toggle on: the caption reads "N versions · M other
+    changes", the legend gains "Other changes", rings are smaller than dots and
+    stroked in their rail's colour, and hover shows label / detail / time /
+    author with no thumbnail. Someone who only edited properties has a track
+    and an avatar of their own; someone who also saved has **one** track. A
+    milestone or release shows **once** — on its dot, never also as a ring on
+    the track. Thread view threads rings
+    and dots in one sequence. On a non-CE hub the caption turns
+    warning-coloured and nothing else changes. Reload: the toggle is off again.
 
 Multi-author days need a second APS account saving the same design on the same
 calendar day; failing that, the deterministic coverage is `historyLayout.test.ts`

@@ -14,6 +14,14 @@ import (
 // the project's first version.
 const pageSize = 50
 
+// maxPages bounds a single allPages walk. A server that keeps handing back a
+// cursor is a bug, not data, and the loop must not follow it forever; but the
+// bound is an ERROR, never a silent stop — a truncated folder listing or
+// version history that looks complete is exactly the failure this codebase
+// refuses to ship (see "Never cap silently" in .claude/CLAUDE.md). At 50 rows a
+// page this is 10,000 rows, far past any real container or history.
+const maxPages = 200
+
 // allPages calls the API repeatedly until no next-page cursor is returned,
 // accumulating typed results across pages. It is parameterised on T so the
 // extract callback can decode straight into the caller's value type — no
@@ -32,11 +40,26 @@ func allPages[T any](
 	baseVars map[string]any,
 	extract func(json.RawMessage) (cursor string, batch []T, err error),
 ) ([]T, error) {
+	return allPagesAt(ctx, graphqlEndpoint, token, queryFirst, queryNext, baseVars, extract)
+}
+
+// allPagesAt is allPages against an explicit endpoint — the v3 endpoint for
+// the one query that needs it (api/history.go).
+func allPagesAt[T any](
+	ctx context.Context,
+	endpoint, token string,
+	queryFirst, queryNext string,
+	baseVars map[string]any,
+	extract func(json.RawMessage) (cursor string, batch []T, err error),
+) ([]T, error) {
 	var all []T
 	var cursor string
 	first := true
 
-	for {
+	for page := 0; ; page++ {
+		if page >= maxPages {
+			return nil, fmt.Errorf("pagination: still receiving a cursor after %d pages, refusing to loop", maxPages)
+		}
 		vars := make(map[string]any, len(baseVars)+1)
 		for k, v := range baseVars {
 			vars[k] = v
@@ -51,7 +74,7 @@ func allPages[T any](
 			vars["cursor"] = cursor
 		}
 
-		data, err := gqlQuery(ctx, token, q, vars)
+		data, err := gqlQueryAt(ctx, endpoint, token, q, vars)
 		if err != nil {
 			return nil, err
 		}

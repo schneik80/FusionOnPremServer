@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -461,5 +462,37 @@ func TestExtOf(t *testing.T) {
 		if got := extOf(in); got != want {
 			t.Errorf("extOf(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestAllPages_RefusesRunawayCursor(t *testing.T) {
+	// An upstream that never stops handing back a cursor must produce an
+	// error, not an infinite loop and not a silently truncated list.
+	var requests int32
+	srv := testutil.GraphQLServer(t, func(req testutil.GraphQLRequest) testutil.GraphQLResponse {
+		atomic.AddInt32(&requests, 1)
+		return testutil.GraphQLResponse{Data: map[string]any{"cursor": "again"}}
+	})
+	swapEndpoint(t, srv.URL)
+
+	const q = `query($cursor: String) { x }`
+	_, err := allPages(context.Background(), "tok", q, q, nil,
+		func(data json.RawMessage) (string, []int, error) {
+			var r struct {
+				Cursor string `json:"cursor"`
+			}
+			if err := json.Unmarshal(data, &r); err != nil {
+				return "", nil, err
+			}
+			return r.Cursor, []int{1}, nil
+		})
+	if err == nil {
+		t.Fatal("allPages returned no error for a cursor that never ends")
+	}
+	if !strings.Contains(err.Error(), "pages") {
+		t.Errorf("error = %q, want it to name the page bound", err)
+	}
+	if int(requests) != maxPages {
+		t.Errorf("requests = %d, want exactly maxPages (%d)", requests, maxPages)
 	}
 }

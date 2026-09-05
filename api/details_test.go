@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -85,8 +86,13 @@ func TestGetItemDetails_AllFields(t *testing.T) {
 		// The per-author history tracks group by user id, so the query must ask
 		// for it — a silently dropped `id` would fall back to name grouping and
 		// merge two people who share a display name.
-		if !strings.Contains(req.Query, "createdBy { id firstName lastName }") {
-			t.Errorf("query does not select the author id:\n%s", req.Query)
+		if !strings.Contains(req.Query, "createdBy { id userName firstName lastName }") {
+			t.Errorf("query does not select the author id and userName:\n%s", req.Query)
+		}
+		// A one-page history is one request: the first query carries the
+		// first page and must not ask for a cursor it does not have.
+		if _, has := req.Variables["cursor"]; has {
+			t.Errorf("first request carries a cursor: %v", req.Variables["cursor"])
 		}
 		if v, ok := req.Variables["hubId"].(string); ok && v == "h1" {
 			sawHubID = true
@@ -283,24 +289,153 @@ func TestGetItemDetails_DrawingItem_NoComponentVersion(t *testing.T) {
 
 func TestApiUser_FullName(t *testing.T) {
 	cases := []struct {
-		name  string
-		first string
-		last  string
-		want  string
+		name     string
+		first    string
+		last     string
+		userName string
+		want     string
 	}{
 		{name: "both empty", first: "", last: "", want: ""},
 		{name: "first only", first: "Ada", last: "", want: "Ada"},
 		{name: "last only", first: "", last: "Lovelace", want: "Lovelace"},
 		{name: "both present", first: "Ada", last: "Lovelace", want: "Ada Lovelace"},
+		// A profile with no first or last name is still somebody: fall back to
+		// the account name rather than a blank track.
+		{name: "userName only", userName: "ada.l", want: "ada.l"},
+		{name: "a real name beats the userName", first: "Ada", userName: "ada.l", want: "Ada"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			u := apiUser{First: tc.first, Last: tc.last}
+			u := apiUser{First: tc.first, Last: tc.last, UserName: tc.userName}
 			got := u.fullName()
 			if got != tc.want {
-				t.Errorf("apiUser{%q,%q}.fullName() = %q, want %q", tc.first, tc.last, got, tc.want)
+				t.Errorf("apiUser{%q,%q,%q}.fullName() = %q, want %q", tc.first, tc.last, tc.userName, got, tc.want)
 			}
 		})
+	}
+}
+
+// versionRow builds one itemVersions row for the paging tests.
+func versionRow(n int, id string) map[string]any {
+	return map[string]any{
+		"versionNumber": n,
+		"name":          "save " + id,
+		"createdOn":     "2024-01-15T10:30:45Z",
+		"createdBy":     map[string]any{"id": id, "firstName": "U", "lastName": id},
+	}
+}
+
+func TestGetItemDetails_PaginatesVersions(t *testing.T) {
+	// The item rides on the first page only; the follow-on page query must not
+	// select it, and the merged list must be newest-first across the boundary.
+	// Pages arrive as the live API sends them — newest first (the 2026-09-04
+	// probe: 65 → 16, cursor, then the rest) — and the order is imposed by
+	// version number regardless.
+	var requests int32
+	srv := testutil.GraphQLServer(t, func(req testutil.GraphQLRequest) testutil.GraphQLResponse {
+		n := atomic.AddInt32(&requests, 1)
+		switch n {
+		case 1:
+			if _, has := req.Variables["cursor"]; has {
+				t.Errorf("page 1 carries a cursor: %v", req.Variables["cursor"])
+			}
+			return testutil.GraphQLResponse{Data: map[string]any{
+				"item": map[string]any{
+					"__typename": "DesignItem",
+					"id":         "urn:item:long",
+					"name":       "Long History",
+					"createdBy":  map[string]any{"id": "user-ada", "firstName": "Ada", "lastName": "Lovelace"},
+					"tipVersion": map[string]any{"versionNumber": 3},
+				},
+				"itemVersions": map[string]any{
+					"pagination": map[string]any{"cursor": "PAGE-2"},
+					"results":    []any{versionRow(3, "c"), versionRow(2, "b")},
+				},
+			}}
+		case 2:
+			if req.Variables["cursor"] != "PAGE-2" {
+				t.Errorf("page 2 cursor = %v, want PAGE-2", req.Variables["cursor"])
+			}
+			if strings.Contains(req.Query, "item(") {
+				t.Errorf("page 2 re-selects the item:\n%s", req.Query)
+			}
+			if !strings.Contains(req.Query, "createdBy { id userName firstName lastName }") {
+				t.Errorf("page 2 dropped the shared version row selection:\n%s", req.Query)
+			}
+			return testutil.GraphQLResponse{Data: map[string]any{
+				"itemVersions": map[string]any{
+					"pagination": map[string]any{"cursor": ""},
+					"results":    []any{versionRow(1, "a")},
+				},
+			}}
+		default:
+			t.Errorf("unexpected request #%d", n)
+			return testutil.GraphQLResponse{Status: 500}
+		}
+	})
+	swapEndpoint(t, srv.URL)
+
+	got, err := GetItemDetails(context.Background(), "tok", "h1", "item-long")
+	if err != nil {
+		t.Fatalf("GetItemDetails: %v", err)
+	}
+	if requests != 2 {
+		t.Errorf("requests = %d, want 2", requests)
+	}
+	// The item survived the page walk.
+	if got.ID != "urn:item:long" || got.Name != "Long History" || got.VersionNumber != 3 {
+		t.Errorf("item fields lost across pages: %+v", got)
+	}
+	if got.CreatedBy != "Ada Lovelace" {
+		t.Errorf("CreatedBy = %q, want %q", got.CreatedBy, "Ada Lovelace")
+	}
+	// Every page, newest first.
+	if len(got.Versions) != 3 {
+		t.Fatalf("len(Versions) = %d, want 3", len(got.Versions))
+	}
+	for i, want := range []int{3, 2, 1} {
+		if got.Versions[i].Number != want {
+			t.Errorf("Versions[%d].Number = %d, want %d", i, got.Versions[i].Number, want)
+		}
+	}
+	if got.Versions[0].CreatedByID != "c" {
+		t.Errorf("Versions[0].CreatedByID = %q, want %q", got.Versions[0].CreatedByID, "c")
+	}
+}
+
+func TestGetItemDetails_UserNameFallback(t *testing.T) {
+	data := map[string]any{
+		"item": map[string]any{
+			"__typename": "DesignItem",
+			"id":         "urn:item:svc",
+			"name":       "Bot Design",
+			"createdBy":  map[string]any{"id": "user-bot", "userName": "build-bot"},
+		},
+		"itemVersions": map[string]any{
+			"pagination": map[string]any{"cursor": ""},
+			"results": []any{
+				map[string]any{
+					"versionNumber": 1,
+					"createdOn":     "2024-01-15T10:30:45Z",
+					"createdBy":     map[string]any{"id": "user-bot", "userName": "build-bot"},
+				},
+			},
+		},
+	}
+	srv := testutil.GraphQLServer(t, func(req testutil.GraphQLRequest) testutil.GraphQLResponse {
+		return testutil.GraphQLResponse{Data: data}
+	})
+	swapEndpoint(t, srv.URL)
+
+	got, err := GetItemDetails(context.Background(), "tok", "h1", "item-svc")
+	if err != nil {
+		t.Fatalf("GetItemDetails: %v", err)
+	}
+	if got.CreatedBy != "build-bot" {
+		t.Errorf("CreatedBy = %q, want the userName fallback %q", got.CreatedBy, "build-bot")
+	}
+	if len(got.Versions) != 1 || got.Versions[0].CreatedBy != "build-bot" {
+		t.Errorf("Versions = %+v, want one version by %q", got.Versions, "build-bot")
 	}
 }

@@ -21,6 +21,7 @@
     }
   },
   "itemVersions": {
+    "pagination": {"cursor": ""},
     "results": [
       {"versionNumber": 1, "name": "first", "createdOn": "2024-01-15T10:30:45Z", "createdBy": {"id": "user-ada", "firstName": "Ada", "lastName": "Lovelace"}, "rootComponentVersion": null},
       {"versionNumber": 2, "name": "second save", "createdOn": "2024-01-20T11:00:00Z", "createdBy": {"id": "user-ada", "firstName": "Ada", "lastName": "Lovelace"}, "rootComponentVersion": {"id": "urn:cv:v2", "isMilestone": true}},

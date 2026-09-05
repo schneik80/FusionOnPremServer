@@ -249,9 +249,38 @@ export interface VersionSummary {
   createdById?: string // APS user id — the History view's per-author track key
   comment?: string
   rootComponentVersionId?: string // per-version cvId for the thumbnail
-  isMilestone?: boolean // marks a milestone save
-  revision?: string // reserved: the formal release revision; no API source yet
+  isMilestone?: boolean // marks a milestone save (v2 flag, or a v3 history marker)
+  milestoneName?: string // the milestone's name, from the v3 history ("Milestone V2", "Item Update", "Rev B")
+  revision?: string // the release label, from the v3 history ("1", "A", "Rev B")
   publicShare?: boolean // reserved: a public share on this version; no API source yet
+}
+
+// HistoryChange mirrors server.HistoryChangeDTO — one edit that made no new
+// version (a property changed, a milestone marked, a part number set). Field
+// names match VersionSummary so the History view lays both on one day row and
+// one author track. `type` is the raw GraphQL typename; enums.ts labels it.
+export interface HistoryChange {
+  type: string
+  createdOn?: string
+  createdBy?: string
+  createdById?: string
+  comment?: string
+}
+
+// HistorySave mirrors server.HistorySaveDTO — one save as the history records
+// it, newest first, with the milestone name / release label the history
+// attached to it. Joined to `versions` by position (applyHistoryMarkers).
+export interface HistorySave {
+  createdOn?: string
+  milestone?: string
+  revision?: string
+}
+
+// ItemHistory is GET /api/items/history — the v3 history: the non-save
+// changes behind "Show other changes", and the markers on the saves.
+export interface ItemHistory {
+  changes: HistoryChange[]
+  saves: HistorySave[]
 }
 
 export interface Details {

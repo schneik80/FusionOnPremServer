@@ -18,7 +18,7 @@
 // shared with the production Batch timeline. The spacing below is this graph's
 // own, per that file's rule.
 
-import type { VersionSummary } from '../../api/types'
+import type { HistoryChange, HistorySave, VersionSummary } from '../../api/types'
 import { calendarBreakdown, daysBetween, fmtDay, parseDay } from '../../fmt/dates'
 import { NODE_R } from '../graphstyle'
 
@@ -47,6 +47,11 @@ export const COL_GAP = 38
 // pushes them apart.
 export const MIN_DOT_GAP = NODE_R * 2 + 2
 
+// An edit that made no version (a property changed, a milestone marked) is
+// drawn as a small open ring, deliberately smaller than a save's filled dot —
+// a property tweak must never be mistaken for a save.
+export const CHANGE_R = NODE_R - 2.5
+
 export const DAY_ROWS_CAP = 60 // render cap, not a data cap — see HistoryTimeline
 export const TRACKS_PER_DAY_CAP = 6 // above this, the tail merges into one overflow track
 
@@ -59,8 +64,68 @@ const DAY_MS = 86_400_000
 
 // ---------------------------------------------------------------- types
 
+/**
+ * A HistoryEvent is one thing on the timeline: a save (a version, from
+ * itemVersions) or a change (an edit that made no version, from the history
+ * list, shown behind the "Show other changes" toggle). The two share author and
+ * instant, which is all the bucketing needs — a change lands on its author's
+ * track on its own day exactly as a save does, so someone who only ever edited
+ * properties gets a track of their own.
+ */
+export type HistoryEvent = ({ kind: 'save' } & VersionSummary) | ({ kind: 'change' } & HistoryChange)
+
+/**
+ * applyHistoryMarkers puts the history's milestone names and release labels
+ * onto the versions they mark. The history has no version numbers, so the two
+ * lists are joined BY POSITION, newest first — there is one history save per
+ * version — and only when they are the same length: a marker on the wrong
+ * version is worse than no marker, so a length disagreement leaves every
+ * version as it was (the v2 isMilestone flag still holds).
+ *
+ * This is what lights up the accent ring (milestone) and the filled ring
+ * (release) on a save's dot; `revision` had no source before it.
+ */
+export function applyHistoryMarkers(versions: VersionSummary[], saves?: HistorySave[]): VersionSummary[] {
+  if (!saves || saves.length !== versions.length) return versions
+  const byNumberDesc = [...versions].sort((a, b) => b.number - a.number)
+  const marked = new Map<number, VersionSummary>()
+  byNumberDesc.forEach((v, i) => {
+    const s = saves[i]
+    if (!s.milestone && !s.revision) return
+    marked.set(v.number, {
+      ...v,
+      isMilestone: true,
+      milestoneName: s.milestone || v.milestoneName,
+      revision: s.revision || v.revision,
+    })
+  })
+  return marked.size ? versions.map((v) => marked.get(v.number) ?? v) : versions
+}
+
+/** toEvents tags both lists; bucketByDay does the ordering. */
+export function toEvents(versions: VersionSummary[], changes?: HistoryChange[]): HistoryEvent[] {
+  const out: HistoryEvent[] = versions.map((v) => ({ kind: 'save', ...v }))
+  for (const c of changes ?? []) out.push({ kind: 'change', ...c })
+  return out
+}
+
+/**
+ * humanizeChangeType renders an unmapped HistoryChange typename as something a
+ * reader can use: the "HistoryChange" suffix dropped and the stem split on its
+ * capitals ("BomEditHistoryChange" → "Bom Edit"). The schema has more change
+ * types than any one design has produced, so an unknown one still says
+ * something truthful rather than vanishing from the history.
+ */
+export function humanizeChangeType(type: string): string {
+  const stem = type.endsWith('HistoryChange') ? type.slice(0, -'HistoryChange'.length) : type
+  const words = stem.match(/[A-Z][a-z0-9]*|[A-Z]+(?![a-z])/g)
+  return words?.length ? words.join(' ') : stem || 'Change'
+}
+
 export interface HistoryDot {
-  v: VersionSummary
+  v: HistoryEvent
+  /** Stable, unique per dot: `v<number>` for a save, `c<index>` for a change. */
+  key: string
   /** Position in the whole history, oldest = 0. Drives the thread x mapping. */
   index: number
   /** Milliseconds since local midnight; the day-view x mapping. */
@@ -84,7 +149,10 @@ export interface HistoryDay {
   /** Local midnight of `day`; null for the undated bucket. */
   date: Date | null
   tracks: HistoryTrack[]
+  /** Every dot on the row: saves + changes. */
   count: number
+  saves: number
+  changes: number
 }
 
 export type GapTier = 'nextDay' | 'days' | 'wide'
@@ -104,7 +172,7 @@ export interface HistoryGap {
  * person into two tracks; the name is the fallback for versions whose author id
  * the API did not resolve.
  */
-export function authorKey(v: VersionSummary): string {
+export function authorKey(v: { createdById?: string; createdBy?: string }): string {
   return v.createdById || v.createdBy || ''
 }
 
@@ -112,7 +180,7 @@ export function authorKey(v: VersionSummary): string {
  * parseCreatedOn returns a valid Date or null. A version with no usable
  * timestamp is not dropped — it lands in the undated bucket.
  */
-export function parseCreatedOn(v: VersionSummary): Date | null {
+export function parseCreatedOn(v: { createdOn?: string }): Date | null {
   if (!v.createdOn) return null
   const d = new Date(v.createdOn)
   return Number.isNaN(d.getTime()) ? null : d
@@ -126,9 +194,9 @@ export function parseCreatedOn(v: VersionSummary): Date | null {
  * string: a 23:30 save would otherwise jump to the next day for anyone east of
  * Greenwich. Undated versions collect in one trailing bucket.
  */
-export function bucketByDay(versions: VersionSummary[]): HistoryDay[] {
+export function bucketByDay(events: HistoryEvent[]): HistoryDay[] {
   // Oldest → newest, so `index` is the position on the thread axis.
-  const ordered = [...versions]
+  const ordered = [...events]
     .map((v) => ({ v, at: parseCreatedOn(v) }))
     .sort((a, b) => {
       if (!a.at) return 1 // undated sorts last, order among themselves preserved
@@ -140,9 +208,10 @@ export function bucketByDay(versions: VersionSummary[]): HistoryDay[] {
   ordered.forEach(({ v, at }, index) => {
     const day = at ? fmtDay(at) : ''
     const ms = at ? at.getHours() * 3_600_000 + at.getMinutes() * 60_000 + at.getSeconds() * 1000 : 0
+    const key = v.kind === 'save' ? `v${v.number}` : `c${index}`
     const dots = byDay.get(day)
-    if (dots) dots.push({ v, index, ms })
-    else byDay.set(day, [{ v, index, ms }])
+    if (dots) dots.push({ v, key, index, ms })
+    else byDay.set(day, [{ v, key, index, ms }])
   })
 
   const undated = byDay.get('')
@@ -150,13 +219,19 @@ export function bucketByDay(versions: VersionSummary[]): HistoryDay[] {
 
   // ISO day strings sort lexicographically = chronologically.
   const days = [...byDay.keys()].sort().reverse()
-  const rows: HistoryDay[] = days.map((day) => {
-    const dots = byDay.get(day)!
-    return { day, date: parseDay(day), tracks: tracksForDay(dots), count: dots.length }
-  })
-  if (undated) {
-    rows.push({ day: '', date: null, tracks: tracksForDay(undated), count: undated.length })
+  const row = (day: string, dots: HistoryDot[]): HistoryDay => {
+    const changes = dots.filter((d) => d.v.kind === 'change').length
+    return {
+      day,
+      date: day ? parseDay(day) : null,
+      tracks: tracksForDay(dots),
+      count: dots.length,
+      saves: dots.length - changes,
+      changes,
+    }
   }
+  const rows = days.map((day) => row(day, byDay.get(day)!))
+  if (undated) rows.push(row('', undated))
   return rows
 }
 

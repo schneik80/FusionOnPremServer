@@ -1,8 +1,12 @@
 package api
 
 import (
+	"context"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/schneik80/fusionlocalserver/internal/testutil"
 )
 
 func TestDesignEventsFromDetails(t *testing.T) {
@@ -94,5 +98,54 @@ func TestDesignEventsFromDetails(t *testing.T) {
 func TestDesignEventsFromDetails_Nil(t *testing.T) {
 	if got := designEventsFromDetails(nil, "h"); got != nil {
 		t.Errorf("nil details should yield nil events, got %v", got)
+	}
+}
+
+func TestGetDesignActivity_PaginatesVersions(t *testing.T) {
+	// The activity twin shares the paged version fetch, so a long history is
+	// reported in full — one event per version across every page.
+	var requests int32
+	srv := testutil.GraphQLServer(t, func(req testutil.GraphQLRequest) testutil.GraphQLResponse {
+		switch atomic.AddInt32(&requests, 1) {
+		case 1:
+			return testutil.GraphQLResponse{Data: map[string]any{
+				"item": map[string]any{"__typename": "DesignItem", "id": "urn:item:long", "name": "Long"},
+				"itemVersions": map[string]any{
+					"pagination": map[string]any{"cursor": "P2"},
+					"results":    []any{versionRow(1, "a"), versionRow(2, "b")},
+				},
+			}}
+		default:
+			if req.Variables["cursor"] != "P2" {
+				t.Errorf("cursor = %v, want P2", req.Variables["cursor"])
+			}
+			return testutil.GraphQLResponse{Data: map[string]any{
+				"itemVersions": map[string]any{
+					"pagination": map[string]any{"cursor": ""},
+					"results":    []any{versionRow(3, "c")},
+				},
+			}}
+		}
+	})
+	swapEndpoint(t, srv.URL)
+
+	events, err := GetDesignActivity(context.Background(), "tok", "h1", "item-long")
+	if err != nil {
+		t.Fatalf("GetDesignActivity: %v", err)
+	}
+	if len(events) != 3 {
+		t.Fatalf("len(events) = %d, want 3", len(events))
+	}
+	seen := map[int]bool{}
+	for _, e := range events {
+		if e.EntityID != "urn:item:long" || e.EntityName != "Long" {
+			t.Errorf("event lost its item: %+v", e)
+		}
+		seen[e.VersionNumber] = true
+	}
+	for _, n := range []int{1, 2, 3} {
+		if !seen[n] {
+			t.Errorf("no event for version %d", n)
+		}
 	}
 }

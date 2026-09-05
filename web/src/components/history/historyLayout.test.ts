@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { VersionSummary } from '../../api/types'
 import {
+  applyHistoryMarkers,
   authorKey,
   bucketByDay,
   COL_GAP,
@@ -8,47 +8,52 @@ import {
   gapBetween,
   GUTTER_W,
   hourTicks,
+  humanizeChangeType,
   indexBase,
   layoutStack,
   MIN_DOT_GAP,
   PAD_R,
   plotWidth,
   threadWidth,
+  toEvents,
   TRACKS_PER_DAY_CAP,
   tracksForDay,
   xOfIndex,
   xOfMs,
 } from './historyLayout'
+import type { HistoryDot, HistoryEvent } from './historyLayout'
 
-// Versions are built with LOCAL wall-clock times, matching what the view shows:
+// Events are built with LOCAL wall-clock times, matching what the view shows:
 // the day a save belongs to is the day the author saw on their clock.
-function v(
-  number: number,
-  local: string,
-  who?: { id?: string; name?: string },
-): VersionSummary {
+function at(local: string): string {
   const [date, time = '12:00'] = local.split(' ')
   const [y, m, d] = date.split('-').map(Number)
   const [hh, mm] = time.split(':').map(Number)
-  return {
-    number,
-    createdOn: new Date(y, m - 1, d, hh, mm).toISOString(),
-    createdBy: who?.name,
-    createdById: who?.id,
-  }
+  return new Date(y, m - 1, d, hh, mm).toISOString()
 }
+
+function v(number: number, local: string, who?: { id?: string; name?: string }): HistoryEvent {
+  return { kind: 'save', number, createdOn: at(local), createdBy: who?.name, createdById: who?.id }
+}
+
+// An edit that made no version: same author and instant, no number.
+function c(type: string, local: string, who?: { id?: string; name?: string }, comment?: string): HistoryEvent {
+  return { kind: 'change', type, createdOn: at(local), createdBy: who?.name, createdById: who?.id, comment }
+}
+
+const num = (d: HistoryDot) => (d.v.kind === 'save' ? d.v.number : NaN)
 
 const ada = { id: 'user-ada', name: 'Ada Lovelace' }
 const grace = { id: 'user-grace', name: 'Grace Hopper' }
 
 describe('authorKey', () => {
   it('prefers the user id', () => {
-    expect(authorKey({ number: 1, createdById: 'u1', createdBy: 'Ada' })).toBe('u1')
+    expect(authorKey({ createdById: 'u1', createdBy: 'Ada' })).toBe('u1')
   })
 
   it('falls back to the display name, then to empty', () => {
-    expect(authorKey({ number: 1, createdBy: 'Ada' })).toBe('Ada')
-    expect(authorKey({ number: 1 })).toBe('')
+    expect(authorKey({ createdBy: 'Ada' })).toBe('Ada')
+    expect(authorKey({})).toBe('')
   })
 
   it('keeps two people with the same display name apart', () => {
@@ -75,7 +80,7 @@ describe('bucketByDay', () => {
 
   it('indexes versions oldest-first across the whole history', () => {
     const rows = bucketByDay([v(3, '2026-08-12 09:00'), v(2, '2026-08-11 15:00'), v(1, '2026-08-11 08:00')])
-    const byNumber = new Map(rows.flatMap((r) => r.tracks.flatMap((t) => t.dots)).map((d) => [d.v.number, d.index]))
+    const byNumber = new Map(rows.flatMap((r) => r.tracks.flatMap((t) => t.dots)).map((d) => [num(d), d.index]))
     expect(byNumber.get(1)).toBe(0)
     expect(byNumber.get(2)).toBe(1)
     expect(byNumber.get(3)).toBe(2)
@@ -88,9 +93,9 @@ describe('bucketByDay', () => {
 
   it('collects undated versions in one trailing bucket rather than dropping them', () => {
     const rows = bucketByDay([
-      { number: 2 },
+      { kind: 'save', number: 2 },
       v(1, '2026-08-11 08:00'),
-      { number: 3, createdOn: 'not a date' },
+      { kind: 'save', number: 3, createdOn: 'not a date' },
     ])
     expect(rows.map((r) => r.day)).toEqual(['2026-08-11', ''])
     expect(rows[1].count).toBe(2)
@@ -99,10 +104,86 @@ describe('bucketByDay', () => {
   it('returns nothing for an empty history', () => {
     expect(bucketByDay([])).toEqual([])
   })
+
+  it('counts saves and changes separately on a row', () => {
+    const rows = bucketByDay([
+      v(2, '2026-08-12 10:00', ada),
+      c('PropertiesUpdatedHistoryChange', '2026-08-12 11:00', ada),
+      c('VersionCreatedHistoryChange', '2026-08-12 12:00', ada),
+    ])
+    expect(rows[0].count).toBe(3)
+    expect(rows[0].saves).toBe(1)
+    expect(rows[0].changes).toBe(2)
+  })
+
+  it('surfaces a person who only ever edited properties', () => {
+    // The reason the toggle exists: a saves-only history under-credits a design.
+    const cyan = { id: 'user-cyan', name: 'Cyan' }
+    const save = v(1, '2026-08-12 09:00', ada)
+    const edit = c('PropertiesUpdatedHistoryChange', '2026-08-12 10:00', cyan, 'Category: Beverage')
+    expect(bucketByDay([save])[0].tracks).toHaveLength(1)
+    const withChanges = bucketByDay([save, edit])[0].tracks
+    expect(withChanges).toHaveLength(2)
+    expect(withChanges.map((t) => t.name)).toEqual(['Ada Lovelace', 'Cyan'])
+  })
+
+  it('lands a change on its author\'s existing track, not a new one', () => {
+    const tracks = bucketByDay([v(1, '2026-08-12 09:00', ada), c('MarkerHistoryChange', '2026-08-12 10:00', ada)])[0]
+      .tracks
+    expect(tracks).toHaveLength(1)
+    expect(tracks[0].dots).toHaveLength(2)
+  })
+
+  it('buckets changes onto their own day and keeps them in order', () => {
+    const rows = bucketByDay([
+      c('PropertiesUpdatedHistoryChange', '2026-08-11 10:00', ada, 'a'),
+      c('PropertiesUpdatedHistoryChange', '2026-08-12 10:00', ada, 'b'),
+    ])
+    expect(rows.map((r) => r.day)).toEqual(['2026-08-12', '2026-08-11'])
+    const comments = rows.map((r) => (r.tracks[0].dots[0].v.kind === 'change' ? r.tracks[0].dots[0].v.comment : ''))
+    expect(comments).toEqual(['b', 'a'])
+  })
+
+  it('threads changes into the same index sequence as saves', () => {
+    const rows = bucketByDay([
+      v(1, '2026-08-12 08:00', ada),
+      c('PropertiesUpdatedHistoryChange', '2026-08-12 09:00', ada),
+      v(2, '2026-08-12 10:00', ada),
+    ])
+    expect(rows[0].tracks[0].dots.map((d) => d.index)).toEqual([0, 1, 2])
+  })
+
+  it('gives every dot a stable key that never collides across kinds', () => {
+    const rows = bucketByDay([
+      v(3, '2026-08-12 08:00', ada),
+      c('PropertiesUpdatedHistoryChange', '2026-08-12 09:00', ada),
+      c('PropertiesUpdatedHistoryChange', '2026-08-12 09:00', ada),
+    ])
+    const keys = rows[0].tracks[0].dots.map((d) => d.key)
+    expect(keys).toEqual(['v3', 'c1', 'c2'])
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+})
+
+describe('toEvents', () => {
+  it('tags saves and changes and tolerates an absent change list', () => {
+    const events = toEvents([{ number: 1 }], [{ type: 'MarkerHistoryChange' }])
+    expect(events.map((e) => e.kind)).toEqual(['save', 'change'])
+    expect(toEvents([{ number: 1 }]).map((e) => e.kind)).toEqual(['save'])
+  })
+})
+
+describe('humanizeChangeType', () => {
+  it('de-camel-cases an unmapped type rather than dropping it', () => {
+    expect(humanizeChangeType('BomEditHistoryChange')).toBe('Bom Edit')
+    expect(humanizeChangeType('SomethingBrandNewHistoryChange')).toBe('Something Brand New')
+    expect(humanizeChangeType('Unrecognised')).toBe('Unrecognised')
+    expect(humanizeChangeType('')).toBe('Change')
+  })
 })
 
 describe('tracksForDay', () => {
-  const dotsFor = (versions: VersionSummary[]) => bucketByDay(versions)[0].tracks
+  const dotsFor = (events: HistoryEvent[]) => bucketByDay(events)[0].tracks
 
   it('gives a single author one track', () => {
     const tracks = dotsFor([v(1, '2026-08-11 08:00', ada), v(2, '2026-08-11 09:00', ada)])
@@ -118,7 +199,7 @@ describe('tracksForDay', () => {
       v(3, '2026-08-11 16:00', grace),
     ])
     expect(tracks.map((t) => t.key)).toEqual(['user-ada', 'user-grace'])
-    expect(tracks[1].dots.map((d) => d.v.number)).toEqual([1, 3])
+    expect(tracks[1].dots.map(num)).toEqual([1, 3])
   })
 
   it('groups by name when no id is present', () => {
@@ -178,7 +259,7 @@ describe('gapBetween', () => {
   })
 
   it('has nothing to say about the undated bucket', () => {
-    const rows = bucketByDay([v(1, '2026-08-11 12:00'), { number: 2 }])
+    const rows = bucketByDay([v(1, '2026-08-11 12:00'), { kind: 'save', number: 2 }])
     expect(gapBetween(rows[0], rows[1])).toBeNull()
   })
 })
@@ -307,5 +388,34 @@ describe('indexBase', () => {
 
   it('is zero when nothing is rendered', () => {
     expect(indexBase([])).toBe(0)
+  })
+})
+
+describe('applyHistoryMarkers', () => {
+  const versions = [{ number: 3 }, { number: 2 }, { number: 1 }]
+
+  it('joins saves to versions by position, newest first', () => {
+    const out = applyHistoryMarkers(versions, [{}, { revision: '1' }, { milestone: 'Milestone V2' }])
+    expect(out[0]).toEqual({ number: 3 })
+    expect(out[1]).toMatchObject({ number: 2, isMilestone: true, revision: '1' })
+    expect(out[2]).toMatchObject({ number: 1, isMilestone: true, milestoneName: 'Milestone V2' })
+    expect(out[2].revision).toBeUndefined()
+  })
+
+  it('joins by version number even when the list arrives oldest first', () => {
+    const out = applyHistoryMarkers([{ number: 1 }, { number: 2 }], [{ revision: 'A' }, {}])
+    expect(out.find((v) => v.number === 2)).toMatchObject({ revision: 'A' })
+    expect(out.find((v) => v.number === 1)?.revision).toBeUndefined()
+  })
+
+  it('refuses to guess when the two lists disagree in length', () => {
+    // A marker on the wrong version is worse than no marker.
+    expect(applyHistoryMarkers(versions, [{ revision: '1' }])).toBe(versions)
+    expect(applyHistoryMarkers(versions, undefined)).toBe(versions)
+  })
+
+  it('keeps the v2 milestone flag when the history adds nothing', () => {
+    const flagged = [{ number: 1, isMilestone: true }]
+    expect(applyHistoryMarkers(flagged, [{}])).toBe(flagged)
   })
 })

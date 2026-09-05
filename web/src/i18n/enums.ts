@@ -4,6 +4,7 @@
 // server-side values degrade readably instead of blanking.
 
 import type { TFunction } from 'i18next'
+import { humanizeChangeType } from '../components/history/historyLayout'
 
 function lookup(t: TFunction, key: string, raw: string): string {
   const full = `enums:${key}.${raw}`
@@ -28,6 +29,15 @@ export const localRefViaLabel = (t: TFunction, v: string) => lookup(t, 'localRef
 // locale that wants native tags can supply them.
 export const typeTagLabel = (t: TFunction, tag: string) =>
   tag ? lookup(t, 'typeTag', tag) : ''
+
+// historyChangeLabel names a non-save history event by its GraphQL typename
+// ("PropertiesUpdatedHistoryChange" → "Property change"). The server ships the
+// raw typename; an unmapped one is de-camel-cased rather than dropped, so a
+// change type nobody has seen yet still says something truthful.
+export function historyChangeLabel(t: TFunction, type: string): string {
+  const out = lookup(t, 'historyChange', type)
+  return out === type ? humanizeChangeType(type) : out
+}
 
 // docStateLabel localizes a document lifecycle badge (api/documentState.ts).
 export function docStateLabel(

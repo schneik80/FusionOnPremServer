@@ -123,6 +123,52 @@ type VersionDTO struct {
 	PublicShare            bool   `json:"publicShare"`
 }
 
+// HistoryChangeDTO mirrors api.HistoryChange — one edit that made no version.
+// Field names match VersionDTO so the web view lays both on one timeline;
+// `type` is the raw GraphQL typename, labelled client-side.
+type HistoryChangeDTO struct {
+	Type        string `json:"type"`
+	CreatedOn   string `json:"createdOn,omitempty"`
+	CreatedBy   string `json:"createdBy,omitempty"`
+	CreatedByID string `json:"createdById,omitempty"`
+	Comment     string `json:"comment,omitempty"`
+}
+
+// HistorySaveDTO mirrors api.HistorySave — one save as the history records
+// it, newest first, with the markers the history attached to it. The web view
+// joins these to the version list by position.
+type HistorySaveDTO struct {
+	CreatedOn string `json:"createdOn,omitempty"`
+	Milestone string `json:"milestone,omitempty"`
+	Revision  string `json:"revision,omitempty"`
+}
+
+// ItemHistoryDTO is the GET /api/items/history response.
+type ItemHistoryDTO struct {
+	Changes []HistoryChangeDTO `json:"changes"`
+	Saves   []HistorySaveDTO   `json:"saves"`
+}
+
+func itemHistoryDTO(h *api.ItemHistory) ItemHistoryDTO {
+	out := ItemHistoryDTO{Changes: []HistoryChangeDTO{}, Saves: []HistorySaveDTO{}}
+	if h == nil {
+		return out
+	}
+	for _, c := range h.Changes {
+		out.Changes = append(out.Changes, HistoryChangeDTO{
+			Type:        c.Type,
+			CreatedOn:   fmtTime(c.CreatedOn),
+			CreatedBy:   c.CreatedBy,
+			CreatedByID: c.CreatedByID,
+			Comment:     c.Comment,
+		})
+	}
+	for _, s := range h.Saves {
+		out.Saves = append(out.Saves, HistorySaveDTO{CreatedOn: fmtTime(s.CreatedOn), Milestone: s.Milestone, Revision: s.Revision})
+	}
+	return out
+}
+
 // DetailsDTO mirrors api.ItemDetails — the rich metadata for one item.
 type DetailsDTO struct {
 	ID                     string       `json:"id"`

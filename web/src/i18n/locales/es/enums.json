@@ -67,5 +67,16 @@
     "violet": "Violeta",
     "teal": "Verde azulado",
     "grey": "Gris"
+  },
+  "historyChange": {
+    "PropertiesUpdatedHistoryChange": "Cambio de propiedad",
+    "ComponentPrimaryHistoryChange": "Cambio de componente",
+    "ComponentPartNumberHistoryChange": "Cambio de número de pieza",
+    "ModelComponentHistoryChange": "Actualización de componente",
+    "VersionCreatedHistoryChange": "Hito",
+    "RevisionCreatedHistoryChange": "Publicación",
+    "MarkerHistoryChange": "Marcador",
+    "DrawingItemWrittenHistoryChange": "Dibujo guardado",
+    "BasicItemWrittenHistoryChange": "Archivo guardado"
   }
 }

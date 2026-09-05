@@ -79,6 +79,7 @@ func (s *Server) routes() http.Handler {
 	// GraphQL listing misses, e.g. wiki image folders).
 	mux.HandleFunc("GET /api/browse/contents", protHub(s.handleBrowseContents))
 	mux.HandleFunc("GET /api/items/details", protHub(s.handleItemDetails))
+	mux.HandleFunc("GET /api/items/history", protHub(s.handleItemHistory))
 	mux.HandleFunc("GET /api/items/location", protHub(s.handleItemLocation))
 	// Raw bytes of an uploaded (non-native) file's tip, for the preview viewers.
 	mux.HandleFunc("GET /api/items/file", protHub(s.handleFile))
@@ -124,6 +125,9 @@ func (s *Server) routes() http.Handler {
 	// Debug (only live when launched with -v; otherwise 404s). A live, real-doc
 	// probe for discovering how a version exposes its root component version.
 	mux.HandleFunc("GET /api/debug/version-probe", protHub(s.handleDebugVersionProbe))
+	// …and one for where the schema exposes a design's non-save history
+	// (HistoryChange rows) — the gate for the History tab's "other changes".
+	mux.HandleFunc("GET /api/debug/history-probe", protHub(s.handleDebugHistoryProbe))
 
 	// Chat (docs/chat/PLAN.md, phase 1). REST + client polling; the SSE
 	// event stream lands in phase 2. URN-style ids ride query params, per

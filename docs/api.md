@@ -268,7 +268,7 @@ The classifier is fire-and-forget; per-row errors keep the row's generic design 
 
 ### GetItemDetails
 
-Fetches rich metadata for a single item plus its complete version history. This query is not paginated.
+Fetches rich metadata for a single item plus its **complete** version history, newest first. The first query carries the item fields and the first page of `itemVersions`; a longer history pages with `GetItemVersionsNext` (cursor only, no item re-select) through `allPages`, so the common short history still costs exactly one request. The per-version selection is the package constant `versionRowFields`, shared with `GetDesignActivity` so the two queries cannot drift apart.
 
 ```graphql
 query GetItemDetails($hubId: ID!, $itemId: ID!) {
@@ -280,14 +280,15 @@ query GetItemDetails($hubId: ID!, $itemId: ID!) {
         mimeType
         extensionType
         createdOn
-        createdBy  { firstName lastName }
+        createdBy  { id userName firstName lastName }
         lastModifiedOn
-        lastModifiedBy { firstName lastName }
+        lastModifiedBy { id userName firstName lastName }
 
         ... on DesignItem {
             fusionWebUrl
             tipVersion { versionNumber }
             tipRootComponentVersion {
+                id
                 partNumber
                 partDescription
                 materialName
@@ -304,18 +305,44 @@ query GetItemDetails($hubId: ID!, $itemId: ID!) {
         }
     }
 
-    itemVersions(hubId: $hubId, itemId: $itemId) {
+    itemVersions(hubId: $hubId, itemId: $itemId, pagination: { limit: 50 }) {
+        pagination { cursor }
         results {
             versionNumber
-            name
+            name                       # the save comment
             createdOn
-            createdBy { firstName lastName }
+            createdBy { id userName firstName lastName }
+            # results is typed ItemVersion (an interface); the per-version root
+            # component version — its cvId for the thumbnail and isMilestone —
+            # lives on the concrete DesignItemVersion behind a fragment.
+            ... on DesignItemVersion {
+                rootComponentVersion { id isMilestone }
+            }
         }
     }
 }
 ```
 
-`itemVersions.results` are returned oldest-first by the API; `GetItemDetails` reverses the slice so versions come back newest-first.
+`versionsNewestFirst` sorts the accumulated pages by version number, descending. The wire order is not trusted: an unpaginated `itemVersions` was once observed oldest-first, and the paginated form answered newest-first on 2026-09-04 (65 → 16, cursor, 15 → 1). `pagination: { limit: 100 }` was accepted for a bare `versionNumber` selection, but the page stays at 50 because the per-row `DesignItemVersion` fragment counts against the 1000-point complexity cap. A user's display name is `"First Last"`, whichever exists, else their `userName` (`apiUser.fullName`) — a service account or unfinished profile is still somebody.
+
+**Debug probes (`-v` only).** `GET /api/debug/version-probe` (`api/probe_versions.go`) re-confirms how a version exposes its root component version. `GET /api/debug/history-probe` (`api/probe_history.go`) asks the live schema where — if anywhere — it exposes a design's non-save **history** (`HistoryChange` rows: property edits, milestones, part-number changes, each with an `author`), which the PowerTools add-in reads as `model(modelId:) { history }` over Fusion's internal `mfgdm://v3` transport. **Outcome (2026-09-04): the v2 schema has no history** — every `history` selection fails with `Cannot query field "history"` on `DesignItem` and on `Component`, the `Query` root has no `model`, and `__type` returns null for both `Model` and `HistoryChange`. The **v3** schema has it, at the same `item` root; see `GetItemHistoryChanges` below. Both probes are opened from the developer bug/clock buttons on the details header and 404 without `-v`.
+
+### GetItemHistory — the one v3 query
+
+`api/history.go`. The app is a v2 app; this is the single query it sends to the v3 ("Collaborative Editing") endpoint, `https://developer.api.autodesk.com/mfg/v3/graphql/public` (`graphqlEndpointV3`, `gqlQueryV3`, `allPagesAt` — same token, same retry and 429 posture, a different URL). It feeds `GET /api/items/history?hubId=&itemId=` → `ItemHistoryDTO{ changes, saves }`, one call per document viewed on the History tab.
+
+```graphql
+query GetItemHistory($hubId: ID!, $itemId: ID!) {
+    item(hubId: $hubId, itemId: $itemId) {
+        __typename
+        ... on DesignItem           { history(pagination: { limit: 50 }) { pagination { cursor } results { __typename timestamp description author { id userName firstName lastName } } } }
+        ... on ConfiguredDesignItem { history(pagination: { limit: 50 }) { … } }
+        ... on DrawingItem          { history(pagination: { limit: 50 }) { … } }
+    }
+}
+```
+
+`GetItemHistoryNext` adds `$cursor: String!` and `pagination: { cursor: $cursor, limit: 50 }`. The limit is 50: a limit of 100 does not error on this list, it answers `item: null` (probed 2026-09-04), which would read as an empty history. Rows whose `__typename` ends in `WrittenHistoryChange` (`ModelWritten…`, `DrawingItemWritten…`, `BasicItemWritten…`) are **saves** — one per version — and become `Saves []HistorySave{ CreatedOn, Milestone, Revision }`, newest first, with the markers folded on: a `VersionCreatedHistoryChange` (milestone; `description` is its name) or `RevisionCreatedHistoryChange` (release; `description` is the label, `author` is null) decorates the save at exactly its timestamp, else the newest save at or before it; a user-typed milestone name counts as a release (`isReleaseName`). The client joins `saves` to `itemVersions` by position. The other rows (`PropertiesUpdatedHistoryChange`, `ComponentPrimaryHistoryChange`, `ComponentPartNumberHistoryChange`, …; marker rows are consumed by `Saves` and never repeated here) are returned newest-first as `Changes []HistoryChange{ Type, CreatedOn, CreatedBy, CreatedByID, Comment }`; the raw typename rides to the client, which labels it. The v3 `User.id` is the same id space as v2's. v3 resolves only on Collaborative Editing hubs (`hubDataVersion` major ≥ 2); elsewhere the query errors and the route answers 502, which the UI shows as an inline "could not be loaded".
 
 ---
 
@@ -418,10 +445,15 @@ type ItemDetails struct {
 }
 
 type VersionSummary struct {
-    Number    int
-    CreatedOn time.Time
-    CreatedBy string
-    Comment   string           // version save comment (may be empty)
+    Number                 int
+    CreatedOn              time.Time
+    CreatedBy              string    // "First Last", else userName
+    CreatedByID            string    // APS user id — the History view's per-author track key
+    Comment                string    // version save comment (may be empty)
+    RootComponentVersionID string    // this version's cvId, for its thumbnail
+    IsMilestone            bool
+    Revision               string    // reserved — no API source today
+    PublicShare            bool      // reserved — no API source today
 }
 ```
 

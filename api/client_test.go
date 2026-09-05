@@ -44,9 +44,11 @@ func TestSetRegion(t *testing.T) {
 // client at an httptest.Server.
 func swapEndpoint(t *testing.T, url string) {
 	t.Helper()
-	prev := graphqlEndpoint
-	t.Cleanup(func() { graphqlEndpoint = prev })
-	graphqlEndpoint = url
+	prev, prevV3 := graphqlEndpoint, graphqlEndpointV3
+	t.Cleanup(func() { graphqlEndpoint, graphqlEndpointV3 = prev, prevV3 })
+	// Both endpoints go to the one fake: a test that must tell them apart
+	// asserts on the query text (a v3 query selects `history`).
+	graphqlEndpoint, graphqlEndpointV3 = url, url
 }
 
 func TestGqlQuery_HappyPath(t *testing.T) {

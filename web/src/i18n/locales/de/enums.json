@@ -67,5 +67,16 @@
     "violet": "Violett",
     "teal": "Blaugrün",
     "grey": "Grau"
+  },
+  "historyChange": {
+    "PropertiesUpdatedHistoryChange": "Eigenschaftsänderung",
+    "ComponentPrimaryHistoryChange": "Komponentenänderung",
+    "ComponentPartNumberHistoryChange": "Teilenummer geändert",
+    "ModelComponentHistoryChange": "Komponente aktualisiert",
+    "VersionCreatedHistoryChange": "Meilenstein",
+    "RevisionCreatedHistoryChange": "Freigabe",
+    "MarkerHistoryChange": "Markierung",
+    "DrawingItemWrittenHistoryChange": "Zeichnung gespeichert",
+    "BasicItemWrittenHistoryChange": "Datei gespeichert"
   }
 }

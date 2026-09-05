@@ -35,3 +35,30 @@ func (s *Server) handleDebugVersionProbe(w http.ResponseWriter, r *http.Request)
 	}
 	writeJSON(w, http.StatusOK, api.ProbeVersionMilestones(ctx, token, hubID, itemID))
 }
+
+// handleDebugHistoryProbe runs api.ProbeHistoryChanges against a real document:
+// the live schema discovery for where (if anywhere) the public endpoint exposes
+// a design's HistoryChange list — the non-save edits the History tab's "Show
+// other changes" toggle needs. Same -v gate and parameters as the version
+// probe; see docs/history/STATUS.md for how to read its output.
+func (s *Server) handleDebugHistoryProbe(w http.ResponseWriter, r *http.Request) {
+	if !api.DebugEnabled() {
+		s.handleAPINotFound(w, r)
+		return
+	}
+	hubID, ok := reqParam(w, r, "hubId")
+	if !ok {
+		return
+	}
+	itemID, ok := reqParam(w, r, "itemId")
+	if !ok {
+		return
+	}
+	ctx, cancel := s.reqCtx(r)
+	defer cancel()
+	token, ok := s.token(ctx, w, r)
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, api.ProbeHistoryChanges(ctx, token, hubID, itemID))
+}

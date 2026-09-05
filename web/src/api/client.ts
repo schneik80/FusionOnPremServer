@@ -19,6 +19,7 @@ import type {
   ComponentRef,
   Contents,
   Details,
+  ItemHistory,
   DiskUsage,
   DrawingRef,
   FusionAction,
@@ -352,6 +353,12 @@ export const api = {
 
   itemDetails: (hubId: string, itemId: string) =>
     request<Details>(`/api/items/details${qs({ hubId, itemId })}`),
+
+  // itemHistory is the design's v3 history: the non-save changes (property
+  // edits, part-number changes, each with its author) and the milestone /
+  // release markers on its saves — the only v3-sourced call.
+  itemHistory: (hubId: string, itemId: string) =>
+    request<ItemHistory>(`/api/items/history${qs({ hubId, itemId })}`),
 
   itemLocation: (hubId: string, itemId: string) =>
     request<Location>(`/api/items/location${qs({ hubId, itemId })}`),

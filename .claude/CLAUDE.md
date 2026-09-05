@@ -7,7 +7,7 @@ references (uses / where-used / drawings), thumbnails, BOM, and pins.
 
 ## Layout
 - `auth/` — 3-legged PKCE OAuth against APS; per-session in-memory tokens (auto-refresh). **Never persist tokens.**
-- `api/` — APS clients: Manufacturing Data Model **GraphQL** (`client.go`, `queries.go`, `details.go`, `refs.go`, …). **Design activity** is GraphQL-sourced (`activity_graphql.go` → `activity_report.go`); `activity.go` keeps the shared types + `HubSlug` (the notifications feed it once used is first-party-gated — removed).
+- `api/` — APS clients: Manufacturing Data Model **GraphQL** (`client.go`, `queries.go`, `details.go`, `refs.go`, …). **v2** for everything (`graphqlEndpoint`); **v3** (`graphqlEndpointV3`, `gqlQueryV3`) for exactly one query, `history.go`, because the non-save history exists only there — don't move other queries to v3 casually, it resolves only on Collaborative Editing hubs. **Design activity** is GraphQL-sourced (`activity_graphql.go` → `activity_report.go`); `activity.go` keeps the shared types + `HubSlug` (the notifications feed it once used is first-party-gated — removed).
 - `server/` — Go 1.25 `net/http.ServeMux`; routes in `routes.go`; handlers `handlers_*.go`; DTOs in `dto*.go`; session/auth middleware (`fls_session` cookie).
 - **Local per-project stores** — features whose data is ours, not APS's. All share one posture: one JSON/JSONL file per project, atomic writes via `internal/atomicfile`, a per-project mutex, `.bak` on corruption, a future-version guard, a **schema provenance stamp** (`internal/schemameta` — createdAt/createdByVersion/updatedAt/updatedByVersion) on a versioned envelope, per-store migration registries (`internal/migrate` — v(n)→v(n+1) steps with pre-migration `.vN.bak` snapshots), and authorization delegated to `chat.Authorizer` (APS project role → capability) rather than a parallel permission system.
   - **HUB ISOLATION (security invariant — hubs are IP boundaries between clients):** every store roots under `hubs/<hubslug>/<store>/` (see `docs/hubs/STATUS.md`). The server holds one lazily-built store-set per hub; the session locks to a hub (`POST /api/session/hub`); the `requireHub` middleware wraps every data route (409 `hub_not_selected`, 403 `hub_mismatch`); handlers resolve stores from the **session**, never from client-supplied hubId. Pre-isolation layouts are unsupported (the one-time startup migration was retired after the only deployed server migrated). Never add a code path that reads another hub's profile.
@@ -47,6 +47,35 @@ make run                                 # build UI + binary, serve over HTTPS (
 - Commit/push only when asked.
 
 ## Active work
+**History: other changes + paged versions** — the History tab has a second
+checkbox, *Show other changes*, that adds the **non-save history** (property
+edits, milestones, part-number changes, each with its own author — people who
+only ever edited properties used to be invisible) onto the same day rows and
+author tracks as saves, as small open rings in the author's colour. That data
+is **not in the v2 schema** (probed 2026-09-04: no `history`, no `model`, no
+`HistoryChange`) but is in **v3**, so the app now **mixes v2 and v3**: every
+query stays on v2 except `api/history.go` (`GetItemHistoryChanges` →
+`GET /api/items/history`), which goes to `graphqlEndpointV3` via `gqlQueryV3`
+/ `allPagesAt` in `api/client.go`. The same history also carries the
+**milestone names and release labels** (`VersionCreated…` /
+`RevisionCreated…` rows, stamped with their save's timestamp, folded onto
+`Saves` server-side and joined to versions **by position** in
+`applyHistoryMarkers`), which is what fills a released dot — so the SPA fetches
+it once per document viewed on the History tab (`useItemHistory`), and the
+checkbox only decides whether the rings draw. Dots follow the PowerTools
+vocabulary: grey = save, accent ring = milestone, ring + accent fill =
+release, outer ring = public share (still no source). v3 resolves only on
+Collaborative Editing hubs; an older hub just gets the inline "could not be
+loaded" caption. Pure model in `historyLayout.ts` (`HistoryEvent` union,
+`toEvents`, per-dot `key`, per-day `saves`/`changes`, `humanizeChangeType`),
+labels via `i18n/enums.ts` `historyChangeLabel`. Also shipped: `itemVersions`
+is **paginated** (`itemWithVersions` in `api/details.go`, shared with
+`api/activity_graphql.go`; `allPages` errors on a runaway cursor), versions are
+sorted newest-first by number (the paginated API answers newest-first), and a
+display name falls back to `userName`. Probe: `api/probe_history.go`,
+`GET /api/debug/history-probe` (`-v`, the clock dev button). See
+`docs/history/STATUS.md` ("Other changes").
+
 **Opening from Fusion** — the FusionProjectChat add-in's *Open Web App* command
 launches `https://<server>/?dmHubId=…&dmProjectId=…&projectName=…`. Fusion knows
 only **Data Management** ids while every route here is keyed by **GraphQL** ids,

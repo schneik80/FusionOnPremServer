@@ -16,6 +16,7 @@ import type {
   ComponentRef,
   Contents,
   Details,
+  ItemHistory,
   DiskUsage,
   DrawingRef,
   GroupMember,
@@ -290,6 +291,23 @@ export const useItemDetails = (
   useQuery({
     queryKey: ['details', hubId, itemId],
     queryFn: () => api.itemDetails(hubId!, itemId!),
+    enabled: !!hubId && !!itemId,
+    staleTime: STALE,
+  })
+
+// useItemHistory fetches a design's v3 history for the History tab. It is
+// one call per document viewed, alongside the details call: the History tab
+// needs it up front because the release fill and milestone name on a save's
+// dot come from it, not only the "Show other changes" rings. It mounts only
+// with the tab (DetailsPanel renders the active tab alone), so a document
+// viewed on another tab costs nothing here.
+export const useItemHistory = (
+  hubId: string | null,
+  itemId: string | null,
+): UseQueryResult<ItemHistory> =>
+  useQuery({
+    queryKey: ['itemHistory', hubId, itemId],
+    queryFn: () => api.itemHistory(hubId!, itemId!),
     enabled: !!hubId && !!itemId,
     staleTime: STALE,
   })

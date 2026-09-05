@@ -24,7 +24,7 @@ import {
 } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faArrowsRotate, faBug, faCircleCheck } from '@fortawesome/free-solid-svg-icons'
+import { faArrowsRotate, faBug, faCircleCheck, faClock } from '@fortawesome/free-solid-svg-icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
@@ -259,6 +259,13 @@ function SelectedDetails({
     const q = new URLSearchParams({ hubId, itemId: item.id }).toString()
     window.open(`/api/debug/version-probe?${q}`, '_blank', 'noopener')
   }
+  // The sibling probe: where (if anywhere) the public schema exposes a design's
+  // non-save history — the gate for the History tab's "Show other changes".
+  const openHistoryProbe = () => {
+    if (!hubId) return
+    const q = new URLSearchParams({ hubId, itemId: item.id }).toString()
+    window.open(`/api/debug/history-probe?${q}`, '_blank', 'noopener')
+  }
 
   // Lifecycle state badge (WIP / Version / Released - Rev X), derived once from
   // the details payload; see ../api/documentState.
@@ -298,17 +305,30 @@ function SelectedDetails({
               <DocumentActions item={item} projectAltId={projectAltId} />
               {debug && (
                 /* eslint-disable i18next/no-literal-string -- dev-only (meta.debug gated) */
-                <Tooltip title="Probe version/milestone fields (dev)">
-                  <IconButton
-                    size="small"
-                    onClick={openVersionProbe}
-                    disabled={!hubId}
-                    aria-label="Probe version fields"
-                    sx={{ flexShrink: 0, color: 'warning.main' }}
-                  >
-                    <FontAwesomeIcon icon={faBug} style={{ fontSize: 14 }} />
-                  </IconButton>
-                </Tooltip>
+                <>
+                  <Tooltip title="Probe version/milestone fields (dev)">
+                    <IconButton
+                      size="small"
+                      onClick={openVersionProbe}
+                      disabled={!hubId}
+                      aria-label="Probe version fields"
+                      sx={{ flexShrink: 0, color: 'warning.main' }}
+                    >
+                      <FontAwesomeIcon icon={faBug} style={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Probe history-change fields (dev)">
+                    <IconButton
+                      size="small"
+                      onClick={openHistoryProbe}
+                      disabled={!hubId}
+                      aria-label="Probe history fields"
+                      sx={{ flexShrink: 0, color: 'warning.main' }}
+                    >
+                      <FontAwesomeIcon icon={faClock} style={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                </>
                 /* eslint-enable i18next/no-literal-string */
               )}
               <Tooltip title={t('details.refreshDocument')}>
@@ -367,6 +387,8 @@ function SelectedDetails({
                 query={detailsQ.data}
                 loading={detailsQ.isLoading}
                 error={detailsQ.error as Error | null}
+                hubId={hubId}
+                itemId={item.id}
               />
             )}
             {tab === 'activity' && (
@@ -759,10 +781,14 @@ function HistoryTab({
   query,
   loading,
   error,
+  hubId,
+  itemId,
 }: {
   query?: Details
   loading: boolean
   error: Error | null
+  hubId: string | null
+  itemId: string
 }) {
   const { t } = useTranslation('details')
   if (loading) return <TabSpinner />
@@ -770,7 +796,7 @@ function HistoryTab({
   const versions = query?.versions ?? []
   if (versions.length === 0) return <TabEmpty text={t('details.noVersionHistory')} />
 
-  return <HistoryTimeline versions={versions} />
+  return <HistoryTimeline versions={versions} hubId={hubId} itemId={itemId} />
 }
 
 // componentRefsToNodes maps Uses/Where-Used refs to graph nodes, deduped by the

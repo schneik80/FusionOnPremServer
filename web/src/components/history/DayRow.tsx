@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Box, Tooltip, Typography } from '@mui/material'
-import { alpha, darken, useTheme } from '@mui/material/styles'
+import { alpha, useTheme } from '@mui/material/styles'
 import { fmtDate, getDateTimeFmt } from '../../fmt'
 import { sameDay, today } from '../../fmt/dates'
 import {
   AXIS_H,
+  CHANGE_R,
   GUTTER_W,
   HEADER_H,
   hourTicks,
@@ -22,6 +24,7 @@ import type { HistoryDay, HistoryDot, HistoryTrack } from './historyLayout'
 import { CONNECTOR_OPACITY, NODE_R, RAIL_ALPHA, RAIL_W, RING_W, TAG_FONT_SIZE } from '../graphstyle'
 import { userColor } from '../userColor'
 import UserAvatar from '../UserAvatar'
+import ChangeTooltip from './ChangeTooltip'
 import VersionTooltip from './VersionTooltip'
 
 // One day of a design's history: a date header, then one track per author who
@@ -56,8 +59,9 @@ export default function DayRow({
   /** Thread view: the index the axis starts from (see indexBase). */
   base: number
   band: boolean
-  hovered: number | null
-  onHover: (version: number | null) => void
+  /** The hovered dot's key (see HistoryDot.key), threaded across rows. */
+  hovered: string | null
+  onHover: (key: string | null) => void
 }) {
   const { t } = useTranslation('details')
   const theme = useTheme()
@@ -99,7 +103,7 @@ export default function DayRow({
           {dayLabel(row, t)}
         </Typography>
         <Typography variant="caption" noWrap sx={{ color: 'text.disabled', fontSize: 10 }}>
-          {t('history.daySaves', { count: row.count })}
+          {rowTally(row, t)}
         </Typography>
       </Box>
 
@@ -144,7 +148,7 @@ export default function DayRow({
           width={plotW}
           height={h}
           role="img"
-          aria-label={t('history.dayAria', { date: dayLabel(row, t), count: row.count })}
+          aria-label={t('history.dayAria', { date: dayLabel(row, t), tally: rowTally(row, t) })}
           style={{ display: 'block', flexShrink: 0 }}
         >
           {/* Hour grid — day view only; in thread view x is sequence, not clock. */}
@@ -196,11 +200,12 @@ export default function DayRow({
                 )}
                 {track.dots.map((d, i) => (
                   <Dot
-                    key={d.v.number}
+                    key={d.key}
                     dot={d}
                     cx={x[i]}
                     cy={y}
-                    hovered={hovered === d.v.number}
+                    rail={rail}
+                    hovered={hovered === d.key}
                     onHover={onHover}
                   />
                 ))}
@@ -232,29 +237,62 @@ export default function DayRow({
   )
 }
 
-// A save. The transparent circle comes first and is the hover target — it is
-// wider than the dot so the tooltip is reachable without pixel-hunting, and
+// One event. The transparent circle comes first and is the hover target — it
+// is wider than the dot so the tooltip is reachable without pixel-hunting, and
 // fill="transparent" rather than "none" because "none" is not hit-testable.
-// Milestones and releases are shown by decorating the dot in place; they used
-// to occupy their own lanes, but vertical space now belongs to days and people.
+//
+// A save is a grey filled dot. A milestone keeps that grey dot and gains the
+// accent ring; a release fills that same ring in. So the ring means "marked"
+// and the fill means "released" — one step to learn rather than two similar
+// hues to tell apart at 14 px, and a release still reads as the heavier of the
+// two. A public share is an outer ring in the secondary colour. (Markers used
+// to occupy their own lanes; vertical space now belongs to days and people.)
+// An edit that made no version — a property changed, a milestone marked, a
+// part number set — is a small open ring in the author's own rail colour, so
+// it reads as a lighter event on the same track and can never be mistaken for
+// a save.
 function Dot({
   dot,
   cx,
   cy,
+  rail,
   hovered,
   onHover,
 }: {
   dot: HistoryDot
   cx: number
   cy: number
+  /** The track's rail colour — the author's identity colour. */
+  rail: string
   hovered: boolean
-  onHover: (version: number | null) => void
+  onHover: (key: string | null) => void
 }) {
   const theme = useTheme()
   const v = dot.v
+  if (v.kind === 'change') {
+    return (
+      <Tooltip title={<ChangeTooltip change={v} />} placement="top" enterDelay={400} enterNextDelay={400}>
+        <g
+          onMouseEnter={() => onHover(dot.key)}
+          onMouseLeave={() => onHover(null)}
+          style={{ cursor: 'default' }}
+        >
+          <circle cx={cx} cy={cy} r={HIT_R} fill="transparent" />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={CHANGE_R}
+            fill={theme.palette.background.paper}
+            stroke={rail}
+            strokeWidth={hovered ? RING_W + 1 : RING_W}
+          />
+        </g>
+      </Tooltip>
+    )
+  }
   const accent = theme.palette.primary.main
-  const fill = v.revision ? darken(accent, 0.25) : v.isMilestone ? accent : theme.palette.text.secondary
-  const halo = v.revision ? darken(accent, 0.25) : accent
+  const fill = v.revision ? accent : theme.palette.text.secondary
+  const halo = accent
 
   return (
     // The tooltip's thumbnail is an ungated per-item APS call: a cold cvId
@@ -273,7 +311,7 @@ function Dot({
       enterNextDelay={400}
     >
       <g
-        onMouseEnter={() => onHover(v.number)}
+        onMouseEnter={() => onHover(dot.key)}
         onMouseLeave={() => onHover(null)}
         style={{ cursor: 'default' }}
       >
@@ -351,6 +389,16 @@ function hourLabel(hour: number): string {
   // Formatted, not concatenated, so 6 reads "6 AM" in English and "06" in
   // German. 24 is midnight of the following day, drawn at the right edge.
   return getDateTimeFmt({ hour: 'numeric' }).format(new Date(2000, 0, 1, hour % 24))
+}
+
+// "5 saves" is a lie once the row also holds property edits, so the header
+// counts what is actually on it: saves, changes, or both.
+function rowTally(row: HistoryDay, t: TFunction): string {
+  const saves = t('history.daySaves', { count: row.saves })
+  const changes = t('history.dayChanges', { count: row.changes })
+  if (!row.changes) return saves
+  if (!row.saves) return changes
+  return t('history.tally', { saves, changes })
 }
 
 function dayLabel(row: HistoryDay, t: (k: string) => string): string {

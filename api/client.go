@@ -16,6 +16,16 @@ import (
 // httptest.Server. Production code never reassigns it.
 var graphqlEndpoint = "https://developer.api.autodesk.com/mfg/graphql"
 
+// graphqlEndpointV3 is the v3 ("Collaborative Editing") Manufacturing Data
+// Model endpoint. The app is a v2 app — every listing, detail, reference and
+// thumbnail query goes to graphqlEndpoint — and reaches for v3 only where v2
+// has no data at all: a design's non-save HISTORY (api/history.go). The two
+// schemas share the item/hub id space and the bearer token, so a v3 query is
+// the same request to a different URL. v3 resolves only on Collaborative
+// Editing hubs (hubDataVersion major ≥ 2); on an older hub the v3 query fails
+// and the feature that asked degrades, nothing else is affected.
+var graphqlEndpointV3 = "https://developer.api.autodesk.com/mfg/v3/graphql/public"
+
 // region is the X-Ads-Region header value sent with every request.
 // Empty means no header is sent (defaults to US on the server side).
 var region string
@@ -123,7 +133,18 @@ type gqlResponse struct {
 // added latency under 2 s and well inside the 30 s nav-cmd context.
 var retryBackoffs = []time.Duration{0, 500 * time.Millisecond, 1500 * time.Millisecond}
 
+// gqlQuery runs q against the v2 endpoint — the app's default.
 func gqlQuery(ctx context.Context, token, q string, vars map[string]any) (json.RawMessage, error) {
+	return gqlQueryAt(ctx, graphqlEndpoint, token, q, vars)
+}
+
+// gqlQueryV3 runs q against the v3 endpoint. Same token, same retry and 429
+// posture, same partial-data handling; only the schema differs.
+func gqlQueryV3(ctx context.Context, token, q string, vars map[string]any) (json.RawMessage, error) {
+	return gqlQueryAt(ctx, graphqlEndpointV3, token, q, vars)
+}
+
+func gqlQueryAt(ctx context.Context, endpoint, token, q string, vars map[string]any) (json.RawMessage, error) {
 	body, err := json.Marshal(gqlRequest{Query: q, Variables: vars})
 	if err != nil {
 		return nil, err
@@ -139,7 +160,7 @@ func gqlQuery(ctx context.Context, token, q string, vars map[string]any) (json.R
 			case <-time.After(delay):
 			}
 		}
-		data, err, retriable := gqlQueryOnce(ctx, token, body, vars)
+		data, err, retriable := gqlQueryOnce(ctx, endpoint, token, body, vars)
 		if err == nil {
 			return data, nil
 		}
@@ -157,10 +178,10 @@ func gqlQuery(ctx context.Context, token, q string, vars map[string]any) (json.R
 // extensions.errorType="UNKNOWN" (APS gateway's marker for intermittent
 // upstream failures). False for HTTP 401, parse errors, and concrete
 // GraphQL errors.
-func gqlQueryOnce(ctx context.Context, token string, body []byte, vars map[string]any) (json.RawMessage, error, bool) {
-	dbgLog("REQUEST vars=%v\n%s", vars, body)
+func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars map[string]any) (json.RawMessage, error, bool) {
+	dbgLog("REQUEST %s vars=%v\n%s", endpoint, vars, body)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, graphqlEndpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, err, false
 	}
