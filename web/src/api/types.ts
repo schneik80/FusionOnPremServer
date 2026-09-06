@@ -305,6 +305,11 @@ export interface Details {
   versions: VersionSummary[]
 }
 
+// Summary mirrors server.SummaryDTO: Details without the version list and
+// the creator — what a card renders, from GET /api/items/summary at a fraction
+// of the quota of the full details query.
+export type Summary = Omit<Details, 'versions' | 'createdOn' | 'createdBy' | 'fusionWebUrl'>
+
 // Thumbnail mirrors server.ThumbnailDTO. status is the async generation state
 // ("PENDING" | "SUCCESS" | "FAILED"); signedUrl is set only once SUCCESS.
 export interface Thumbnail {

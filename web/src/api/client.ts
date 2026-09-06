@@ -4,6 +4,7 @@
 // always travel as query params, never path segments.
 
 import type {
+  Summary,
   ActivityReport,
   AdminStatus,
   ArchiveJob,
@@ -381,6 +382,11 @@ export const api = {
 
   itemDetails: (hubId: string, itemId: string, opts?: RequestOptions) =>
     request<Details>(`/api/items/details${qs({ hubId, itemId })}`, undefined, opts),
+
+  // itemSummary is the lean form of itemDetails for cards: the item alone,
+  // no version page — ~40 APS points instead of ~650.
+  itemSummary: (hubId: string, itemId: string, opts?: RequestOptions) =>
+    request<Summary>(`/api/items/summary${qs({ hubId, itemId })}`, undefined, opts),
 
   // itemHistory is the design's v3 history: the non-save changes (property
   // edits, part-number changes, each with its author) and the milestone /

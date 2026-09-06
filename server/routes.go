@@ -83,6 +83,8 @@ func (s *Server) routes() http.Handler {
 	// GraphQL listing misses, e.g. wiki image folders).
 	mux.HandleFunc("GET /api/browse/contents", protHub(s.handleBrowseContents))
 	mux.HandleFunc("GET /api/items/details", protHub(s.handleItemDetails))
+	// The lean form for cards: the item alone, no version page.
+	mux.HandleFunc("GET /api/items/summary", protHub(s.handleItemSummary))
 	mux.HandleFunc("GET /api/items/history", protHub(s.handleItemHistory))
 	mux.HandleFunc("GET /api/items/location", protHub(s.handleItemLocation))
 	// Raw bytes of an uploaded (non-native) file's tip, for the preview viewers.

@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next'
-import type { Details } from '../../api/types'
+import type { Details, Summary } from '../../api/types'
 import { fmtDate } from '../../fmt'
 import type { CardMeta } from './EntityCard'
 
@@ -14,12 +14,14 @@ import type { CardMeta } from './EntityCard'
 // version has aged out of the returned window the tip values are used instead.
 export function docMeta(
   t: TFunction<'browse'>,
-  details: Details | undefined,
+  details: Details | Summary | undefined,
   versionNumber?: number,
 ): CardMeta[] {
   if (!details) return []
-  const pinned =
-    versionNumber != null ? details.versions.find((v) => v.number === versionNumber) : undefined
+  // A Summary carries no version list (that is the point of it); a pinned
+  // version then falls back to the tip values, as an aged-out version does.
+  const versions = 'versions' in details ? details.versions : []
+  const pinned = versionNumber != null ? versions.find((v) => v.number === versionNumber) : undefined
   const shownVersion = versionNumber ?? details.versionNumber
   const changedOn = pinned?.createdOn ?? details.modifiedOn
   const changedBy = pinned?.createdBy ?? details.modifiedBy

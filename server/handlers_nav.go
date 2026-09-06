@@ -152,6 +152,31 @@ func (s *Server) handleItemDetails(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, detailsDTO(d))
 }
 
+// handleItemSummary -> api.GetItemSummary (query: hubId, itemId): the lean
+// form of details for cards — no version list, a fraction of the quota.
+func (s *Server) handleItemSummary(w http.ResponseWriter, r *http.Request) {
+	hubID, ok := reqParam(w, r, "hubId")
+	if !ok {
+		return
+	}
+	itemID, ok := reqParam(w, r, "itemId")
+	if !ok {
+		return
+	}
+	ctx, cancel := s.reqCtx(r)
+	defer cancel()
+	token, ok := s.token(ctx, w, r)
+	if !ok {
+		return
+	}
+	d, err := api.GetItemSummary(ctx, token, hubID, itemID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, summaryDTO(d))
+}
+
 // handleItemHistory -> api.GetItemHistory (query: hubId, itemId): the design's
 // v3 history — the edits that made no version (behind the History tab's "Show
 // other changes") and the milestone / release markers on its saves (the ring

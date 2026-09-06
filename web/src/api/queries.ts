@@ -7,6 +7,7 @@ import {
 import type { Priority } from './priority'
 import { api, ApiError } from './client'
 import type {
+  Summary,
   ActivityReport,
   AdminStatus,
   AuthMe,
@@ -306,6 +307,21 @@ export const useItemDetails = (
   useQuery({
     queryKey: ['details', hubId, itemId],
     queryFn: () => api.itemDetails(hubId!, itemId!, { priority: opts?.priority ?? 0 }),
+    enabled: !!hubId && !!itemId,
+    staleTime: STALE,
+  })
+
+// useItemSummary is the card's read of a document: the lean summary endpoint,
+// keyed apart from details so a card never triggers the full version fetch,
+// and P1 by default (a card is per-item work for what is on screen).
+export const useItemSummary = (
+  hubId: string | null,
+  itemId: string | null,
+  opts?: PriorityOpts,
+): UseQueryResult<Summary> =>
+  useQuery({
+    queryKey: ['summary', hubId, itemId],
+    queryFn: () => api.itemSummary(hubId!, itemId!, { priority: opts?.priority ?? 1 }),
     enabled: !!hubId && !!itemId,
     staleTime: STALE,
   })

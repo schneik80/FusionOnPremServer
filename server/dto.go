@@ -192,6 +192,44 @@ type DetailsDTO struct {
 	Versions               []VersionDTO `json:"versions"`
 }
 
+// SummaryDTO is DetailsDTO without the version list and the creator: what a
+// document card needs (GET /api/items/summary), at a fraction of the quota.
+type SummaryDTO struct {
+	ID                     string `json:"id"`
+	Name                   string `json:"name"`
+	Typename               string `json:"typename"`
+	Size                   string `json:"size,omitempty"`
+	MimeType               string `json:"mimeType,omitempty"`
+	ExtensionType          string `json:"extensionType,omitempty"`
+	ModifiedOn             string `json:"modifiedOn,omitempty"`
+	ModifiedBy             string `json:"modifiedBy,omitempty"`
+	VersionNumber          int    `json:"versionNumber"`
+	PartNumber             string `json:"partNumber,omitempty"`
+	PartDesc               string `json:"partDesc,omitempty"`
+	Material               string `json:"material,omitempty"`
+	IsMilestone            bool   `json:"isMilestone"`
+	RootComponentVersionID string `json:"rootComponentVersionId,omitempty"`
+}
+
+func summaryDTO(d *api.ItemDetails) SummaryDTO {
+	return SummaryDTO{
+		ID:                     d.ID,
+		Name:                   d.Name,
+		Typename:               d.Typename,
+		Size:                   d.Size,
+		MimeType:               d.MimeType,
+		ExtensionType:          d.ExtensionType,
+		ModifiedOn:             fmtTime(d.ModifiedOn),
+		ModifiedBy:             d.ModifiedBy,
+		VersionNumber:          d.VersionNumber,
+		PartNumber:             d.PartNumber,
+		PartDesc:               d.PartDesc,
+		Material:               d.Material,
+		IsMilestone:            d.IsMilestone,
+		RootComponentVersionID: d.RootComponentVersionID,
+	}
+}
+
 // ComponentRefDTO mirrors api.ComponentRef — a row in the Uses / Where Used tab.
 type ComponentRefDTO struct {
 	ID             string `json:"id"`

@@ -52,8 +52,10 @@ func SnapshotDocVersion(ctx context.Context, token, hubID, dmProjectID, itemID, 
 		VersionNumber: VersionNumberFromURN(versionID),
 	}
 
-	// Best-effort thumbnail decoration; see the function comment.
-	if det, err := GetItemDetails(ctx, token, hubID, itemID); err == nil {
+	// Best-effort thumbnail decoration; see the function comment. The summary
+	// is enough — the tip's number and root component version — and costs a
+	// fraction of the full details query with its version page.
+	if det, err := GetItemSummary(ctx, token, hubID, itemID); err == nil {
 		if det.VersionNumber == snap.VersionNumber {
 			snap.RootComponentVersionID = det.RootComponentVersionID
 		}

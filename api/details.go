@@ -284,6 +284,76 @@ func GetItemDetails(ctx context.Context, token, hubID, itemID string) (*ItemDeta
 	}, nil
 }
 
+// GetItemSummary is the lean sibling of GetItemDetails for callers that
+// render a document but not its version list: the fls:doc cards in chat,
+// wiki, tasks and batches, and the production snapshot. It selects the item
+// alone — no itemVersions page, no creator — which under the calibrated cost
+// model is ~40 points against ~650 for GetItemDetails. A chat page with ten
+// cards used to cost more than a minute of quota; now it costs one card's
+// worth of the old query. Versions is always empty on the result.
+func GetItemSummary(ctx context.Context, token, hubID, itemID string) (*ItemDetails, error) {
+	const q = `
+		query GetItemSummary($hubId: ID!, $itemId: ID!) {
+			item(hubId: $hubId, itemId: $itemId) {
+				__typename
+				id
+				name
+				size
+				mimeType
+				extensionType
+				lastModifiedOn
+				lastModifiedBy { id userName firstName lastName }
+				... on DesignItem {
+					tipVersion { versionNumber }
+					tipRootComponentVersion {
+						id
+						partNumber
+						partDescription
+						materialName
+						isMilestone
+					}
+				}
+				... on DrawingItem {
+					tipVersion { versionNumber }
+				}
+				... on ConfiguredDesignItem {
+					tipVersion { versionNumber }
+				}
+			}
+		}`
+	data, err := gqlQuery(ctx, token, q, map[string]any{"hubId": hubID, "itemId": itemID})
+	if err != nil {
+		return nil, err
+	}
+	var r struct {
+		Item *rawDetailsItem `json:"item"`
+	}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, fmt.Errorf("parsing item summary: %w", err)
+	}
+	if r.Item == nil {
+		return nil, fmt.Errorf("item summary: item %q not found", itemID)
+	}
+	item := r.Item
+	return &ItemDetails{
+		ID:                     item.ID,
+		Name:                   item.Name,
+		Typename:               item.Typename,
+		Size:                   item.Size,
+		MimeType:               item.MimeType,
+		ExtensionType:          item.ExtensionType,
+		ModifiedOn:             parseTime(item.ModifiedOn),
+		ModifiedBy:             item.ModifiedBy.fullName(),
+		VersionNumber:          item.TipVersion.VersionNumber,
+		PartNumber:             item.TipRootComponentVersion.PartNumber,
+		PartDesc:               item.TipRootComponentVersion.PartDesc,
+		Material:               item.TipRootComponentVersion.Material,
+		IsMilestone:            item.TipRootComponentVersion.IsMilestone,
+		RootComponentVersionID: item.TipRootComponentVersion.ID,
+		Versions:               []VersionSummary{},
+	}, nil
+}
+
 // apiUser is a helper for deserialising User objects.
 type apiUser struct {
 	ID       string `json:"id"`

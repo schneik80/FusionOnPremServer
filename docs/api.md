@@ -337,6 +337,19 @@ query GetItemDetails($hubId: ID!, $itemId: ID!) {
 
 **Debug probes (`-v` only).** `GET /api/debug/version-probe` (`api/probe_versions.go`) re-confirms how a version exposes its root component version. `GET /api/debug/history-probe` (`api/probe_history.go`) asks the live schema where — if anywhere — it exposes a design's non-save **history** (`HistoryChange` rows: property edits, milestones, part-number changes, each with an `author`), which the PowerTools add-in reads as `model(modelId:) { history }` over Fusion's internal `mfgdm://v3` transport. **Outcome (2026-09-04): the v2 schema has no history** — every `history` selection fails with `Cannot query field "history"` on `DesignItem` and on `Component`, the `Query` root has no `model`, and `__type` returns null for both `Model` and `HistoryChange`. The **v3** schema has it, at the same `item` root; see `GetItemHistoryChanges` below. Both probes are opened from the developer bug/clock buttons on the details header and 404 without `-v`.
 
+### GetItemSummary — the lean form for cards
+
+`GET /api/items/summary?hubId&itemId` → `api.GetItemSummary`. The `item` root
+alone — typename, name, size/mime, last modified, tip version number and the
+tip root component version (part number, material, milestone, the cvId for the
+thumbnail). No `itemVersions` page, no creator, no `fusionWebUrl`. Under the
+calibrated cost model that is ~40 points against ~650 for `GetItemDetails`,
+which is why every `fls:doc` card (`components/doccard/DocumentCard.tsx`) and
+the production snapshot (`api/production_snapshot.go`) read it instead of the
+full details. The details panel keeps `GetItemDetails` because it renders the
+version list. `SummaryDTO` is `DetailsDTO` minus those fields; the web type is
+`Summary = Omit<Details, 'versions' | 'createdOn' | 'createdBy' | 'fusionWebUrl'>`.
+
 ### GetItemHistory — the one v3 query
 
 `api/history.go`. The app is a v2 app; this is the single query it sends to the v3 ("Collaborative Editing") endpoint, `https://developer.api.autodesk.com/mfg/v3/graphql/public` (`graphqlEndpointV3`, `gqlQueryV3`, `allPagesAt` — same token, same retry and 429 posture, a different URL). It feeds `GET /api/items/history?hubId=&itemId=` → `ItemHistoryDTO{ changes, saves }`, one call per document viewed on the History tab.

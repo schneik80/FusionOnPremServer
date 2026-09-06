@@ -76,6 +76,7 @@ var opCosts = map[string]OpCost{
 
 	// Details / versions (api/details.go).
 	"GetItemDetails":      {Roots: 2, Fixed: 30, RowFields: 11, Limit: 50, CacheTTL: ttlListing},
+	"GetItemSummary":      {Roots: 1, Fixed: 27, CacheTTL: ttlListing},
 	"GetItemVersionsNext": {Roots: 1, Fixed: 1, RowFields: 11, Limit: 50, CacheTTL: ttlListing},
 	"DesignActivity":      {Roots: 2, Fixed: 12, RowFields: 11, Limit: 50, CacheTTL: ttlScope},
 

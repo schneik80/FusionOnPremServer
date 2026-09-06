@@ -2,7 +2,7 @@ import { faFileImage, faImage } from '@fortawesome/free-solid-svg-icons'
 import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
-import { useItemDetails, useItemLocation } from '../../api/queries'
+import { useItemLocation, useItemSummary } from '../../api/queries'
 import { thumbnailSrc } from '../../api/thumbnails'
 import { kindFromTypename } from '../../api/types'
 import { useGoToDocument } from '../../state/goto'
@@ -16,9 +16,10 @@ import { useDocActions } from './docActions'
 import type { DocRef } from './docref'
 
 // DocumentCard is the unfurled form of a DocRef (see docref.ts): the shared
-// EntityCard, fed from the details + location queries (both shared with the
-// rest of the app, so cards piggyback on warm caches) and falling back to the
-// names captured in the token while loading.
+// EntityCard, fed from the summary + location queries and falling back to the
+// names captured in the token while loading. The summary is the lean form of
+// details (no version list): a card renders a name, a kind, a tip version and
+// a thumbnail, and must not pay for a fifty-row version page to get them.
 //
 // Click opens the document — an inline card in a sentence is a link preview,
 // so it behaves like a link. Its details/download live on the back face and
@@ -38,7 +39,7 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
   // then the card renders the names the token captured, which is never blank.
   const [inViewRef, inView] = useInView<HTMLSpanElement>()
   const fetchHub = sameHub && inView ? docRef.hubId : null
-  const detailsQ = useItemDetails(fetchHub, docRef.itemId, { priority: 1 })
+  const detailsQ = useItemSummary(fetchHub, docRef.itemId, { priority: 1 })
   const locationQ = useItemLocation(fetchHub, docRef.itemId, sameHub && inView, { priority: 1 })
   const goTo = useGoToDocument()
 
