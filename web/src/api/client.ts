@@ -491,9 +491,14 @@ export const api = {
   // rollupActivity merges a design's activity with all of its child documents'
   // activity, computed server-side (bounded concurrency, generous timeout). The
   // caller passes the descendant lineage ids it enumerated.
-  rollupActivity: (args: { hubId: string; itemId: string; childItemIds: string[] }, opts?: RequestOptions) =>
+  // all=1 lifts the server's child cap (childrenIncluded < childrenTotal) —
+  // the user asked for the whole assembly, knowing the cost.
+  rollupActivity: (
+    args: { hubId: string; itemId: string; childItemIds: string[]; all?: boolean },
+    opts?: RequestOptions,
+  ) =>
     request<ActivityReport>(
-      '/api/activity/rollup',
+      args.all ? '/api/activity/rollup?all=1' : '/api/activity/rollup',
       {
         method: 'POST',
         body: JSON.stringify(args),
@@ -515,6 +520,9 @@ export const api = {
       projectId: string
       projectName?: string
       folders: { id: string; name: string }[]
+      // 'leaf' answers with only the deepest layer (two APS calls instead of
+      // 2+2N) — the dashboard's widget; the explorer wants 'all'.
+      layers?: 'all' | 'leaf'
     },
     opts?: RequestOptions,
   ) => {
@@ -522,6 +530,7 @@ export const api = {
     p.set('hubId', args.hubId)
     p.set('projectId', args.projectId)
     if (args.projectName) p.set('projectName', args.projectName)
+    if (args.layers === 'leaf') p.set('layers', 'leaf')
     for (const f of args.folders) {
       p.append('folderId', f.id)
       p.append('folderName', f.name)

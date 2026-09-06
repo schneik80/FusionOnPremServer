@@ -48,11 +48,13 @@ func (s *Server) handleSessionHub(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hubName := ""
+	hubAltID := ""
 	member := false
 	for _, h := range hubs {
 		if h.ID == in.HubID {
 			member = true
 			hubName = h.Name
+			hubAltID = h.AltID
 			break
 		}
 	}
@@ -73,6 +75,9 @@ func (s *Server) handleSessionHub(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "session expired or unknown")
 		return
 	}
+	// The hub list already carried the DM id; keep it so wiki / browse /
+	// upload requests never spend a call re-deriving it (s.hubDMID).
+	s.sessions.SetSelectedHubAltID(sess.ID, hubAltID)
 	s.logger.Info("session: hub selected", "user", sess.Profile.Email, "hub", in.HubID, "hubName", hubName)
 	writeJSON(w, http.StatusOK, authMeDTO(sess))
 }

@@ -79,6 +79,8 @@ var opCosts = map[string]OpCost{
 	"GetItemSummary":      {Roots: 1, Fixed: 27, CacheTTL: ttlListing},
 	"GetItemVersionsNext": {Roots: 1, Fixed: 1, RowFields: 11, Limit: 50, CacheTTL: ttlListing},
 	"DesignActivity":      {Roots: 2, Fixed: 12, RowFields: 11, Limit: 50, CacheTTL: ttlScope},
+	"ChildActivity":       {Roots: 2, Fixed: 4, RowFields: 7, Limit: 20, CacheTTL: ttlScope},
+	"ChildActivityNext":   {Roots: 1, Fixed: 1, RowFields: 7, Limit: 20, CacheTTL: ttlScope},
 
 	// History (v3, api/history.go).
 	"GetItemHistory":     {Roots: 1, Fixed: 2, RowFields: 7, Limit: 50, CacheTTL: ttlListing},
@@ -92,11 +94,11 @@ var opCosts = map[string]OpCost{
 	"GetDrawingSource":         {Roots: 1, Fixed: 13, CacheTTL: ttlListing},
 	"GetDrawingsForDesign":     {Roots: 1, Fixed: 4, RowFields: 8, Limit: 60, Measured: 510, CacheTTL: ttlListing},
 	"GetDrawingsForDesignNext": {Roots: 1, Fixed: 4, RowFields: 8, Limit: 60, Measured: 510, CacheTTL: ttlListing},
-	"GetBOM":                   {Roots: 1, Fixed: 2, RowFields: 6, Limit: 50, CacheTTL: ttlListing},
-	"GetBOMNext":               {Roots: 1, Fixed: 2, RowFields: 6, Limit: 50, CacheTTL: ttlListing},
+	"AllOccurrences":           {Roots: 1, Fixed: 2, RowFields: 9, Limit: 50, CacheTTL: ttlListing},
+	"AllOccurrencesNext":       {Roots: 1, Fixed: 2, RowFields: 9, Limit: 50, CacheTTL: ttlListing},
 
 	// Locate (api/locate.go).
-	"LocateItem":      {Roots: 1, Fixed: 10, CacheTTL: ttlListing},
+	"LocateItem":      {Roots: 1, Fixed: 26, CacheTTL: ttlListing}, // 8 nested parentFolder levels
 	"GetFolderParent": {Roots: 1, Fixed: 3, CacheTTL: ttlListing},
 
 	// Per-row probes (api/thumbnail.go, api/classify.go). Shared: a

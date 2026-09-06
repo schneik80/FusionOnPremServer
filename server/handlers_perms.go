@@ -70,6 +70,20 @@ func (s *Server) handlePermissionsPath(w http.ResponseWriter, r *http.Request) {
 	}
 	folderIDs := q["folderId"]
 	folderNames := q["folderName"]
+	// layers=leaf answers with ONLY the deepest layer (the current folder,
+	// or the project at the root): what the project dashboard's People &
+	// groups widget shows. It is two paginated calls instead of 2+2N — the
+	// explorer, which draws the whole path, asks for all.
+	leafOnly := q.Get("layers") == "leaf"
+	if leafOnly && len(folderIDs) > 0 {
+		last := len(folderIDs) - 1
+		folderIDs = folderIDs[last:]
+		if len(folderNames) > last {
+			folderNames = folderNames[last:]
+		} else {
+			folderNames = nil
+		}
+	}
 	if len(folderIDs) > maxPermissionsPathDepth {
 		writeErrorCode(w, http.StatusBadRequest, "path_too_deep",
 			fmt.Sprintf("at most %d folderId values (got %d)", maxPermissionsPathDepth, len(folderIDs)))
@@ -83,9 +97,19 @@ func (s *Server) handlePermissionsPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	layers := make([]PermLayerDTO, 1+len(folderIDs))
-	errs := make([]error, 1+len(folderIDs))
+	// In leaf mode with a folder, the project layer is not fetched at all.
+	withProject := !leafOnly || len(folderIDs) == 0
+	n := len(folderIDs)
+	if withProject {
+		n++
+	}
+	layers := make([]PermLayerDTO, n)
+	errs := make([]error, n)
 	var wg sync.WaitGroup
+	offset := 0
+	if withProject {
+		offset = 1
+	}
 
 	// fetchLayer runs the layer's two fetches through the shared fan-out
 	// bound and records the first error. An error empties the layer AND
@@ -110,13 +134,15 @@ func (s *Server) handlePermissionsPath(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Project layer: groups + folder-level project members.
-	wg.Add(1)
-	go fetchLayer(0,
-		func() ([]api.ProjectGroup, error) { return api.GetProjectGroups(ctx, token, projectID) },
-		func() ([]api.Member, error) { return api.GetProjectMembers(ctx, token, projectID) },
-		func(g []api.ProjectGroup, m []api.Member) PermLayerDTO {
-			return PermLayerDTO{Type: "project", ID: projectID, Name: q.Get("projectName"), Groups: groupDTOs(g), Members: memberDTOs(m)}
-		})
+	if withProject {
+		wg.Add(1)
+		go fetchLayer(0,
+			func() ([]api.ProjectGroup, error) { return api.GetProjectGroups(ctx, token, projectID) },
+			func() ([]api.Member, error) { return api.GetProjectMembers(ctx, token, projectID) },
+			func(g []api.ProjectGroup, m []api.Member) PermLayerDTO {
+				return PermLayerDTO{Type: "project", ID: projectID, Name: q.Get("projectName"), Groups: groupDTOs(g), Members: memberDTOs(m)}
+			})
+	}
 
 	// Folder layers: members + groups.
 	for i, fid := range folderIDs {
@@ -125,7 +151,7 @@ func (s *Server) handlePermissionsPath(w http.ResponseWriter, r *http.Request) {
 			name = folderNames[i]
 		}
 		wg.Add(1)
-		go fetchLayer(i+1,
+		go fetchLayer(i+offset,
 			func() ([]api.ProjectGroup, error) { return api.GetFolderGroups(ctx, token, hubID, fid) },
 			func() ([]api.Member, error) { return api.GetFolderMembers(ctx, token, hubID, fid) },
 			func(g []api.ProjectGroup, m []api.Member) PermLayerDTO {

@@ -80,6 +80,13 @@ type ActivityReport struct {
 
 	Events          []ActivityEvent `json:"events"`
 	EventsTruncated bool            `json:"eventsTruncated"`
+
+	// ChildrenIncluded / ChildrenTotal describe a roll-up's child scope: how
+	// many child documents were merged and how many the caller asked for.
+	// When they differ the report is a visible partial (the UI says so and
+	// offers the rest) — never a silent cap.
+	ChildrenIncluded int `json:"childrenIncluded,omitempty"`
+	ChildrenTotal    int `json:"childrenTotal,omitempty"`
 }
 
 // inScope reports whether an event belongs to the given scope+id.

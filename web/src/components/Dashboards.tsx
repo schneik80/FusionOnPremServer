@@ -77,6 +77,9 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
   // Aggregates are P2: they must never delay the click that opened the panel.
   const permQ = usePermissionsPath(nav.hubId, project?.id, project?.name, folderPath, !!project?.id && active, {
     priority: 2,
+    // The widget shows the deepest layer only; asking for just that one is
+    // two APS calls instead of two per ancestor.
+    layers: 'leaf',
   })
   const currentLayer = permQ.data?.[permQ.data.length - 1]
 

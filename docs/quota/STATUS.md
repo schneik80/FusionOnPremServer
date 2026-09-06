@@ -122,6 +122,30 @@ faster.
 floors, max queue waits, cooldown defaults. Change them there, not per
 handler: APS meters the app, so the budget is one object.
 
+## What the query trimming changed (Phase 3)
+
+- **`GET /api/items/summary`** (`api.GetItemSummary`, ~40 points): the item
+  alone for every `fls:doc` card and the production snapshot; the details
+  panel keeps the full query because it renders the version list.
+- **One occurrence walk** (`api/occurrences.go`, ops `AllOccurrences*`):
+  the BOM and the descendant enumeration derive from the same paginated
+  `allOccurrences` query, so they share coalesced pages; the breadth-first
+  walk that issued one paginated query per node (up to 20 000) is gone, and
+  so is its skip-on-error — a rate limit fails the call.
+- **Roll-up**: a child contributes version events only, through the lean
+  `ChildActivity` op (~180 points at 20 per page against ~630); the server
+  merges the first 24 children and reports `childrenIncluded` /
+  `childrenTotal`, which the Activity tab shows with **Load all** (`all=1`).
+- **Permissions**: the project dashboard asks for `layers=leaf` — the
+  deepest layer only, two calls instead of two per ancestor; the explorer
+  still asks for all. `folderId` is capped at 16 and a failed layer is
+  flagged, never empty.
+- **Locate**: one `LocateItem` query nests `parentFolder` eight levels deep
+  (one round trip for any real tree, the walk continues only past that).
+- **Hub DM id**: captured on the session at hub selection
+  (`selectedHubAltID`, persisted, empty → GraphQL fallback); wiki, browse
+  and upload requests read it from there.
+
 ## Open questions / not done
 
 - Other clients on the same client_id (the Fusion add-in, a TUI) are
@@ -134,4 +158,14 @@ handler: APS meters the app, so the budget is one object.
 - `server/handlers_drawingpreview.go` keeps its own unbounded byte cache;
   worth moving onto the bounded pattern.
 - Page sizes are still hardcoded in the query texts; the registry records
-  them but does not drive them yet (Phase 3).
+  them but does not drive them.
+- The planned `GET /api/debug/cost-probe` (run every op at `limit: 1`, and
+  read the exact cost from the per-query-cap validation error by inflating
+  the query with aliases) is not built: the query texts live inside their
+  functions, not in an enumerable registry. `Measured` is fed by the Warn
+  log of real 429s and by `extensions.pointValue` once MDM ships it;
+  `/api/debug/quota-costs` shows both against the estimate.
+- Where-used still fetches one row per parent *version* and dedupes after;
+  an item-level where-used, if the schema has one, is unprobed.
+- A versions fetch is still paid twice when the Details and Activity tabs
+  are both opened on one item (coalesced only within 30 s).

@@ -39,6 +39,9 @@ type persistedSession struct {
 	// lock, so a restart doesn't force everyone back through the hub gate.
 	SelectedHubID   string `json:"selected_hub_id,omitempty"`
 	SelectedHubName string `json:"selected_hub_name,omitempty"`
+	// Absent in files written before the field existed: an empty value makes
+	// the server fall back to the GraphQL lookup, so old files load fine.
+	SelectedHubAltID string `json:"selected_hub_alt_id,omitempty"`
 }
 
 // EnablePersistence points the store at <dir> for its encrypted session file
@@ -90,13 +93,14 @@ func (s *SessionStore) snapshot() []persistedSession {
 	for _, sess := range s.byID {
 		hubID, hubName := sess.SelectedHub()
 		out = append(out, persistedSession{
-			ID:              sess.ID,
-			Profile:         sess.Profile,
-			CreatedAt:       sess.CreatedAt,
-			LastSeen:        sess.lastSeen,
-			Token:           sess.token.Load(),
-			SelectedHubID:   hubID,
-			SelectedHubName: hubName,
+			ID:               sess.ID,
+			Profile:          sess.Profile,
+			CreatedAt:        sess.CreatedAt,
+			LastSeen:         sess.lastSeen,
+			Token:            sess.token.Load(),
+			SelectedHubID:    hubID,
+			SelectedHubName:  hubName,
+			SelectedHubAltID: sess.SelectedHubAltID(),
 		})
 	}
 	return out
@@ -139,6 +143,7 @@ func (s *SessionStore) load() error {
 		}
 		sess := &Session{ID: ps.ID, Profile: ps.Profile, CreatedAt: ps.CreatedAt, lastSeen: ps.LastSeen}
 		sess.setSelectedHub(ps.SelectedHubID, ps.SelectedHubName)
+		sess.setSelectedHubAltID(ps.SelectedHubAltID)
 		sess.token.Store(ps.Token)
 		if s.expired(sess, now) {
 			continue

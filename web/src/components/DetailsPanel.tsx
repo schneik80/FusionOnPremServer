@@ -1,32 +1,9 @@
-import {
-  Box,
-  Checkbox,
-  CircularProgress,
-  FormControlLabel,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Paper,
-  Slide,
-  Stack,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Tabs,
-  Tooltip,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Checkbox, CircularProgress, FormControlLabel, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Slide, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Tooltip, Typography } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowsRotate, faBug, faCircleCheck, faClock } from '@fortawesome/free-solid-svg-icons'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
@@ -1096,24 +1073,42 @@ function ActivityTab({
   const hasChildren = isAssembly && childCount > 0
 
   const [rollup, setRollup] = useState(false)
+  // The server merges the first 24 children (each is an APS call); the rest
+  // are a visible, liftable partial — `all` asks for the whole assembly.
+  const [rollupAll, setRollupAll] = useState(false)
+  useEffect(() => setRollupAll(false), [itemId])
 
   // Roll-up is computed server-side (enumerate ids here, fan out + merge there)
   // so even a large assembly completes reliably in one request.
-  const rollupQ = useRollupActivity(hubId, itemId, childItemIds, rollup && hasChildren)
+  const rollupQ = useRollupActivity(hubId, itemId, childItemIds, rollup && hasChildren, { all: rollupAll })
   const rollupLoading =
     rollup && (descendantsQ.isLoading || rollupQ.isPending || rollupQ.isFetching)
 
   const report = rollup && !rollupLoading && rollupQ.data ? rollupQ.data : reportQ.data
+  const capped =
+    rollup && !rollupLoading && !!report?.childrenTotal && !!report.childrenIncluded && report.childrenIncluded < report.childrenTotal
 
   if (reportQ.isLoading) return <TabSpinner />
   if (reportQ.error) return <TabError error={reportQ.error as Error} />
   if (!report) return <TabEmpty text={t('details.noActivityRecorded')} />
   return (
-    <ActivityHeatmap
-      report={report}
-      childCount={isAssembly ? childCount : undefined}
-      rollup={hasChildren ? { checked: rollup, loading: rollupLoading, onChange: setRollup } : undefined}
-    />
+    <>
+      {capped ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            {t('details.activityChildrenCapped', { included: report.childrenIncluded, total: report.childrenTotal })}
+          </Typography>
+          <Button size="small" variant="text" onClick={() => setRollupAll(true)} sx={{ py: 0, minHeight: 0 }}>
+            {t('dashboards.loadAll')}
+          </Button>
+        </Box>
+      ) : null}
+      <ActivityHeatmap
+        report={report}
+        childCount={isAssembly ? childCount : undefined}
+        rollup={hasChildren ? { checked: rollup, loading: rollupLoading, onChange: setRollup } : undefined}
+      />
+    </>
   )
 }
 

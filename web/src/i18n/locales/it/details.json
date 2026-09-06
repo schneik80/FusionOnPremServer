@@ -184,7 +184,8 @@
       "archiveFailedTitle": "Impossibile scaricare l’archivio",
       "archiveGenericFailure": "Autodesk non ha restituito l’archivio."
     },
-    "archiveGone": "Questo archivio non è più disponibile: generalo di nuovo"
+    "archiveGone": "Questo archivio non è più disponibile: generalo di nuovo",
+    "activityChildrenCapped": "Consolidati {{included}} documenti figlio su {{total}}."
   },
   "permissions": {
     "selectDocument": "Seleziona un documento in un progetto per vederne gli accessi",

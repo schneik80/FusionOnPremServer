@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -115,4 +116,19 @@ func (s *Server) invalidateUpstream(r *http.Request) {
 	if bc := budgetContext(r, sess); bc.subject != "" {
 		api.InvalidateSubject(bc.subject)
 	}
+}
+
+// hubDMID answers a hub's Data Management id from the session when the hub
+// is the one the session is locked to (captured at selection from the hub
+// list), else from the GraphQL lookup. A wiki, browse or upload request no
+// longer spends a call re-deriving an immutable id.
+func (s *Server) hubDMID(ctx context.Context, r *http.Request, token, hubID string) (string, error) {
+	if sess, ok := sessionFromCtx(r.Context()); ok && sess != nil {
+		if locked, _ := sess.SelectedHub(); locked == hubID {
+			if alt := sess.SelectedHubAltID(); alt != "" {
+				return alt, nil
+			}
+		}
+	}
+	return api.GetHubDataManagementID(ctx, token, hubID)
 }

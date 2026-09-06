@@ -70,6 +70,8 @@ type ActivityReportDTO struct {
 	Children         []ChildSummaryDTO  `json:"children"`
 	Events           []ActivityEventDTO `json:"events"`
 	EventsTruncated  bool               `json:"eventsTruncated"`
+	ChildrenIncluded int                `json:"childrenIncluded,omitempty"`
+	ChildrenTotal    int                `json:"childrenTotal,omitempty"`
 }
 
 func actorDTO(a api.Actor) ActorDTO {
@@ -83,6 +85,8 @@ func activityReportDTO(r api.ActivityReport) ActivityReportDTO {
 		ScopeName:        r.ScopeName,
 		HubID:            r.HubID,
 		TotalEvents:      r.TotalEvents,
+		ChildrenIncluded: r.ChildrenIncluded,
+		ChildrenTotal:    r.ChildrenTotal,
 		DesignCount:      r.DesignCount,
 		VersionCount:     r.VersionCount,
 		ContributorCount: r.ContributorCount,

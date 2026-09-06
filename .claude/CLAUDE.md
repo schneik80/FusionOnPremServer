@@ -55,12 +55,18 @@ formula was 3–5× low, which is why a details query is ~656 points and ten
 `fls:doc` cards blew a minute of quota), the scheduler wired into
 `gqlQueryAt`/`dmDo`, coalescing per subject, fan-outs bounded and aborting
 on 429, `GET /api/quota`, throttle headers, `/api/debug/quota-costs`. Phase 2
-(client: `X-FLS-Priority` plumbing, lean `GET /api/items/summary` for cards,
-`useInView` on every card/NavRow, `THUMB_CAP` + Load all on the relation
-graph, `active` from `BrowserStage`, bounded 429 retry honouring
-`retryAfterMs`, one `QuotaBanner`) and Phase 3 (query trimming: one shared
-occurrence walk, one versions fetch per item, permissions `layers=leaf`,
-nested locate) follow the plan in the session's plan file.
+(client) shipped: `X-FLS-Priority` plumbing (`api/priority.ts`, hook defaults
+in `queries.ts`), lean `GET /api/items/summary` for cards, `useInView` on
+every card/NavRow, `THUMB_CAP` + Load all on the relation graph, `active`
+from `BrowserStage`, bounded 429 retry honouring `retryAfterMs`
+(`api/queryDefaults.ts`), one `QuotaBanner` (`state/quota.ts`). Phase 3
+(query trimming) shipped: one `allOccurrences` walk shared by BOM and
+descendants (`api/occurrences.go`), the lean `ChildActivity` op and a
+visible roll-up cap (24, `childrenIncluded`/`childrenTotal`, `all=1`),
+permissions `layers=leaf` for the dashboard, `LocateItem` nesting
+`parentFolder` eight deep, the hub DM id on the session
+(`selectedHubAltID`, `s.hubDMID`). Not built: the cost probe (see the
+STATUS "not done" list).
 
 **Wiki version restore** — a published page (or a draft linked to one) has a
 **History** button opening `web/src/wiki/WikiHistoryDialog.tsx`: the item's DM

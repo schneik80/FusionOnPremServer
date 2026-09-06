@@ -184,7 +184,8 @@
       "archiveFailedTitle": "Archiv konnte nicht heruntergeladen werden",
       "archiveGenericFailure": "Autodesk hat das Archiv nicht zurückgegeben."
     },
-    "archiveGone": "Dieses Archiv ist nicht mehr verfügbar – erstellen Sie es erneut"
+    "archiveGone": "Dieses Archiv ist nicht mehr verfügbar – erstellen Sie es erneut",
+    "activityChildrenCapped": "{{included}} von {{total}} untergeordneten Dokumenten zusammengefasst."
   },
   "permissions": {
     "selectDocument": "Wählen Sie ein Dokument in einem Projekt, um den Zugriff zu sehen",

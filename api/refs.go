@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -125,90 +123,42 @@ func GetOccurrences(ctx context.Context, token, componentVersionID string) ([]Co
 	return refs, nil
 }
 
-// GetAllDescendants walks the occurrence tree breadth-first from rootCvID and
-// returns every distinct descendant component, deduped by owning design lineage
-// (falling back to component-version id). Each distinct design is visited once,
-// so cost is bounded by the number of distinct descendant designs rather than
-// total instances; maxDescendantNodes and maxDescendantDepth backstop pathological
-// trees, and each level's occurrence fetches run with bounded concurrency.
-// Per-node fetch errors are logged and skipped (a deactivated sub-project must
-// not sink the whole walk); a cancelled context aborts and returns its error.
+// GetAllDescendants returns every distinct design anywhere below the given
+// component version — the Activity tab's roll-up scope. It is one paginated
+// allOccurrences walk (shared with GetBOM, see occurrences.go), deduplicated
+// by design item so an instance placed a hundred times is one descendant. A
+// component with no owning design item (a component created in place) is
+// keyed by its own version id. Any error — a rate limit above all — fails the
+// call rather than returning a silently shorter list.
 func GetAllDescendants(ctx context.Context, token, rootCvID string) ([]ComponentRef, error) {
-	const (
-		// High backstops so a real (even very large) assembly is enumerated in
-		// full; they only guard against a pathological/runaway tree.
-		maxDescendantNodes = 20000
-		maxDescendantDepth = 256
-	)
-	visited := make(map[string]struct{})
-	frontier := []string{rootCvID}
-	var out []ComponentRef
-
-	for depth := 0; depth < maxDescendantDepth && len(frontier) > 0 && len(out) < maxDescendantNodes; depth++ {
-		if err := ctx.Err(); err != nil {
-			return out, err
+	all, err := allOccurrences(ctx, token, rootCvID)
+	if err != nil {
+		return nil, fmt.Errorf("descendants: %w", err)
+	}
+	seen := make(map[string]struct{}, len(all))
+	out := make([]ComponentRef, 0, len(all))
+	for _, o := range all {
+		cv := o.ComponentVersion
+		key := cv.DesignItemVersion.Item.ID
+		if key == "" {
+			key = cv.ID
 		}
-		// Fetch this level's occurrences concurrently, bounded by the shared
-		// fan-out semaphore. A rate limit aborts the walk: a silently shorter
-		// tree would be a cap nobody can see, and every further node would
-		// spend a quota that is already gone.
-		levelRefs := make([][]ComponentRef, len(frontier))
-		var wg sync.WaitGroup
-		var limited atomic.Pointer[error]
-		for i, cv := range frontier {
-			wg.Add(1)
-			go func(i int, cv string) {
-				defer wg.Done()
-				if limited.Load() != nil {
-					return
-				}
-				release, err := acquireFanout(ctx)
-				if err != nil {
-					return
-				}
-				defer release()
-				refs, err := GetOccurrences(ctx, token, cv)
-				if err != nil {
-					if IsRateLimited(err) {
-						limited.CompareAndSwap(nil, &err)
-						return
-					}
-					dbgLog("descendants: occurrences(%s) failed: %v", cv, err)
-					return
-				}
-				levelRefs[i] = refs
-			}(i, cv)
+		if key == "" || key == rootCvID {
+			continue
 		}
-		wg.Wait()
-		if errp := limited.Load(); errp != nil {
-			return out, fmt.Errorf("descendants: %w", *errp)
+		if _, dup := seen[key]; dup {
+			continue
 		}
-
-		var next []string
-		for _, refs := range levelRefs {
-			for _, ref := range refs {
-				key := ref.DesignItemID
-				if key == "" {
-					key = ref.ID
-				}
-				if key == "" {
-					continue
-				}
-				if _, seen := visited[key]; seen {
-					continue
-				}
-				visited[key] = struct{}{}
-				out = append(out, ref)
-				if ref.ID != "" {
-					next = append(next, ref.ID) // recurse via the child's componentVersion id
-				}
-				if len(out) >= maxDescendantNodes {
-					dbgLog("descendants: hit node cap (%d) — result truncated", maxDescendantNodes)
-					return out, nil
-				}
-			}
-		}
-		frontier = next
+		seen[key] = struct{}{}
+		out = append(out, ComponentRef{
+			ID:             cv.ID,
+			Name:           cv.Name,
+			PartNumber:     cv.PartNumber,
+			PartDesc:       cv.PartDesc,
+			Material:       cv.Material,
+			DesignItemID:   cv.DesignItemVersion.Item.ID,
+			DesignItemName: cv.DesignItemVersion.Item.Name,
+		})
 	}
 	return out, nil
 }

@@ -32,7 +32,7 @@ func (s *Server) handleBrowseContents(w http.ResponseWriter, r *http.Request) {
 	dmHubID := ""
 	if folderID == "" {
 		var err error
-		dmHubID, err = api.GetHubDataManagementID(ctx, token, hubID)
+		dmHubID, err = s.hubDMID(ctx, r, token, hubID)
 		if err != nil {
 			s.fail(w, r, err)
 			return

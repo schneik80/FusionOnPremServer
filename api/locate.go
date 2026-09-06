@@ -26,11 +26,33 @@ type ItemLocation struct {
 	FolderPath []FolderRef
 }
 
-// GetItemLocation looks up an item's project + folder ancestry. Walks
-// parentFolder iteratively until null — handles arbitrary folder depth
-// at the cost of one round-trip per ancestor level (typical: 2-4).
+// locateDepth is how many parentFolder levels one LocateItem query nests.
+// Well under the schema's depth limit of 20, and deeper than any real Fusion
+// Team tree; the iterative walk below only continues past it.
+const locateDepth = 8
+
+// nestedParentFolder builds `parentFolder { id name parentFolder { … } }`
+// n levels deep.
+func nestedParentFolder(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return "parentFolder { id name " + nestedParentFolder(n-1) + " }"
+}
+
+// folderChain is the recursive shape the nested selection decodes into.
+type folderChain struct {
+	ID           string       `json:"id"`
+	Name         string       `json:"name"`
+	ParentFolder *folderChain `json:"parentFolder"`
+}
+
+// GetItemLocation looks up an item's project + folder ancestry. One query
+// nests the parentFolder chain locateDepth levels deep — a single round trip
+// for any real tree, where the old walk paid one per ancestor — and falls back
+// to walking further only if the chain is still unfinished at that depth.
 func GetItemLocation(ctx context.Context, token, hubID, itemID string) (*ItemLocation, error) {
-	const itemQ = `
+	itemQ := `
 		query LocateItem($hubId: ID!, $itemId: ID!) {
 			item(hubId: $hubId, itemId: $itemId) {
 				project {
@@ -38,7 +60,7 @@ func GetItemLocation(ctx context.Context, token, hubID, itemID string) (*ItemLoc
 					hub { id }
 					alternativeIdentifiers { dataManagementAPIProjectId }
 				}
-				parentFolder { id name }
+				` + nestedParentFolder(locateDepth) + `
 			}
 		}`
 
@@ -59,10 +81,7 @@ func GetItemLocation(ctx context.Context, token, hubID, itemID string) (*ItemLoc
 					DataManagementAPIProjectID string `json:"dataManagementAPIProjectId"`
 				} `json:"alternativeIdentifiers"`
 			} `json:"project"`
-			ParentFolder struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
-			} `json:"parentFolder"`
+			ParentFolder *folderChain `json:"parentFolder"`
 		} `json:"item"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -79,39 +98,47 @@ func GetItemLocation(ctx context.Context, token, hubID, itemID string) (*ItemLoc
 		ProjectAltID: raw.Item.Project.AlternativeIdentifiers.DataManagementAPIProjectID,
 	}
 
-	// Walk parentFolder up to the project root. Collect leaf-first then
-	// reverse so the caller gets root→leaf order, which is the order it
-	// needs to drill the Contents column.
-	const folderQ = `
-		query GetFolderParent($hubId: ID!, $folderId: ID!) {
-			folderByHubId(hubId: $hubId, folderId: $folderId) {
-				parentFolder { id name }
-			}
-		}`
-
+	// Unfold the nested chain leaf-first. If it is still going at the deepest
+	// level we asked for, walk the rest one level per query (the old way).
 	var ancestry []FolderRef
-	cur := raw.Item.ParentFolder
-	// Cap iterations defensively — a malformed schema response with a
-	// cycle would otherwise spin forever. APS folder trees in practice
-	// are well under 100 levels deep.
-	for i := 0; cur.ID != "" && i < 100; i++ {
+	var lastID string
+	depth := 0
+	for cur := raw.Item.ParentFolder; cur != nil && cur.ID != ""; cur = cur.ParentFolder {
 		ancestry = append(ancestry, FolderRef{ID: cur.ID, Name: cur.Name})
-		d, err := gqlQuery(ctx, token, folderQ, map[string]any{"hubId": hubID, "folderId": cur.ID})
-		if err != nil {
-			return nil, fmt.Errorf("walk folder %q: %w", cur.ID, err)
+		lastID = cur.ID
+		depth++
+	}
+	if depth >= locateDepth && lastID != "" {
+		const folderQ = `
+			query GetFolderParent($hubId: ID!, $folderId: ID!) {
+				folderByHubId(hubId: $hubId, folderId: $folderId) {
+					parentFolder { id name }
+				}
+			}`
+		cur := lastID
+		// Cap iterations defensively — a malformed schema response with a
+		// cycle would otherwise spin forever.
+		for i := 0; cur != "" && i < 100; i++ {
+			d, err := gqlQuery(ctx, token, folderQ, map[string]any{"hubId": hubID, "folderId": cur})
+			if err != nil {
+				return nil, fmt.Errorf("walk folder %q: %w", cur, err)
+			}
+			var r struct {
+				FolderByHubId struct {
+					ParentFolder struct {
+						ID   string `json:"id"`
+						Name string `json:"name"`
+					} `json:"parentFolder"`
+				} `json:"folderByHubId"`
+			}
+			if err := json.Unmarshal(d, &r); err != nil {
+				return nil, fmt.Errorf("walk folder decode: %w", err)
+			}
+			cur = r.FolderByHubId.ParentFolder.ID
+			if cur != "" {
+				ancestry = append(ancestry, FolderRef{ID: cur, Name: r.FolderByHubId.ParentFolder.Name})
+			}
 		}
-		var r struct {
-			FolderByHubId struct {
-				ParentFolder struct {
-					ID   string `json:"id"`
-					Name string `json:"name"`
-				} `json:"parentFolder"`
-			} `json:"folderByHubId"`
-		}
-		if err := json.Unmarshal(d, &r); err != nil {
-			return nil, fmt.Errorf("walk folder decode: %w", err)
-		}
-		cur = r.FolderByHubId.ParentFolder
 	}
 
 	// Reverse leaf-first → root-first.

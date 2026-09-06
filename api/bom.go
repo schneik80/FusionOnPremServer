@@ -1,10 +1,6 @@
 package api
 
-import (
-	"context"
-	"encoding/json"
-	"fmt"
-)
+import "context"
 
 // BOMRow is one line of a design's bill of materials: a unique component and
 // how many times it occurs anywhere in the assembly. The v2 Manufacturing Data
@@ -24,57 +20,7 @@ type BOMRow struct {
 // allOccurrences (every descendant, not just immediate children) and groups by
 // component version id, preserving first-seen order.
 func GetBOM(ctx context.Context, token, componentVersionID string) ([]BOMRow, error) {
-	// The v2 API caps PaginationInput.limit at 50 (same as occurrences /
-	// whereUsed); pagination walks the rest of a large assembly.
-	const qFirst = `
-		query GetBOM($cvId: ID!) {
-			componentVersion(componentVersionId: $cvId) {
-				allOccurrences(pagination: { limit: 50 }) {
-					pagination { cursor }
-					results {
-						componentVersion { id name partNumber partDescription materialName }
-					}
-				}
-			}
-		}`
-	const qNext = `
-		query GetBOMNext($cvId: ID!, $cursor: String!) {
-			componentVersion(componentVersionId: $cvId) {
-				allOccurrences(pagination: { cursor: $cursor, limit: 50 }) {
-					pagination { cursor }
-					results {
-						componentVersion { id name partNumber partDescription materialName }
-					}
-				}
-			}
-		}`
-
-	type occResult struct {
-		ComponentVersion struct {
-			ID         string `json:"id"`
-			Name       string `json:"name"`
-			PartNumber string `json:"partNumber"`
-			PartDesc   string `json:"partDescription"`
-			Material   string `json:"materialName"`
-		} `json:"componentVersion"`
-	}
-
-	all, err := allPages(ctx, token, qFirst, qNext, map[string]any{"cvId": componentVersionID}, func(data json.RawMessage) (string, []occResult, error) {
-		var r struct {
-			ComponentVersion struct {
-				AllOccurrences struct {
-					Pagination struct {
-						Cursor string `json:"cursor"`
-					} `json:"pagination"`
-					Results []occResult `json:"results"`
-				} `json:"allOccurrences"`
-			} `json:"componentVersion"`
-		}
-		if err := json.Unmarshal(data, &r); err != nil {
-			return "", nil, fmt.Errorf("bom: %w", err)
-		}
-		return r.ComponentVersion.AllOccurrences.Pagination.Cursor, r.ComponentVersion.AllOccurrences.Results, nil
-	})
+	all, err := allOccurrences(ctx, token, componentVersionID)
 	if err != nil {
 		return nil, err
 	}

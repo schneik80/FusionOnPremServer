@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -36,7 +38,15 @@ func RollUpDesignActivity(ctx context.Context, token, hubID, parentItemID string
 				return
 			}
 			defer release()
-			evs, err := GetDesignActivity(ctx, token, hubID, id)
+			// The parent carries the report's identity and needs the full
+			// query; a child only contributes version events, so it takes the
+			// lean one — a fifth of the points per child.
+			var evs []ActivityEvent
+			if i == 0 {
+				evs, err = GetDesignActivity(ctx, token, hubID, id)
+			} else {
+				evs, err = getChildActivity(ctx, token, hubID, id)
+			}
 			results[i] = result{evs, err}
 		}(i, id)
 	}
@@ -132,6 +142,71 @@ func GetDesignActivity(ctx context.Context, token, hubID, itemID string) ([]Acti
 		Versions:      versions,
 	}
 	return designEventsFromDetails(d, hubID), nil
+}
+
+// getChildActivity is the roll-up's per-child fetch: the item's id and name
+// plus a lean version list — number, date, author — at 20 per page (most
+// children have a short history; a long one pages on). No root component
+// version, no thumbnail ids, no properties: the merged report never renders
+// them. ~180 points per child against ~630 for the full DesignActivity query.
+func getChildActivity(ctx context.Context, token, hubID, itemID string) ([]ActivityEvent, error) {
+	const rows = `results { versionNumber createdOn createdBy { id userName firstName lastName } }`
+	const qFirst = `
+		query ChildActivity($hubId: ID!, $itemId: ID!) {
+			item(hubId: $hubId, itemId: $itemId) { __typename id name }
+			itemVersions(hubId: $hubId, itemId: $itemId, pagination: { limit: 20 }) {
+				pagination { cursor }
+				` + rows + `
+			}
+		}`
+	const qNext = `
+		query ChildActivityNext($hubId: ID!, $itemId: ID!, $cursor: String!) {
+			itemVersions(hubId: $hubId, itemId: $itemId, pagination: { cursor: $cursor, limit: 20 }) {
+				pagination { cursor }
+				` + rows + `
+			}
+		}`
+	type row struct {
+		VersionNumber int     `json:"versionNumber"`
+		CreatedOn     string  `json:"createdOn"`
+		CreatedBy     apiUser `json:"createdBy"`
+	}
+	var name, typename string
+	all, err := allPages(ctx, token, qFirst, qNext, map[string]any{"hubId": hubID, "itemId": itemID}, func(data json.RawMessage) (string, []row, error) {
+		var r struct {
+			Item *struct {
+				Typename string `json:"__typename"`
+				Name     string `json:"name"`
+			} `json:"item"`
+			ItemVersions struct {
+				Pagination struct {
+					Cursor string `json:"cursor"`
+				} `json:"pagination"`
+				Results []row `json:"results"`
+			} `json:"itemVersions"`
+		}
+		if err := json.Unmarshal(data, &r); err != nil {
+			return "", nil, fmt.Errorf("child activity: %w", err)
+		}
+		if r.Item != nil {
+			name, typename = r.Item.Name, r.Item.Typename
+		}
+		return r.ItemVersions.Pagination.Cursor, r.ItemVersions.Results, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	versions := make([]VersionSummary, 0, len(all))
+	for _, v := range all {
+		versions = append(versions, VersionSummary{
+			Number:      v.VersionNumber,
+			CreatedOn:   parseTime(v.CreatedOn),
+			CreatedBy:   v.CreatedBy.fullName(),
+			CreatedByID: v.CreatedBy.ID,
+		})
+	}
+	sort.Slice(versions, func(i, j int) bool { return versions[i].Number > versions[j].Number })
+	return designEventsFromDetails(&ItemDetails{ID: itemID, Name: name, Typename: typename, Versions: versions}, hubID), nil
 }
 
 // designEventsFromDetails maps a design's version list to activity events. It is

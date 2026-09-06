@@ -184,7 +184,8 @@
       "archiveFailedTitle": "No se pudo descargar el archivo",
       "archiveGenericFailure": "Autodesk no devolvió el archivo."
     },
-    "archiveGone": "Este archivo ya no está disponible: vuelva a generarlo"
+    "archiveGone": "Este archivo ya no está disponible: vuelva a generarlo",
+    "activityChildrenCapped": "Se han consolidado {{included}} de {{total}} documentos secundarios."
   },
   "permissions": {
     "selectDocument": "Seleccione un documento dentro de un proyecto para ver el acceso",

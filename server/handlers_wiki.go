@@ -33,7 +33,7 @@ func (s *Server) handleWikiPages(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	dmHubID, err := api.GetHubDataManagementID(ctx, token, hubID)
+	dmHubID, err := s.hubDMID(ctx, r, token, hubID)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -137,7 +137,7 @@ func (s *Server) handleWikiRestore(w http.ResponseWriter, r *http.Request) {
 	if !hubMatches(w, set.hubID, req.HubID) {
 		return
 	}
-	dmHubID, err := api.GetHubDataManagementID(ctx, token, req.HubID)
+	dmHubID, err := s.hubDMID(ctx, r, token, req.HubID)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -188,7 +188,7 @@ func (s *Server) handleWikiPublish(w http.ResponseWriter, r *http.Request) {
 	if !hubMatches(w, set.hubID, req.HubID) {
 		return
 	}
-	dmHubID, err := api.GetHubDataManagementID(ctx, token, req.HubID)
+	dmHubID, err := s.hubDMID(ctx, r, token, req.HubID)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -233,7 +233,7 @@ func (s *Server) handleWikiRename(w http.ResponseWriter, r *http.Request) {
 	if !hubMatches(w, set.hubID, req.HubID) {
 		return
 	}
-	dmHubID, err := api.GetHubDataManagementID(ctx, token, req.HubID)
+	dmHubID, err := s.hubDMID(ctx, r, token, req.HubID)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -291,7 +291,7 @@ func (s *Server) handleWikiImageUpload(w http.ResponseWriter, r *http.Request) {
 	if name == "" || name == "." || name == "/" {
 		name = "image"
 	}
-	dmHubID, err := api.GetHubDataManagementID(ctx, token, hubID)
+	dmHubID, err := s.hubDMID(ctx, r, token, hubID)
 	if err != nil {
 		s.fail(w, r, err)
 		return

@@ -48,6 +48,10 @@ type Session struct {
 	hubMu           sync.Mutex
 	selectedHubID   string
 	selectedHubName string
+	// selectedHubAltID is the hub's Data Management id, captured at selection
+	// from the same hub list that validated it. Every wiki / browse / upload
+	// request used to spend a GraphQL call re-deriving it.
+	selectedHubAltID string
 
 	// refreshMu serialises token refresh for this session. APS rotates the
 	// refresh token on every use, so two concurrent refreshes of the same
@@ -73,6 +77,22 @@ func (s *Session) setSelectedHub(hubID, hubName string) {
 	s.hubMu.Lock()
 	s.selectedHubID = hubID
 	s.selectedHubName = hubName
+	s.selectedHubAltID = ""
+	s.hubMu.Unlock()
+}
+
+// SelectedHubAltID returns the locked hub's Data Management id, or "" when
+// the session predates the field (callers then fall back to the GraphQL
+// lookup).
+func (s *Session) SelectedHubAltID() string {
+	s.hubMu.Lock()
+	defer s.hubMu.Unlock()
+	return s.selectedHubAltID
+}
+
+func (s *Session) setSelectedHubAltID(altID string) {
+	s.hubMu.Lock()
+	s.selectedHubAltID = altID
 	s.hubMu.Unlock()
 }
 
@@ -160,6 +180,20 @@ func (s *SessionStore) SetSelectedHub(id, hubID, hubName string) bool {
 		return false
 	}
 	sess.setSelectedHub(hubID, hubName)
+	s.persist()
+	return true
+}
+
+// SetSelectedHubAltID records the locked hub's Data Management id alongside
+// the lock (see Session.selectedHubAltID). Reports whether the session exists.
+func (s *SessionStore) SetSelectedHubAltID(id, altID string) bool {
+	s.mu.Lock()
+	sess, ok := s.byID[id]
+	s.mu.Unlock()
+	if !ok {
+		return false
+	}
+	sess.setSelectedHubAltID(altID)
 	s.persist()
 	return true
 }

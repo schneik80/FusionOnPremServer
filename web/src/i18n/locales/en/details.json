@@ -184,7 +184,8 @@
       "archiveFailedTitle": "Could not download the archive",
       "archiveGenericFailure": "Autodesk did not return the archive."
     },
-    "archiveGone": "This archive is no longer available — generate it again"
+    "archiveGone": "This archive is no longer available — generate it again",
+    "activityChildrenCapped": "Rolled up {{included}} of {{total}} child documents."
   },
   "permissions": {
     "selectDocument": "Select a document within a project to see access",

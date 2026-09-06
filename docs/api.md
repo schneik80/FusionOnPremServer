@@ -369,6 +369,19 @@ query GetItemHistory($hubId: ID!, $itemId: ID!) {
 
 ---
 
+### AllOccurrences — one walk for BOM and descendants
+
+`api/occurrences.go` pages `componentVersion.allOccurrences` (every instance at
+every depth, 50 per page, rows `componentVersion { id name partNumber
+partDescription materialName designItemVersion { item { id name } } }`).
+`GetBOM` groups the rows by component version and counts; `GetAllDescendants`
+(`GET /api/items/descendants`, the Activity roll-up's scope) deduplicates them
+by design item. Same operation name, so the two share coalesced pages. This
+replaced a breadth-first walk over `occurrences` that spawned one paginated
+query per node and skipped per-node errors; the walk is now sequential and a
+rate limit fails it. Note the behaviour change: `allOccurrences` counts
+instances, so a design with few children but many placements pages more.
+
 ### GetBOM
 
 Builds a flat bill of materials from `componentVersion.allOccurrences` (every descendant instance, paginated at limit 50). Results are grouped by `componentVersion.id`, and **quantity is the occurrence count** — the v2 Manufacturing Data Model has no explicit quantity field. Each row carries name, part number, description, and material.
@@ -628,6 +641,12 @@ token, so clicking the node opens the same dialog the card does; chat hits have
 no token scheme and are not navigable.
 
 ### GetItemLocation — Show in Location
+
+One `LocateItem` query now nests `parentFolder { id name parentFolder { … } }`
+eight levels deep (`locateDepth`), so any real tree resolves in one round trip;
+the one-level-per-call `GetFolderParent` walk continues only if the chain is
+still going at that depth. The nested selection is well under the schema's
+depth limit of 20.
 
 ```graphql
 # 1. Item's project + immediate parent folder

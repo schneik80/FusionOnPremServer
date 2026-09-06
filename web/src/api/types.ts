@@ -548,6 +548,10 @@ export interface ActivityReport {
   timeline: ActivityTimeBucket[]
   contributors: ActivityContributor[]
   children: ActivityChild[]
+  // A roll-up's child scope: merged vs asked for. When they differ the
+  // server capped the fan-out and the tab offers the rest (never silent).
+  childrenIncluded?: number
+  childrenTotal?: number
   events: ActivityEvent[]
   eventsTruncated: boolean
 }

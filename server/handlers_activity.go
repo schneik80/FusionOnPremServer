@@ -68,10 +68,17 @@ func (s *Server) handleActivityReport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, activityReportDTO(rep))
 }
 
-// maxRollupChildren bounds the child fan-out of a single rollup request. Real
-// assemblies are far smaller; the cap exists only to keep one authenticated
-// request from amplifying into an unbounded number of APS GraphQL calls.
-const maxRollupChildren = 2000
+// rollupChildrenCap bounds how many child documents one roll-up merges: each
+// child is ~180 APS points (see api.getChildActivity), so 24 of them is
+// ~4300 — most of a minute's quota, and the request is already P1. Beyond it
+// the report is a VISIBLE partial (childrenIncluded < childrenTotal) that the
+// Activity tab explains and lets the user extend with `all=1`, which lifts
+// the cap to maxRollupChildren. Never a silent cap.
+const (
+	rollupChildrenCap  = 24
+	maxRollupChildren  = 500
+	rollupAllParameter = "all"
+)
 
 // handleActivityRollup merges a design's activity with all of its child
 // documents' activity, server-side. Body: { hubId, itemId, childItemIds[] } —
@@ -101,6 +108,11 @@ func (s *Server) handleActivityRollup(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("too many child items: %d (max %d)", len(body.ChildItemIDs), maxRollupChildren))
 		return
 	}
+	total := len(body.ChildItemIDs)
+	children := body.ChildItemIDs
+	if r.URL.Query().Get(rollupAllParameter) != "1" && len(children) > rollupChildrenCap {
+		children = children[:rollupChildrenCap]
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
@@ -119,7 +131,7 @@ func (s *Server) handleActivityRollup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, err := api.RollUpDesignActivity(ctx, token, body.HubID, body.ItemID, body.ChildItemIDs)
+	events, err := api.RollUpDesignActivity(ctx, token, body.HubID, body.ItemID, children)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -129,6 +141,7 @@ func (s *Server) handleActivityRollup(w http.ResponseWriter, r *http.Request) {
 	rep := api.BuildReport(events, api.ScopeHub, "", api.BucketDay, time.Time{}, time.Time{})
 	rep.Scope = api.ScopeDesign
 	rep.ScopeID = body.ItemID
+	rep.ChildrenIncluded, rep.ChildrenTotal = len(children), total
 	writeJSON(w, http.StatusOK, activityReportDTO(rep))
 }
 

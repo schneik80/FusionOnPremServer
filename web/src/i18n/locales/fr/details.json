@@ -184,7 +184,8 @@
       "archiveFailedTitle": "Impossible de télécharger l’archive",
       "archiveGenericFailure": "Autodesk n’a pas renvoyé l’archive."
     },
-    "archiveGone": "Cette archive n’est plus disponible — générez-la à nouveau"
+    "archiveGone": "Cette archive n’est plus disponible — générez-la à nouveau",
+    "activityChildrenCapped": "{{included}} documents enfants sur {{total}} consolidés."
   },
   "permissions": {
     "selectDocument": "Sélectionnez un document dans un projet pour voir les accès",

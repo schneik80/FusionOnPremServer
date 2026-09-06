@@ -448,12 +448,17 @@ export const usePermissionsPath = (
   projectName: string | undefined,
   folders: { id: string; name: string }[],
   enabled: boolean,
-  opts?: PriorityOpts,
+  opts?: PriorityOpts & { layers?: 'all' | 'leaf' },
 ): UseQueryResult<PermLayer[]> =>
   useQuery({
-    queryKey: ['permPath', hubId, projectId, folders.map((f) => f.id)],
+    // The layer selection is part of the key: a leaf answer must never be
+    // served to the explorer, which draws the whole path.
+    queryKey: ['permPath', hubId, projectId, folders.map((f) => f.id), opts?.layers ?? 'all'],
     queryFn: () =>
-      api.permissionsPath({ hubId: hubId!, projectId: projectId!, projectName, folders }, { priority: opts?.priority ?? 0 }),
+      api.permissionsPath(
+        { hubId: hubId!, projectId: projectId!, projectName, folders, layers: opts?.layers },
+        { priority: opts?.priority ?? 0 },
+      ),
     enabled: enabled && !!hubId && !!projectId,
     staleTime: STALE,
   })
@@ -586,12 +591,15 @@ export const useRollupActivity = (
   itemId: string | null | undefined,
   childItemIds: string[],
   enabled: boolean,
-  opts?: PriorityOpts,
+  opts?: PriorityOpts & { all?: boolean },
 ): UseQueryResult<ActivityReport> =>
   useQuery({
-    queryKey: ['rollupActivity', hubId, itemId, [...childItemIds].sort().join(',')],
+    queryKey: ['rollupActivity', hubId, itemId, [...childItemIds].sort().join(','), opts?.all ? 'all' : 'capped'],
     queryFn: () =>
-      api.rollupActivity({ hubId: hubId!, itemId: itemId!, childItemIds }, { priority: opts?.priority ?? 2 }),
+      api.rollupActivity(
+        { hubId: hubId!, itemId: itemId!, childItemIds, all: opts?.all },
+        { priority: opts?.priority ?? 2 },
+      ),
     enabled: enabled && !!hubId && !!itemId,
     staleTime: 0,
   })
