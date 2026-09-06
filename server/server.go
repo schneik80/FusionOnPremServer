@@ -371,6 +371,9 @@ func Run(opts Options) error {
 	// disabled or unconfigured so enabling them at runtime needs no goroutine
 	// management; stops with the lifecycle context.
 	go s.runBackupScheduler(ctx)
+	// A one-line budget summary every minute while anything was spent, so an
+	// operator's log shows the quota pressure without a debugger.
+	go s.logBudgetSummary(ctx)
 
 	// Listener (re)bind loop. Auth + the token refresher above are set up once
 	// and span restarts; only the HTTP listener is recreated. A runtime port
@@ -613,5 +616,34 @@ func warnOpenNetwork(logger *slog.Logger, addr string, tls bool) {
 	if !loopback {
 		logger.Warn("server is reachable on the network over plain HTTP — session cookies are not encrypted in transit; use -tls or front with TLS",
 			"addr", addr)
+	}
+}
+
+// logBudgetSummary logs the APS budget's state once a minute when there was
+// traffic: points spent, queue depth, refusals and real 429s in the interval.
+func (s *Server) logBudgetSummary(ctx context.Context) {
+	b := api.Budget()
+	if b == nil {
+		return
+	}
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	var lastRefused, lastTrips int64
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		snap := b.Snapshot()
+		refused, trips := snap.Refused-lastRefused, snap.Trips-lastTrips
+		lastRefused, lastTrips = snap.Refused, snap.Trips
+		if snap.UsedLastMinute == 0 && refused == 0 && trips == 0 && snap.Level == "ok" {
+			continue
+		}
+		cs := api.CacheStats()
+		s.logger.Info("aps budget", "level", snap.Level, "pointsLastMinute", snap.UsedLastMinute,
+			"available", snap.Available, "inFlight", snap.InFlight, "queued", snap.Queue,
+			"refused", refused, "upstream429", trips, "cacheHits", cs.Hits, "cacheMisses", cs.Misses)
 	}
 }
