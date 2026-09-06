@@ -342,6 +342,8 @@
     "refCount_one": "{{count}} Verweis",
     "refCount_other": "{{count}} Verweise",
     "locating": "Wird gesucht…",
-    "locationUnavailable": "Speicherort nicht verfügbar"
+    "locationUnavailable": "Speicherort nicht verfügbar",
+    "thumbsCapped": "Vorschaubilder für die ersten {{cap}} von {{total}} Dokumenten.",
+    "loadAllThumbs": "Alle laden"
   }
 }

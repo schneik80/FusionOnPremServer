@@ -342,6 +342,8 @@
     "refCount_one": "{{count}} riferimento",
     "refCount_other": "{{count}} riferimenti",
     "locating": "Localizzazione…",
-    "locationUnavailable": "Posizione non disponibile"
+    "locationUnavailable": "Posizione non disponibile",
+    "thumbsCapped": "Anteprime dei primi {{cap}} documenti su {{total}}.",
+    "loadAllThumbs": "Carica tutto"
   }
 }

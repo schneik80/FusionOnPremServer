@@ -6,7 +6,7 @@ import '@fontsource/montserrat/700.css'
 import './i18n'
 
 import { QueryClient } from '@tanstack/react-query'
-import { ApiError } from './api/client'
+import { DAY, newQueryCaches, queryDefaults } from './api/queryDefaults'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { StrictMode } from 'react'
@@ -17,22 +17,10 @@ import { ColorModeProvider } from './state/colorMode'
 import { LocaleProvider } from './state/locale'
 import { ThemeOverridesProvider } from './state/themeOverrides'
 
-const DAY = 24 * 60 * 60 * 1000
-
-// gcTime must outlive maxAge so inactive queries survive long enough to persist.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      gcTime: DAY,
-      // One retry for transient failures, but NEVER retry a 429: the server is
-      // rate-limited (APS's per-minute query-point quota) and a retry just
-      // spends more of the quota. The backend already fails these fast.
-      retry: (failureCount, error) =>
-        error instanceof ApiError && error.status === 429 ? false : failureCount < 1,
-    },
-  },
-})
+// The query posture (staleness, bounded 429 retry, no reconnect storms) lives
+// in api/queryDefaults.ts, shared with the embed entry point. gcTime (DAY)
+// must outlive the persister's maxAge so inactive queries survive to persist.
+const queryClient = new QueryClient({ defaultOptions: queryDefaults, ...newQueryCaches() })
 
 // Persist the browsing cache so a reload paints hubs / projects / contents /
 // details instantly, then revalidates in the background.
@@ -70,6 +58,7 @@ createRoot(document.getElementById('root')!).render(
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
             q.queryKey[0] !== 'authMe' &&
+            q.queryKey[0] !== 'quota' &&
             q.queryKey[0] !== 'resolveProject' &&
             q.queryKey[0] !== 'uploads' &&
             q.queryKey[0] !== 'archives' &&

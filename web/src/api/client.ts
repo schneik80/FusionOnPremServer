@@ -87,18 +87,73 @@ import type {
   WhiteboardPatch,
 } from '../whiteboards/types'
 import { QUERY_CACHE_KEY } from '../queryPersist'
+import { applyHeader, type QuotaStatus } from '../state/quota'
+import { DEFAULT_PRIORITY, withPriority, type RequestOptions } from './priority'
 
 export class ApiError extends Error {
   status: number
   // Stable machine token from the server's error envelope; the SPA maps it
   // to localized text (i18n/apiError.ts) and falls back to `message`.
   code?: string
-  constructor(status: number, message: string, code?: string) {
+  // For a 429: how long the server asked us to wait (its retryAfterMs body
+  // field, else the Retry-After header). Drives the bounded retry delay
+  // (api/queryDefaults.ts) and the slow-mode countdown.
+  retryAfterMs?: number
+  constructor(status: number, message: string, code?: string, retryAfterMs?: number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.retryAfterMs = retryAfterMs
   }
+}
+
+// parseRetryAfter reads a Retry-After header (delay-seconds or HTTP-date)
+// into milliseconds, or undefined.
+export function parseRetryAfter(h: string | null, now = Date.now()): number | undefined {
+  if (!h) return undefined
+  const s = h.trim()
+  if (/^\d+$/.test(s)) return Number(s) * 1000
+  const t = Date.parse(s)
+  if (Number.isNaN(t)) return undefined
+  return Math.max(0, t - now)
+}
+
+// observeThrottle feeds the server's throttle headers to the quota store:
+// every authenticated response carries them, so the banner never needs a
+// poll to learn that slow mode began.
+function observeThrottle(res: Response) {
+  const level = res.headers.get('X-FLS-Throttle')
+  if (!level) return
+  const until = res.headers.get('X-FLS-Throttle-Until')
+  applyHeader(level, until ? Number(until) : null)
+}
+
+// throwForResponse turns a non-2xx response into an ApiError, reading the
+// server's {error, code, retryAfterMs} envelope, and runs the 401 / 409
+// gate reactions. Shared by every request flavour below.
+async function throwForResponse(res: Response): Promise<never> {
+  let msg = `request failed (HTTP ${res.status})`
+  let code: string | undefined
+  let retryAfterMs: number | undefined
+  try {
+    const body = (await res.json()) as { error?: string; code?: string; retryAfterMs?: number }
+    if (body?.error) msg = body.error
+    if (body?.code) code = body.code
+    if (typeof body?.retryAfterMs === 'number' && body.retryAfterMs > 0) retryAfterMs = body.retryAfterMs
+  } catch {
+    /* non-JSON error body — keep the generic message */
+  }
+  if (res.status === 429 && retryAfterMs === undefined) retryAfterMs = parseRetryAfter(res.headers.get('Retry-After'))
+  // A 401 on a data call means the session is gone; bounce to login. The
+  // /api/auth/me probe never 401s (it returns 200 with authenticated:false),
+  // so this can't loop on the login gate.
+  if (res.status === 401) gate.onUnauthorized()
+  // 409 hub_not_selected means the session has no hub lock — tear down and
+  // reload so the gate re-locks (mirrors the 401 posture). The code check
+  // keeps ordinary 409s (wiki stale-overwrite) untouched.
+  if (res.status === 409 && code === 'hub_not_selected') gate.onHubGate()
+  throw new ApiError(res.status, msg, code, retryAfterMs)
 }
 
 // redirectToLogin sends the browser into the OAuth flow when a data call comes
@@ -144,35 +199,25 @@ export function setGateHandlers(h: GateHandlers) {
   gate = h
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+// request is the typed fetch every JSON endpoint uses. opts.priority tells
+// the server's APS budget how urgent the call is (api/priority.ts).
+async function request<T>(path: string, init?: RequestInit, opts?: RequestOptions): Promise<T> {
   // Let the browser set the multipart boundary for FormData bodies (image
   // uploads); JSON calls get the explicit content-type.
   const isForm = init?.body instanceof FormData
-  const res = await fetch(path, {
-    headers: isForm ? undefined : { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    ...init,
-  })
-  if (!res.ok) {
-    let msg = `request failed (HTTP ${res.status})`
-    let code: string | undefined
-    try {
-      const body = (await res.json()) as { error?: string; code?: string }
-      if (body?.error) msg = body.error
-      if (body?.code) code = body.code
-    } catch {
-      /* non-JSON error body — keep the generic message */
-    }
-    // A 401 on a data call means the session is gone; bounce to login. The
-    // /api/auth/me probe never 401s (it returns 200 with authenticated:false),
-    // so this can't loop on the login gate.
-    if (res.status === 401) gate.onUnauthorized()
-    // 409 hub_not_selected means the session has no hub lock — tear down and
-    // reload so the gate re-locks (mirrors the 401 posture). The code check
-    // keeps ordinary 409s (wiki stale-overwrite) untouched.
-    if (res.status === 409 && code === 'hub_not_selected') gate.onHubGate()
-    throw new ApiError(res.status, msg, code)
-  }
+  const res = await fetch(
+    path,
+    withPriority(
+      {
+        headers: isForm ? undefined : { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        ...init,
+      },
+      opts?.priority ?? DEFAULT_PRIORITY,
+    ),
+  )
+  observeThrottle(res)
+  if (!res.ok) await throwForResponse(res)
   // 204/empty bodies shouldn't happen on our GET endpoints, but guard anyway.
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
@@ -180,22 +225,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 // requestText is the raw-text sibling of request<T> for endpoints that answer
 // text/plain (the admin log tail). Same error envelope + 401 handling.
-async function requestText(path: string, init?: RequestInit): Promise<string> {
-  const res = await fetch(path, { credentials: 'same-origin', ...init })
-  if (!res.ok) {
-    let msg = `request failed (HTTP ${res.status})`
-    let code: string | undefined
-    try {
-      const body = (await res.json()) as { error?: string; code?: string }
-      if (body?.error) msg = body.error
-      if (body?.code) code = body.code
-    } catch {
-      /* non-JSON error body — keep the generic message */
-    }
-    if (res.status === 401) gate.onUnauthorized()
-    if (res.status === 409 && code === 'hub_not_selected') gate.onHubGate()
-    throw new ApiError(res.status, msg, code)
-  }
+async function requestText(path: string, init?: RequestInit, opts?: RequestOptions): Promise<string> {
+  const res = await fetch(path, withPriority({ credentials: 'same-origin', ...init }, opts?.priority ?? DEFAULT_PRIORITY))
+  observeThrottle(res)
+  if (!res.ok) await throwForResponse(res)
   return res.text()
 }
 
@@ -204,22 +237,10 @@ async function requestText(path: string, init?: RequestInit): Promise<string> {
 // body must stay a verbatim tldraw snapshot — wrapping it in an envelope just
 // to carry a number would mean the client had to unwrap it before handing it
 // to loadSnapshot, and the server had to build it.
-async function requestWithEtag<T>(path: string, init?: RequestInit): Promise<{ data: T; etag: string | null }> {
-  const res = await fetch(path, { credentials: 'same-origin', ...init })
-  if (!res.ok) {
-    let msg = `request failed (HTTP ${res.status})`
-    let code: string | undefined
-    try {
-      const body = (await res.json()) as { error?: string; code?: string }
-      if (body?.error) msg = body.error
-      if (body?.code) code = body.code
-    } catch {
-      /* non-JSON error body — keep the generic message */
-    }
-    if (res.status === 401) gate.onUnauthorized()
-    if (res.status === 409 && code === 'hub_not_selected') gate.onHubGate()
-    throw new ApiError(res.status, msg, code)
-  }
+async function requestWithEtag<T>(path: string, init?: RequestInit, opts?: RequestOptions): Promise<{ data: T; etag: string | null }> {
+  const res = await fetch(path, withPriority({ credentials: 'same-origin', ...init }, opts?.priority ?? DEFAULT_PRIORITY))
+  observeThrottle(res)
+  if (!res.ok) await throwForResponse(res)
   return { data: (await res.json()) as T, etag: res.headers.get('ETag') }
 }
 
@@ -335,35 +356,40 @@ export const api = {
 
   deleteLogo: () => request<void>('/api/branding/logo', { method: 'DELETE' }),
 
-  hubs: () => request<Item[]>('/api/hubs'),
+  hubs: (opts?: RequestOptions) => request<Item[]>('/api/hubs', undefined, opts),
 
-  projects: (hubId: string) => request<Item[]>(`/api/projects${qs({ hubId })}`),
+  // quota is the server's APS budget state (slow mode, cooldown, points).
+  // Local — no APS call — so it is always P0 and never competes with what
+  // it describes.
+  quota: () => request<QuotaStatus>('/api/quota', undefined, { priority: 0 }),
 
-  projectContents: (projectId: string) =>
-    request<Contents>(`/api/projects/contents${qs({ projectId })}`),
+  projects: (hubId: string, opts?: RequestOptions) => request<Item[]>(`/api/projects${qs({ hubId })}`, undefined, opts),
 
-  folderContents: (hubId: string, folderId: string) =>
-    request<Item[]>(`/api/folders/contents${qs({ hubId, folderId })}`),
+  projectContents: (projectId: string, opts?: RequestOptions) =>
+    request<Contents>(`/api/projects/contents${qs({ projectId })}`, undefined, opts),
+
+  folderContents: (hubId: string, folderId: string, opts?: RequestOptions) =>
+    request<Item[]>(`/api/folders/contents${qs({ hubId, folderId })}`, undefined, opts),
 
   // browseContents lists one folder (or, with folderId omitted, the project
   // root) through the Data Management API for the in-place hub browser. Unlike
   // folderContents it sees everything in the folder — DM-created files and
   // folders (e.g. wiki images) are invisible to the GraphQL listing. Ids are
   // DM folder urns / item lineage urns; dmProjectId is the project's altId.
-  browseContents: (hubId: string, dmProjectId: string, folderId?: string) =>
-    request<Item[]>(`/api/browse/contents${qs({ hubId, dmProjectId, folderId })}`),
+  browseContents: (hubId: string, dmProjectId: string, folderId?: string, opts?: RequestOptions) =>
+    request<Item[]>(`/api/browse/contents${qs({ hubId, dmProjectId, folderId })}`, undefined, opts),
 
-  itemDetails: (hubId: string, itemId: string) =>
-    request<Details>(`/api/items/details${qs({ hubId, itemId })}`),
+  itemDetails: (hubId: string, itemId: string, opts?: RequestOptions) =>
+    request<Details>(`/api/items/details${qs({ hubId, itemId })}`, undefined, opts),
 
   // itemHistory is the design's v3 history: the non-save changes (property
   // edits, part-number changes, each with its author) and the milestone /
   // release markers on its saves — the only v3-sourced call.
-  itemHistory: (hubId: string, itemId: string) =>
-    request<ItemHistory>(`/api/items/history${qs({ hubId, itemId })}`),
+  itemHistory: (hubId: string, itemId: string, opts?: RequestOptions) =>
+    request<ItemHistory>(`/api/items/history${qs({ hubId, itemId })}`, undefined, opts),
 
-  itemLocation: (hubId: string, itemId: string) =>
-    request<Location>(`/api/items/location${qs({ hubId, itemId })}`),
+  itemLocation: (hubId: string, itemId: string, opts?: RequestOptions) =>
+    request<Location>(`/api/items/location${qs({ hubId, itemId })}`, undefined, opts),
 
   // fileUrl is the same-origin URL streaming an uploaded (non-native) file's tip
   // bytes, used directly as the src for <img>/<video> and by the PDF viewer. It
@@ -404,79 +430,88 @@ export const api = {
     return { text: await res.text(), tooLarge: false }
   },
 
-  uses: (args: { cvId?: string; hubId?: string; drawingItemId?: string }) =>
-    request<ComponentRef[]>(`/api/items/uses${qs(args)}`),
+  uses: (args: { cvId?: string; hubId?: string; drawingItemId?: string }, opts?: RequestOptions) =>
+    request<ComponentRef[]>(`/api/items/uses${qs(args)}`, undefined, opts),
 
   // descendants is the recursive occurrence tree (all child documents), used by
   // the Activity tab's child roll-up.
-  descendants: (cvId: string) =>
-    request<ComponentRef[]>(`/api/items/descendants${qs({ cvId })}`),
+  descendants: (cvId: string, opts?: RequestOptions) =>
+    request<ComponentRef[]>(`/api/items/descendants${qs({ cvId })}`, undefined, opts),
 
-  whereUsed: (cvId: string) =>
-    request<ComponentRef[]>(`/api/items/where-used${qs({ cvId })}`),
+  whereUsed: (cvId: string, opts?: RequestOptions) =>
+    request<ComponentRef[]>(`/api/items/where-used${qs({ cvId })}`, undefined, opts),
 
-  drawings: (hubId: string, designItemId: string) =>
-    request<DrawingRef[]>(`/api/items/drawings${qs({ hubId, designItemId })}`),
+  drawings: (hubId: string, designItemId: string, opts?: RequestOptions) =>
+    request<DrawingRef[]>(`/api/items/drawings${qs({ hubId, designItemId })}`, undefined, opts),
 
   // localRefs is the local-store half of Where Used: our own records (tasks,
   // chat, whiteboards, jobs, batches) that reference a document. sources is
   // the checkbox selection — an unscanned source costs nothing, so the caller
   // sends only what is switched on.
-  localRefs: (itemId: string, sources: LocalRefKind[]) =>
-    request<LocalRefs>(`/api/items/local-refs${qs({ itemId, sources: sources.join(',') })}`),
+  localRefs: (itemId: string, sources: LocalRefKind[], opts?: RequestOptions) =>
+    request<LocalRefs>(`/api/items/local-refs${qs({ itemId, sources: sources.join(',') })}`, undefined, opts),
 
-  bom: (cvId: string) => request<BOMRow[]>(`/api/items/bom${qs({ cvId })}`),
+  bom: (cvId: string, opts?: RequestOptions) => request<BOMRow[]>(`/api/items/bom${qs({ cvId })}`, undefined, opts),
 
-  projectGroups: (projectId: string) =>
-    request<ProjectGroup[]>(`/api/projects/groups${qs({ projectId })}`),
+  projectGroups: (projectId: string, opts?: RequestOptions) =>
+    request<ProjectGroup[]>(`/api/projects/groups${qs({ projectId })}`, undefined, opts),
 
-  groupMembers: (hubId: string, groupId: string) =>
-    request<GroupMember[]>(`/api/groups/members${qs({ hubId, groupId })}`),
+  groupMembers: (hubId: string, groupId: string, opts?: RequestOptions) =>
+    request<GroupMember[]>(`/api/groups/members${qs({ hubId, groupId })}`, undefined, opts),
 
-  classify: (cvId: string) =>
-    request<Classify>(`/api/items/classify${qs({ cvId })}`),
+  classify: (cvId: string, opts?: RequestOptions) =>
+    request<Classify>(`/api/items/classify${qs({ cvId })}`, undefined, opts),
 
-  thumbnail: (cvId: string) =>
-    request<Thumbnail>(`/api/items/thumbnail${qs({ cvId })}`),
+  thumbnail: (cvId: string, opts?: RequestOptions) =>
+    request<Thumbnail>(`/api/items/thumbnail${qs({ cvId })}`, undefined, opts),
 
-  properties: (cvId: string) =>
-    request<PhysicalProperties>(`/api/items/properties${qs({ cvId })}`),
+  properties: (cvId: string, opts?: RequestOptions) =>
+    request<PhysicalProperties>(`/api/items/properties${qs({ cvId })}`, undefined, opts),
 
-  customProperties: (cvId: string) =>
-    request<NamedProperty[]>(`/api/items/custom-properties${qs({ cvId })}`),
+  customProperties: (cvId: string, opts?: RequestOptions) =>
+    request<NamedProperty[]>(`/api/items/custom-properties${qs({ cvId })}`, undefined, opts),
 
   // designActivity reports a single design's activity, sourced from the
   // Manufacturing Data Model GraphQL (the notifications feed rejects this app's
   // token). hubId is the GraphQL hub id and itemId the lineage urn — the same
   // pair the Details endpoints take.
-  designActivity: (args: { hubId: string; itemId: string; bucket?: string }) =>
+  designActivity: (args: { hubId: string; itemId: string; bucket?: string }, opts?: RequestOptions) =>
     request<ActivityReport>(
       `/api/activity/report${qs({ scope: 'design', hubId: args.hubId, id: args.itemId, bucket: args.bucket })}`,
+      undefined,
+      opts,
     ),
 
   // rollupActivity merges a design's activity with all of its child documents'
   // activity, computed server-side (bounded concurrency, generous timeout). The
   // caller passes the descendant lineage ids it enumerated.
-  rollupActivity: (args: { hubId: string; itemId: string; childItemIds: string[] }) =>
-    request<ActivityReport>('/api/activity/rollup', {
-      method: 'POST',
-      body: JSON.stringify(args),
-    }),
+  rollupActivity: (args: { hubId: string; itemId: string; childItemIds: string[] }, opts?: RequestOptions) =>
+    request<ActivityReport>(
+      '/api/activity/rollup',
+      {
+        method: 'POST',
+        body: JSON.stringify(args),
+      },
+      opts,
+    ),
 
   // hubOverview aggregates the hub dashboard snapshot: counts and local-activity
   // buckets across the projects the caller can access. The server makes one
   // upstream GetProjects call (the accessible-project scope) then reads the
   // local stores — no per-project fan-out. No params: the hub is the session's.
-  hubOverview: () => request<HubOverview>('/api/hub/overview'),
+  hubOverview: (opts?: RequestOptions) => request<HubOverview>('/api/hub/overview', undefined, opts),
 
   // permissionsPath returns the access at each layer of a document's path
   // (project → folders, root→leaf): groups + individual members with roles.
-  permissionsPath: (args: {
-    hubId: string
-    projectId: string
-    projectName?: string
-    folders: { id: string; name: string }[]
-  }) => {
+  permissionsPath: (
+    args: {
+      hubId: string
+      projectId: string
+      projectName?: string
+      folders: { id: string; name: string }[]
+    },
+    opts?: RequestOptions,
+  ) => {
     const p = new URLSearchParams()
     p.set('hubId', args.hubId)
     p.set('projectId', args.projectId)
@@ -485,7 +520,7 @@ export const api = {
       p.append('folderId', f.id)
       p.append('folderName', f.name)
     }
-    return request<PermLayer[]>(`/api/permissions/path?${p.toString()}`)
+    return request<PermLayer[]>(`/api/permissions/path?${p.toString()}`, undefined, opts)
   },
 
   // Chat (docs/chat/PLAN.md, phase 1): per-project channels + threaded
@@ -896,17 +931,17 @@ export const api = {
   // Wiki: published markdown pages in a project's root "Wiki" folder. hubId is
   // the GraphQL hub id (the server resolves it to the DM hub id); dmProjectId is
   // the project's altId. itemId is a page's lineage urn.
-  wikiPages: (hubId: string, dmProjectId: string) =>
-    request<WikiPage[]>(`/api/wiki/pages${qs({ hubId, dmProjectId })}`),
+  wikiPages: (hubId: string, dmProjectId: string, opts?: RequestOptions) =>
+    request<WikiPage[]>(`/api/wiki/pages${qs({ hubId, dmProjectId })}`, undefined, opts),
 
   // wikiPage fetches a page's tip markdown, or with versionId one specific
   // version from its history.
-  wikiPage: (dmProjectId: string, itemId: string, versionId?: string) =>
-    request<WikiPageContent>(`/api/wiki/page${qs({ dmProjectId, itemId, versionId })}`),
+  wikiPage: (dmProjectId: string, itemId: string, versionId?: string, opts?: RequestOptions) =>
+    request<WikiPageContent>(`/api/wiki/page${qs({ dmProjectId, itemId, versionId })}`, undefined, opts),
 
   // wikiVersions lists a page's history — every DM version, newest first.
-  wikiVersions: (dmProjectId: string, itemId: string) =>
-    request<WikiVersion[]>(`/api/wiki/versions${qs({ dmProjectId, itemId })}`),
+  wikiVersions: (dmProjectId: string, itemId: string, opts?: RequestOptions) =>
+    request<WikiVersion[]>(`/api/wiki/versions${qs({ dmProjectId, itemId })}`, undefined, opts),
 
   // wikiRestore makes an older version the page's newest one (copy-forward: a
   // new version with the old bytes, history intact). baseVersion + force drive

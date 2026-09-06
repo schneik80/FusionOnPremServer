@@ -45,7 +45,7 @@ function isProjectTab(v: string | null): v is ProjectTab {
   return !!v && (TAB_ORDER as string[]).includes(v)
 }
 
-export function ProjectPanel() {
+export function ProjectPanel({ active = true }: { active?: boolean }) {
   const { t } = useTranslation('browse')
   const nav = useNav()
   // The chosen tab lives in nav, not here: the notification bell and an
@@ -139,12 +139,15 @@ export function ProjectPanel() {
         {atRoot && <Tab label={t('projectPanel.tabs.chat')} value="chat" />}
       </Tabs>
       <Box ref={setSlot} sx={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
-        {pane('dashboard', <ProjectDashboard active={effectiveTab === 'dashboard'} />)}
-        {pane('production', <ProductionApp active={effectiveTab === 'production'} />)}
-        {pane('tasks', <TasksApp active={effectiveTab === 'tasks'} />)}
-        {pane('whiteboards', <WhiteboardsApp active={effectiveTab === 'whiteboards'} />)}
-        {pane('wiki', <WikiApp active={effectiveTab === 'wiki'} />)}
-        {pane('chat', <ChatApp active={effectiveTab === 'chat'} live={live} />)}
+        {/* A tab is active only while the panel itself is on screen: the
+            dashboard's permissions/classify/roll-up must not keep running
+            behind a document or another app. */}
+        {pane('dashboard', <ProjectDashboard active={active && effectiveTab === 'dashboard'} />)}
+        {pane('production', <ProductionApp active={active && effectiveTab === 'production'} />)}
+        {pane('tasks', <TasksApp active={active && effectiveTab === 'tasks'} />)}
+        {pane('whiteboards', <WhiteboardsApp active={active && effectiveTab === 'whiteboards'} />)}
+        {pane('wiki', <WikiApp active={active && effectiveTab === 'wiki'} />)}
+        {pane('chat', <ChatApp active={active && effectiveTab === 'chat'} live={live} />)}
       </Box>
     </Paper>
   )

@@ -11,6 +11,7 @@ import { CardHostContext, EntityCard, type CardAction } from '../entitycard/Enti
 import { docMeta } from '../entitycard/meta'
 import { iconForItem } from '../icons'
 import { viewerKindFor } from '../viewers/kind'
+import { useInView } from '../useInView'
 import { useDocActions } from './docActions'
 import type { DocRef } from './docref'
 
@@ -31,8 +32,14 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
   // inert card built from the names captured in the token.
   const sameHub = nav.hubId !== null && docRef.hubId === nav.hubId
   const otherHub = nav.hubId !== null && !sameHub
-  const detailsQ = useItemDetails(sameHub ? docRef.hubId : null, docRef.itemId)
-  const locationQ = useItemLocation(sameHub ? docRef.hubId : null, docRef.itemId, sameHub)
+  // Two APS calls per card, so — like every per-item fetch in the app — they
+  // wait for the card to near the viewport. A chat page with forty cards used
+  // to fire all of them on mount; now it fires the ten you can see. Until
+  // then the card renders the names the token captured, which is never blank.
+  const [inViewRef, inView] = useInView<HTMLSpanElement>()
+  const fetchHub = sameHub && inView ? docRef.hubId : null
+  const detailsQ = useItemDetails(fetchHub, docRef.itemId, { priority: 1 })
+  const locationQ = useItemLocation(fetchHub, docRef.itemId, sameHub && inView, { priority: 1 })
   const goTo = useGoToDocument()
 
   const details = detailsQ.data
@@ -49,6 +56,7 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
     cvId: details?.rootComponentVersionId,
     itemId: docRef.itemId,
     projectAltId: loc?.projectAltId,
+    priority: 1,
   })
   const isImageFile = viewerKindFor(name, details?.mimeType) === 'image'
   if (!thumb && isImageFile && loc?.projectAltId) {
@@ -94,27 +102,29 @@ export function DocumentCard({ docRef }: { docRef: DocRef }) {
   }
 
   return (
-    <EntityCard
-      title={name}
-      subtitle={location}
-      thumbUrl={thumb}
-      icon={isImageFile ? faFileImage : iconForItem({ kind, subtype: '' })}
-      meta={docMeta(t, details)}
-      metaLoading={detailsQ.isLoading}
-      actions={otherHub ? undefined : actions}
-      onNavigate={
-        otherHub
-          ? undefined
-          : () =>
-              void goTo({
-                itemId: docRef.itemId,
-                name,
-                kind,
-                componentVersionId: details?.rootComponentVersionId,
-              })
-      }
-      dimmed={otherHub}
-      selectable
-    />
+    <span ref={inViewRef}>
+      <EntityCard
+        title={name}
+        subtitle={location}
+        thumbUrl={thumb}
+        icon={isImageFile ? faFileImage : iconForItem({ kind, subtype: '' })}
+        meta={docMeta(t, details)}
+        metaLoading={detailsQ.isLoading}
+        actions={otherHub ? undefined : actions}
+        onNavigate={
+          otherHub
+            ? undefined
+            : () =>
+                void goTo({
+                  itemId: docRef.itemId,
+                  name,
+                  kind,
+                  componentVersionId: details?.rootComponentVersionId,
+                })
+        }
+        dimmed={otherHub}
+        selectable
+      />
+    </span>
   )
 }

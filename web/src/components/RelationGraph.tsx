@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Box, Typography } from '@mui/material'
+import { Box, Button, Typography } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import { useQuery } from '@tanstack/react-query'
 import { faArrowsToDot, faMagnifyingGlassMinus, faMagnifyingGlassPlus } from '@fortawesome/free-solid-svg-icons'
 import { api } from '../api/client'
 import { thumbnailSrc } from '../api/thumbnails'
+import { THUMB_CAP, thumbSlots, thumbsHidden } from './relationCap'
 import { ToolBtn } from './canvas/ToolBtn'
 import { useNav } from '../state/nav'
 import { EntityCard, type CardBadge } from './entitycard/EntityCard'
@@ -105,16 +106,24 @@ export default function RelationGraph({
   // (best-effort: a related doc in another project falls back to its kind icon).
   const projectAltId = useNav().project?.altId
 
+  // Thumbnails are capped (relationCap.ts): every node is on screen after
+  // fit-to-view, so a widely-used part would fire one image request per
+  // parent at once. The cap is visible and liftable — never silent.
+  const [loadAll, setLoadAll] = useState(false)
+  useEffect(() => setLoadAll(false), [focus.itemId, focus.cvId, direction])
+  const hasThumb = thumbSlots(relations.length, THUMB_CAP, loadAll)
+  const hidden = thumbsHidden(relations.length, THUMB_CAP, loadAll)
+
   // --- layout (depth-1: focus centred, relations fanned into rows) ---
   const placed = useMemo(() => {
     const rels = relations.map((r, i) => {
       const { x, y } = slot(i, relations.length, direction)
-      return { ...r, isFocus: false, x, y }
+      return { ...r, isFocus: false, x, y, thumb: hasThumb(i) }
     })
     // navId on the focus drives its thumbnail (drawings need the item id); it
     // stays non-navigable because canNav also checks !isFocus.
-    return [{ key: '__focus__', name: focus.name, kind: focus.kind, cvId: focus.cvId, navId: focus.itemId, isFocus: true, x: 0, y: 0 }, ...rels]
-  }, [focus, relations, direction])
+    return [{ key: '__focus__', name: focus.name, kind: focus.kind, cvId: focus.cvId, navId: focus.itemId, isFocus: true, x: 0, y: 0, thumb: true }, ...rels]
+  }, [focus, relations, direction, hasThumb])
 
   const PAD = 36
   const bounds = useMemo(() => {
@@ -261,6 +270,17 @@ export default function RelationGraph({
         ))}
       </Box>
 
+      {hidden > 0 ? (
+        <Box sx={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {t('relation.thumbsCapped', { cap: THUMB_CAP, total: relations.length })}
+          </Typography>
+          <Button size="small" variant="text" onClick={() => setLoadAll(true)} sx={{ py: 0, minHeight: 0 }}>
+            {t('relation.loadAllThumbs')}
+          </Button>
+        </Box>
+      ) : null}
+
       {/* toolbar */}
       <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5, alignItems: 'center' }}>
         <ToolBtn label={t('relation.zoomOut')} icon={faMagnifyingGlassMinus} onClick={() => zoomAt(0.83, (vpRef.current?.clientWidth ?? 0) / 2, (vpRef.current?.clientHeight ?? 0) / 2)} />
@@ -275,7 +295,7 @@ export default function RelationGraph({
 }
 
 
-type Placed = GraphNode & { isFocus: boolean; x: number; y: number }
+type Placed = GraphNode & { isFocus: boolean; x: number; y: number; thumb: boolean }
 
 function NodeBox({
   node,
@@ -317,7 +337,7 @@ function NodeBox({
       <EntityCard
         title={node.name}
         subtitle={node.isFocus ? t('relation.thisDocument') : (node.kindLabel ?? node.kind)}
-        thumbUrl={thumbnailSrc({ kind: node.kind, cvId: node.cvId, itemId: node.navId, projectAltId })}
+        thumbUrl={node.thumb ? thumbnailSrc({ kind: node.kind, cvId: node.cvId, itemId: node.navId, projectAltId, priority: 1 }) : null}
         icon={iconForItem({ kind: node.kind, subtype: '' })}
         badges={badges}
         tooltip={tooltip}

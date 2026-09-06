@@ -69,6 +69,7 @@ export function ItemRow({
   const nav = useNav()
   const thumbSrc = inView
     ? thumbnailSrc({
+        priority: 1,
         kind: display.kind,
         cvId: display.componentVersionId,
         itemId: item.id,

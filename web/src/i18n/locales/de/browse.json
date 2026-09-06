@@ -221,5 +221,9 @@
     "pdfFailed": "Dieses PDF konnte nicht dargestellt werden.",
     "tooLarge": "Diese Datei ist zu groß für eine Vorschau.",
     "loadFailed": "Datei konnte nicht geladen werden"
+  },
+  "quota": {
+    "slowMode": "Autodesk-API ausgelastet — es wird langsamer geladen.",
+    "resumesIn": "Weiter in {{seconds}} s"
   }
 }

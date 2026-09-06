@@ -15,7 +15,7 @@ export default function VersionTooltip({ v }: { v: VersionSummary }) {
   const theme = useTheme()
   const [imgFailed, setImgFailed] = useState(false)
   const thumb = v.rootComponentVersionId
-    ? thumbnailSrc({ kind: 'design', cvId: v.rootComponentVersionId })
+    ? thumbnailSrc({ kind: 'design', cvId: v.rootComponentVersionId, priority: 1 })
     : null
   const showThumb = !!thumb && !imgFailed
   // Two different reasons a preview can be absent, worth telling apart: the

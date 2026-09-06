@@ -25,28 +25,30 @@ const TOUR_MS = 30_000
 // and River (a braided timeline of recent events). A play/stop "tour" auto-
 // cycles the pivots on a 30s loop for an ambient, kiosk-style view. Data comes
 // from one /api/hub/overview call plus the cross-project /mine feeds.
-export function HubDashboard() {
+export function HubDashboard({ active = true }: { active?: boolean }) {
   const { t } = useTranslation('details')
   const nav = useNav()
   const [mode, setMode] = useState<Mode>('overview')
   const [playing, setPlaying] = useState(false)
 
-  const overviewQ = useHubOverview(nav.hubId)
+  // Everything here is gated on `active`: the dashboard stays mounted behind a
+  // project or a document, and must not keep polling from back there.
+  const overviewQ = useHubOverview(active ? nav.hubId : null)
   const projectsQ = useProjects(nav.hubId)
-  const myTasksQ = useMyTasks(true)
-  const myProductionQ = useMyProduction(mode === 'river')
+  const myTasksQ = useMyTasks(active)
+  const myProductionQ = useMyProduction(active && mode === 'river')
   const ov = overviewQ.data
 
   // Tour: advance to the next pivot every TOUR_MS, looping. Keyed on
   // [playing, mode] so each pivot — whether reached by the tour or a manual
   // click — gets its full dwell before the next hop; stopping cancels it.
   useEffect(() => {
-    if (!playing) return
+    if (!playing || !active) return
     const h = window.setTimeout(() => {
       setMode((m) => MODES[(MODES.indexOf(m) + 1) % MODES.length])
     }, TOUR_MS)
     return () => window.clearTimeout(h)
-  }, [playing, mode])
+  }, [playing, mode, active])
 
   const action = (
     <Stack direction="row" spacing={0.75} alignItems="center">

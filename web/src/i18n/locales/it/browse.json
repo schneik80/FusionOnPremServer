@@ -221,5 +221,9 @@
     "pdfFailed": "Impossibile visualizzare questo PDF.",
     "tooLarge": "Questo file è troppo grande per l'anteprima.",
     "loadFailed": "Caricamento del file non riuscito"
+  },
+  "quota": {
+    "slowMode": "API Autodesk occupata — caricamento rallentato.",
+    "resumesIn": "Riprende tra {{seconds}} s"
   }
 }

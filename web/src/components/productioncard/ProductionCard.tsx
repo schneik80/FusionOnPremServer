@@ -1,7 +1,8 @@
 import { faDiagramProject, faFlask } from '@fortawesome/free-solid-svg-icons'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useJob } from '../../api/queries'
+import { useJobCard } from '../../api/queries'
+import { useInView } from '../useInView'
 import { fmtDate } from '../../fmt'
 import { batchKindLabel, batchStatusLabel } from '../../i18n/enums'
 import { EntityCard, type CardMeta } from '../entitycard/EntityCard'
@@ -15,7 +16,10 @@ import type { BatchRef, JobRef } from './prodref'
 // nav state.
 export function ProductionCard({ jobRef, batchRef }: { jobRef: JobRef; batchRef?: BatchRef }) {
   const { t } = useTranslation('browse')
-  const jobQ = useJob(jobRef.projectId, jobRef.jobId, true)
+  // Hydrates once the card nears the viewport, and never polls: the open
+  // Production tab owns the live view of a job, a card is a link preview.
+  const [inViewRef, inView] = useInView<HTMLSpanElement>()
+  const jobQ = useJobCard(jobRef.projectId, jobRef.jobId, inView)
   const [open, setOpen] = useState(false)
 
   const job = jobQ.data
@@ -68,7 +72,7 @@ export function ProductionCard({ jobRef, batchRef }: { jobRef: JobRef; batchRef?
       : []
 
   return (
-    <>
+    <span ref={inViewRef}>
       <EntityCard
         title={title}
         subtitle={subtitle}
@@ -81,6 +85,6 @@ export function ProductionCard({ jobRef, batchRef }: { jobRef: JobRef; batchRef?
         selectable
       />
       {open && <ProductionViewDialog jobRef={jobRef} batchRef={batchRef} onClose={() => setOpen(false)} />}
-    </>
+    </span>
   )
 }

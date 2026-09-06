@@ -22,6 +22,8 @@ const SLOT_A_WIDTH = 320
 export function BrowserStage() {
   const nav = useNav()
   const level: Level = nav.project === null ? 'hub' : nav.selected === null ? 'project' : 'document'
+  // The browser app itself can be hidden behind Tasks / Production (display:none).
+  const shown = nav.app === 'browser'
 
   // Drilling deeper shifts panes left (new enters from the right, old exits
   // left); drilling shallower reverses (shift right). We compare against the
@@ -65,9 +67,12 @@ export function BrowserStage() {
         {pane(level !== 'hub', slotA, <ContentsColumn />)}
       </Box>
       <Box ref={setSlotB} sx={{ position: 'relative', overflow: 'hidden', flex: 1, minWidth: 0 }}>
-        {pane(level === 'hub', slotB, <HubDashboard />)}
-        {pane(level === 'project', slotB, <ProjectPanel />)}
-        {pane(level === 'document', slotB, <DetailsPanel />)}
+        {/* A pane that slid away stays mounted (so coming back is instant) but
+            must stop fetching and polling: `active` says whether it is the one
+            on screen AND the browser app is showing at all. */}
+        {pane(level === 'hub', slotB, <HubDashboard active={shown && level === 'hub'} />)}
+        {pane(level === 'project', slotB, <ProjectPanel active={shown && level === 'project'} />)}
+        {pane(level === 'document', slotB, <DetailsPanel active={shown && level === 'document'} />)}
       </Box>
     </Box>
   )

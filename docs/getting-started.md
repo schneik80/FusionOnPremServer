@@ -283,10 +283,15 @@ navigates the browser straight to that document. Thumbnails and physical
 properties are generated asynchronously by APS; the UI polls until each
 settles, then caches thumbnails server-side so repeat views are instant.
 
-> **A note on quotas.** APS enforces a per-minute cost quota, so the app never
-> fans out one call per row. Per-item work (classification, thumbnails) waits
-> until the row nears the viewport, and per-container work is capped with a
-> visible **Load all** button. Nothing is ever capped silently.
+> **A note on quotas.** APS enforces a per-minute cost quota shared by every
+> user of the server, so the app never fans out one call per row. Per-item
+> work (classification, thumbnails, document cards) waits until the row nears
+> the viewport, and per-container work is capped with a visible **Load all**
+> button. Nothing is ever capped silently. The server also budgets and queues
+> its own calls by priority — what you are looking at goes first — and when
+> the quota is spent it cools down and a banner says so; a refused call is
+> retried once the wait has passed. See
+> [`quota/STATUS.md`](quota/STATUS.md).
 
 ### Uploading files
 
@@ -656,6 +661,7 @@ For non-US hubs, set the region the server queries — `APS_REGION=EMEA` or
 | "Hub not selected" and the app resets | The session's hub lock expired or was cleared; the gate returns and you re-pick |
 | Whiteboard vanishes a few seconds after opening | The tldraw licence key is missing or expired — see [`whiteboards/STATUS.md`](whiteboards/STATUS.md) |
 | A list stops short with a "Load all" button | Intentional: APS quota protection, never a silent cap |
+| A banner says the Autodesk API is busy | The shared per-minute quota is spent; the app keeps working, more slowly, and the banner clears itself. `GET /api/quota` shows the budget |
 | Chat feels laggy over many tabs | HTTP/1.1's 6-connection limit; run with `-tls` so the browser uses HTTP/2 |
 
 Run with `-v` for per-request lines and redacted upstream traces; read the log

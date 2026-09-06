@@ -221,5 +221,9 @@
     "pdfFailed": "Ce PDF n'a pas pu être affiché.",
     "tooLarge": "Ce fichier est trop volumineux pour être prévisualisé.",
     "loadFailed": "Échec du chargement du fichier"
+  },
+  "quota": {
+    "slowMode": "API Autodesk saturée — chargement ralenti.",
+    "resumesIn": "Reprise dans {{seconds}} s"
   }
 }

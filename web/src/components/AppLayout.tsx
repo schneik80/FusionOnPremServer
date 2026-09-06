@@ -26,6 +26,7 @@ import { ProductionScreen } from '../production/ProductionScreen'
 import { TasksScreen } from '../tasks/TasksScreen'
 import { BreadcrumbBar } from './BreadcrumbBar'
 import { BrowserStage } from './BrowserStage'
+import { QuotaBanner } from './QuotaBanner'
 import { FusionActionFeedback } from './DocumentActions'
 import { NavRail } from './NavRail'
 import { NotificationBell } from './notifications/NotificationBell'
@@ -142,6 +143,9 @@ export function AppLayout() {
           </Tooltip>
         </Toolbar>
       </AppBar>
+      {/* Slow mode, app-wide: the APS budget is shared by every screen, so
+          the one banner sits above all of them. */}
+      <QuotaBanner />
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <NavRail

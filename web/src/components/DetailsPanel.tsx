@@ -50,6 +50,8 @@ import { FUSION_NATIVE_KINDS, LOCAL_REF_KINDS, kindFromTypename } from '../api/t
 import { documentState, type DocumentState } from '../api/documentState'
 import { DocumentActions } from './DocumentActions'
 import { thumbnailSrc } from '../api/thumbnails'
+import { localizeApiError } from '../i18n/apiError'
+import { useInView } from './useInView'
 import { useNav } from '../state/nav'
 import { useGoToDocument } from '../state/goto'
 import { ItemIcon } from './entityIcons'
@@ -109,7 +111,7 @@ function tabsFor(kind: string): TabKey[] {
   return ['history', 'preview']
 }
 
-export function DetailsPanel() {
+export function DetailsPanel({ active = true }: { active?: boolean }) {
   const { t } = useTranslation('details')
   const nav = useNav()
   const selected = nav.selected
@@ -131,6 +133,7 @@ export function DetailsPanel() {
     >
       {selected ? (
         <SelectedDetails
+          active={active}
           key={selected.id}
           hubId={nav.hubId}
           item={selected}
@@ -159,10 +162,12 @@ function SelectedDetails({
   hubId,
   item: selected,
   projectAltId,
+  active,
 }: {
   hubId: string | null
   item: Item
   projectAltId?: string
+  active: boolean
 }) {
   const { t } = useTranslation('details')
   const nav = useNav()
@@ -279,6 +284,7 @@ function SelectedDetails({
       <Box sx={{ px: 2, pt: 1.5, pb: 1.5, borderBottom: 1, borderColor: 'divider' }}>
         <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
           <Thumbnail
+            active={active}
             kind={item.kind}
             itemId={item.id}
             cvId={cvId}
@@ -397,14 +403,14 @@ function SelectedDetails({
                 itemId={item.id}
                 cvId={cvId}
                 subtype={subtype}
-                active={tab === 'activity'}
+                active={active && tab === 'activity'}
               />
             )}
-            {tab === 'properties' && <PropertiesTab cvId={cvId} active />}
-            {tab === 'bom' && <BOMTab cvId={cvId} active />}
-            {tab === 'uses' && <UsesTab item={item} hubId={hubId} cvId={cvId} active />}
-            {tab === 'whereUsed' && <WhereUsedTab item={item} hubId={hubId} cvId={cvId} active />}
-            {tab === 'drawings' && <DrawingsTab hubId={hubId} designItemId={item.id} active />}
+            {tab === 'properties' && <PropertiesTab cvId={cvId} active={active} />}
+            {tab === 'bom' && <BOMTab cvId={cvId} active={active} />}
+            {tab === 'uses' && <UsesTab item={item} hubId={hubId} cvId={cvId} active={active} />}
+            {tab === 'whereUsed' && <WhereUsedTab item={item} hubId={hubId} cvId={cvId} active={active} />}
+            {tab === 'drawings' && <DrawingsTab hubId={hubId} designItemId={item.id} active={active} />}
             {tab === 'permissions' && <PermissionsExplorer hubId={hubId} item={item} />}
           </Box>
         </Slide>
@@ -430,6 +436,7 @@ function Thumbnail({
   name,
   projectAltId,
   size = 200,
+  active = true,
 }: {
   kind: string
   itemId: string
@@ -437,6 +444,7 @@ function Thumbnail({
   name: string
   projectAltId?: string
   size?: number
+  active?: boolean
 }) {
   const { t } = useTranslation('details')
   const isDrawing = kind === 'drawing'
@@ -449,7 +457,7 @@ function Thumbnail({
   // imperatively swapping src — mutating a React-controlled src fights
   // reconciliation and loops into a flicker.
   const [drawingFailed, setDrawingFailed] = useState(false)
-  const q = useThumbnail(isDesign ? cvId : undefined, isDesign && !!cvId && !gaveUp)
+  const q = useThumbnail(isDesign ? cvId : undefined, isDesign && !!cvId && !gaveUp && active, { priority: 0 })
   const status = q.data?.status
 
   useEffect(() => {
@@ -469,7 +477,7 @@ function Thumbnail({
   if (isDrawing && drawingFailed) return null
 
   const designReady = isDesign && status === 'SUCCESS'
-  const drawingImageUrl = isDrawing ? thumbnailSrc({ kind, itemId, projectAltId }) : null
+  const drawingImageUrl = isDrawing ? thumbnailSrc({ kind, itemId, projectAltId, priority: 0 }) : null
 
   const showLoading = isDrawing && !!projectAltId && !drawingImageUrl
   const showContent = designReady || (isDrawing && !!drawingImageUrl)
@@ -493,7 +501,7 @@ function Thumbnail({
       {showContent ? (
         <Box
           component="img"
-          src={isDesign ? thumbnailSrc({ kind, cvId })! : drawingImageUrl!}
+          src={isDesign ? thumbnailSrc({ kind, cvId, priority: 0 })! : drawingImageUrl!}
           alt={t('details.previewAlt', { name })}
           sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
           onError={() => {
@@ -1147,14 +1155,18 @@ function NavRowIcon({
   itemId,
   kind,
   projectAltId,
+  inView,
 }: {
   cvId?: string
   itemId?: string
   kind: string
   projectAltId?: string
+  inView: boolean
 }) {
   const [failed, setFailed] = useState(false)
-  const src = thumbnailSrc({ kind, cvId, itemId, projectAltId })
+  // One image per row is a per-row APS call: it waits for the row to near the
+  // viewport, like every other per-item fetch in the app.
+  const src = inView ? thumbnailSrc({ kind, cvId, itemId, projectAltId, priority: 1 }) : null
   if (src && !failed) {
     return (
       <ListItemIcon sx={{ minWidth: 36 }}>
@@ -1195,6 +1207,7 @@ function NavRow({
   const nav = useNav()
   const goToDocument = useGoToDocument()
   const [busy, setBusy] = useState(false)
+  const [inViewRef, inView] = useInView<HTMLLIElement>()
   const canNav = !!itemId && !!nav.hubId
   const selected = !!itemId && nav.selected?.id === itemId
 
@@ -1212,11 +1225,18 @@ function NavRow({
 
   return (
     <ListItem
+      ref={inViewRef}
       disablePadding
       secondaryAction={busy ? <CircularProgress size={14} sx={{ mr: 1 }} /> : undefined}
     >
       <ListItemButton selected={selected} onClick={goTo} disabled={!canNav} sx={{ py: 0.5 }}>
-        <NavRowIcon cvId={componentVersionId} itemId={itemId} kind={kind} projectAltId={nav.project?.altId} />
+        <NavRowIcon
+          cvId={componentVersionId}
+          itemId={itemId}
+          kind={kind}
+          projectAltId={nav.project?.altId}
+          inView={inView}
+        />
         <ListItemText
           primary={name}
           secondary={secondary}
@@ -1234,11 +1254,16 @@ const TabSpinner = () => (
   </Box>
 )
 
-const TabError = ({ error }: { error: Error }) => (
-  <Typography variant="body2" color="error">
-    {error.message}
-  </Typography>
-)
+// TabError localizes the server's error code (a 429 reads as the catalog's
+// rate-limited sentence, not "request failed (HTTP 429)").
+const TabError = ({ error }: { error: Error }) => {
+  const { t } = useTranslation()
+  return (
+    <Typography variant="body2" color="error">
+      {localizeApiError(t, error)}
+    </Typography>
+  )
+}
 
 const TabEmpty = ({ text }: { text: string }) => (
   <Typography variant="body2" color="text.secondary">

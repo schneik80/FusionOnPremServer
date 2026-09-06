@@ -74,7 +74,10 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
   // People & groups: effective access at the current container — the deepest
   // layer of the permissions path (the project at root, the folder once inside).
   const folderPath = nav.folderStack.map((f) => ({ id: f.id, name: f.name }))
-  const permQ = usePermissionsPath(nav.hubId, project?.id, project?.name, folderPath, !!project?.id && active)
+  // Aggregates are P2: they must never delay the click that opened the panel.
+  const permQ = usePermissionsPath(nav.hubId, project?.id, project?.name, folderPath, !!project?.id && active, {
+    priority: 2,
+  })
   const currentLayer = permQ.data?.[permQ.data.length - 1]
 
   // Pins: all of the project's pins at the root, narrowed to the current folder
@@ -109,7 +112,7 @@ export function ProjectDashboard({ active = true }: { active?: boolean }) {
   const classifyQs = useQueries({
     queries: designs.map((d, i) => ({
       queryKey: ['classify', d.componentVersionId],
-      queryFn: () => api.classify(d.componentVersionId!),
+      queryFn: () => api.classify(d.componentVersionId!, { priority: 2 }),
       staleTime: Infinity,
       // Subscribe to every design but only FETCH within the cap: past it the
       // query stays disabled, so a classification the Contents column has

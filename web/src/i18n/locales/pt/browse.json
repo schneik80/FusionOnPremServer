@@ -221,5 +221,9 @@
     "pdfFailed": "Não foi possível apresentar este PDF.",
     "tooLarge": "Este ficheiro é demasiado grande para pré-visualizar.",
     "loadFailed": "Falha ao carregar o ficheiro"
+  },
+  "quota": {
+    "slowMode": "API da Autodesk ocupada — carregando mais devagar.",
+    "resumesIn": "Retoma em {{seconds}} s"
   }
 }

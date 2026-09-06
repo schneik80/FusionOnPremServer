@@ -8,7 +8,8 @@ import '../i18n'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ApiError, setGateHandlers } from '../api/client'
+import { setGateHandlers } from '../api/client'
+import { newQueryCaches, queryDefaults } from '../api/queryDefaults'
 import { installBridge } from './bridge'
 import { HUB_GATE_EVENT } from './context'
 import { EmbedApp } from './EmbedApp'
@@ -38,16 +39,9 @@ setGateHandlers({
   },
 })
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      // Same 429 posture as the SPA: never retry into a spent APS quota.
-      retry: (failureCount, error) =>
-        error instanceof ApiError && error.status === 429 ? false : failureCount < 1,
-    },
-  },
-})
+// Same posture as the SPA (api/queryDefaults.ts): bounded 429 retry after the
+// server's own wait, no reconnect storms.
+const queryClient = new QueryClient({ defaultOptions: queryDefaults, ...newQueryCaches() })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

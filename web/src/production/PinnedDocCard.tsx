@@ -61,7 +61,7 @@ export function PinnedDocCard({
   // The tip lookup is one APS call PER CARD, so it waits for the row to near
   // the viewport — the same rule the item rows and thumbnails follow. Until it
   // lands the card shows the pinned version alone, which is never wrong.
-  const detailsQ = useItemDetails(inView ? doc.hubId : null, doc.itemId)
+  const detailsQ = useItemDetails(inView ? doc.hubId : null, doc.itemId, { priority: 1 })
   const details = detailsQ.data
   const tipVersion = details?.versionNumber
   const outdated = !!tipVersion && !!doc.versionNumber && tipVersion > doc.versionNumber
@@ -77,7 +77,7 @@ export function PinnedDocCard({
 
   // Version-accurate only: cvId renders the pinned version; no tip fallbacks.
   const thumb = doc.rootComponentVersionId
-    ? thumbnailSrc({ kind: 'design', cvId: doc.rootComponentVersionId })
+    ? thumbnailSrc({ kind: 'design', cvId: doc.rootComponentVersionId, priority: 1 })
     : null
 
   const badges: CardBadge[] = [

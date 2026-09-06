@@ -4,6 +4,7 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query'
+import type { Priority } from './priority'
 import { api, ApiError } from './client'
 import type {
   ActivityReport,
@@ -77,6 +78,15 @@ import {
 // generously and don't refetch on window focus. enabled flags gate queries on
 // the required ids being present.
 const STALE = 5 * 60 * 1000
+
+// Request priority for the server's APS budget (see api/priority.ts). The
+// defaults below are per hook: navigation, details and tab content are P0
+// (the user is waiting), per-row probes are P1, aggregates and prefetch P2.
+// A caller that knows better (a card rendering the same details, a
+// dashboard behind another tab) passes its own.
+export interface PriorityOpts {
+  priority?: Priority
+}
 
 // Meta used to be immutable for a process (version, region, port) and was held
 // forever. It now also carries the sign-in logo, which an operator can change
@@ -238,22 +248,23 @@ export const useLogoMutations = () => {
 }
 
 export const useHubs = (): UseQueryResult<Item[]> =>
-  useQuery({ queryKey: ['hubs'], queryFn: api.hubs, staleTime: STALE })
+  useQuery({ queryKey: ['hubs'], queryFn: () => api.hubs({ priority: 0 }), staleTime: STALE })
 
-export const useProjects = (hubId: string | null): UseQueryResult<Item[]> =>
+export const useProjects = (hubId: string | null, opts?: PriorityOpts): UseQueryResult<Item[]> =>
   useQuery({
     queryKey: ['projects', hubId],
-    queryFn: () => api.projects(hubId!),
+    queryFn: () => api.projects(hubId!, { priority: opts?.priority ?? 0 }),
     enabled: !!hubId,
     staleTime: STALE,
   })
 
 export const useProjectContents = (
   projectId: string | null,
+  opts?: PriorityOpts,
 ): UseQueryResult<Contents> =>
   useQuery({
     queryKey: ['projectContents', projectId],
-    queryFn: () => api.projectContents(projectId!),
+    queryFn: () => api.projectContents(projectId!, { priority: opts?.priority ?? 0 }),
     enabled: !!projectId,
     staleTime: STALE,
   })
@@ -261,10 +272,11 @@ export const useProjectContents = (
 export const useFolderContents = (
   hubId: string | null,
   folderId: string | null,
+  opts?: PriorityOpts,
 ): UseQueryResult<Item[]> =>
   useQuery({
     queryKey: ['folderContents', hubId, folderId],
-    queryFn: () => api.folderContents(hubId!, folderId!),
+    queryFn: () => api.folderContents(hubId!, folderId!, { priority: opts?.priority ?? 0 }),
     enabled: !!hubId && !!folderId,
     staleTime: STALE,
   })
@@ -277,10 +289,11 @@ export const useBrowseContents = (
   hubId: string | null,
   dmProjectId: string | null | undefined,
   folderId: string,
+  opts?: PriorityOpts,
 ): UseQueryResult<Item[]> =>
   useQuery({
     queryKey: ['browseContents', dmProjectId, folderId],
-    queryFn: () => api.browseContents(hubId!, dmProjectId!, folderId || undefined),
+    queryFn: () => api.browseContents(hubId!, dmProjectId!, folderId || undefined, { priority: opts?.priority ?? 0 }),
     enabled: !!hubId && !!dmProjectId,
     staleTime: STALE,
   })
@@ -288,10 +301,11 @@ export const useBrowseContents = (
 export const useItemDetails = (
   hubId: string | null,
   itemId: string | null,
+  opts?: PriorityOpts,
 ): UseQueryResult<Details> =>
   useQuery({
     queryKey: ['details', hubId, itemId],
-    queryFn: () => api.itemDetails(hubId!, itemId!),
+    queryFn: () => api.itemDetails(hubId!, itemId!, { priority: opts?.priority ?? 0 }),
     enabled: !!hubId && !!itemId,
     staleTime: STALE,
   })
@@ -305,42 +319,55 @@ export const useItemDetails = (
 export const useItemHistory = (
   hubId: string | null,
   itemId: string | null,
+  opts?: PriorityOpts,
 ): UseQueryResult<ItemHistory> =>
   useQuery({
     queryKey: ['itemHistory', hubId, itemId],
-    queryFn: () => api.itemHistory(hubId!, itemId!),
+    queryFn: () => api.itemHistory(hubId!, itemId!, { priority: opts?.priority ?? 0 }),
     enabled: !!hubId && !!itemId,
     staleTime: STALE,
   })
 
 // useClassify drives the per-row async refinement: each design row issues one
-// query to upgrade its icon to assembly/part. Concurrency is bounded by the
-// browser's per-host connection cap and the server's classify semaphore.
-export const useClassify = (cvId: string | undefined): UseQueryResult<Classify> =>
+// query to upgrade its icon to assembly/part. It is P1 — per-row work for
+// what is on screen — and the server's budget scheduler bounds it across
+// every session at once.
+export const useClassify = (cvId: string | undefined, opts?: PriorityOpts): UseQueryResult<Classify> =>
   useQuery({
     queryKey: ['classify', cvId],
-    queryFn: () => api.classify(cvId!),
+    queryFn: () => api.classify(cvId!, { priority: opts?.priority ?? 1 }),
     enabled: !!cvId,
     staleTime: Infinity,
   })
 
 // useThumbnail fetches a component version's thumbnail. APS generates it
 // asynchronously, so the first response may be PENDING with no URL; poll every
-// 2s until the status settles on SUCCESS or FAILED.
+// 2s until the status settles on SUCCESS or FAILED — capped like properties,
+// so a stuck render never polls forever. The first fetch is P1 (it is for a
+// row on screen); the polls are P2, because nothing waits on them.
+const THUMB_POLL_MAX = 15
 export const useThumbnail = (
   cvId: string | undefined,
   enabled: boolean,
-): UseQueryResult<Thumbnail> =>
-  useQuery({
+  opts?: PriorityOpts,
+): UseQueryResult<Thumbnail> => {
+  const qc = useQueryClient()
+  return useQuery({
     queryKey: ['thumbnail', cvId],
-    queryFn: () => api.thumbnail(cvId!),
+    queryFn: () => {
+      const polled = (qc.getQueryState(['thumbnail', cvId])?.dataUpdateCount ?? 0) > 0
+      return api.thumbnail(cvId!, { priority: polled ? 2 : (opts?.priority ?? 1) })
+    },
     enabled: enabled && !!cvId,
     staleTime: Infinity,
     refetchInterval: (q) => {
       const s = q.state.data?.status
-      return s === 'SUCCESS' || s === 'FAILED' ? false : 2000
+      if (s === 'SUCCESS' || s === 'FAILED') return false
+      if (q.state.dataUpdateCount >= THUMB_POLL_MAX) return false
+      return 2000
     },
   })
+}
 
 // useProperties fetches a component version's physical (mass) properties.
 // Like thumbnails, generation is async, so poll every 2s until the status is
@@ -349,10 +376,16 @@ export const useThumbnail = (
 export const useProperties = (
   cvId: string | undefined,
   enabled: boolean,
-): UseQueryResult<PhysicalProperties> =>
-  useQuery({
+  opts?: PriorityOpts,
+): UseQueryResult<PhysicalProperties> => {
+  const qc = useQueryClient()
+  return useQuery({
     queryKey: ['properties', cvId],
-    queryFn: () => api.properties(cvId!),
+    queryFn: () => {
+      // The first fetch is what the tab waits on; the polls are background.
+      const polled = (qc.getQueryState(['properties', cvId])?.dataUpdateCount ?? 0) > 0
+      return api.properties(cvId!, { priority: polled ? 2 : (opts?.priority ?? 0) })
+    },
     enabled: enabled && !!cvId,
     staleTime: Infinity,
     refetchInterval: (q) => {
@@ -362,6 +395,7 @@ export const useProperties = (
       return 2000
     },
   })
+}
 
 export const useUses = (args: {
   cvId?: string
@@ -372,7 +406,7 @@ export const useUses = (args: {
   useQuery({
     queryKey: ['uses', args.cvId, args.hubId, args.drawingItemId],
     queryFn: () =>
-      api.uses({ cvId: args.cvId, hubId: args.hubId, drawingItemId: args.drawingItemId }),
+      api.uses({ cvId: args.cvId, hubId: args.hubId, drawingItemId: args.drawingItemId }, { priority: 0 }),
     enabled: args.enabled,
     staleTime: STALE,
   })
@@ -382,10 +416,11 @@ export const useUses = (args: {
 export const useDescendants = (
   cvId: string | undefined,
   enabled: boolean,
+  opts?: PriorityOpts,
 ): UseQueryResult<ComponentRef[]> =>
   useQuery({
     queryKey: ['descendants', cvId],
-    queryFn: () => api.descendants(cvId!),
+    queryFn: () => api.descendants(cvId!, { priority: opts?.priority ?? 2 }),
     enabled: enabled && !!cvId,
     staleTime: STALE,
   })
@@ -397,10 +432,12 @@ export const usePermissionsPath = (
   projectName: string | undefined,
   folders: { id: string; name: string }[],
   enabled: boolean,
+  opts?: PriorityOpts,
 ): UseQueryResult<PermLayer[]> =>
   useQuery({
     queryKey: ['permPath', hubId, projectId, folders.map((f) => f.id)],
-    queryFn: () => api.permissionsPath({ hubId: hubId!, projectId: projectId!, projectName, folders }),
+    queryFn: () =>
+      api.permissionsPath({ hubId: hubId!, projectId: projectId!, projectName, folders }, { priority: opts?.priority ?? 0 }),
     enabled: enabled && !!hubId && !!projectId,
     staleTime: STALE,
   })
@@ -411,7 +448,7 @@ export const useWhereUsed = (
 ): UseQueryResult<ComponentRef[]> =>
   useQuery({
     queryKey: ['whereUsed', cvId],
-    queryFn: () => api.whereUsed(cvId!),
+    queryFn: () => api.whereUsed(cvId!, { priority: 0 }),
     enabled: enabled && !!cvId,
     staleTime: STALE,
   })
@@ -423,7 +460,7 @@ export const useDrawings = (
 ): UseQueryResult<DrawingRef[]> =>
   useQuery({
     queryKey: ['drawings', hubId, designItemId],
-    queryFn: () => api.drawings(hubId!, designItemId!),
+    queryFn: () => api.drawings(hubId!, designItemId!, { priority: 0 }),
     enabled: enabled && !!hubId && !!designItemId,
     staleTime: STALE,
   })
@@ -442,7 +479,7 @@ export const useLocalRefs = (
 ): UseQueryResult<LocalRefs> =>
   useQuery({
     queryKey: ['localRefs', itemId, [...sources].sort().join(',')],
-    queryFn: () => api.localRefs(itemId!, sources),
+    queryFn: () => api.localRefs(itemId!, sources, { priority: 0 }),
     enabled: enabled && !!itemId && sources.length > 0,
     staleTime: STALE,
   })
@@ -453,7 +490,7 @@ export const useCustomProperties = (
 ): UseQueryResult<NamedProperty[]> =>
   useQuery({
     queryKey: ['customProperties', cvId],
-    queryFn: () => api.customProperties(cvId!),
+    queryFn: () => api.customProperties(cvId!, { priority: 0 }),
     enabled: enabled && !!cvId,
     staleTime: STALE,
   })
@@ -464,7 +501,7 @@ export const useBOM = (
 ): UseQueryResult<BOMRow[]> =>
   useQuery({
     queryKey: ['bom', cvId],
-    queryFn: () => api.bom(cvId!),
+    queryFn: () => api.bom(cvId!, { priority: 0 }),
     enabled: enabled && !!cvId,
     staleTime: STALE,
   })
@@ -474,7 +511,7 @@ export const useProjectGroups = (
 ): UseQueryResult<ProjectGroup[]> =>
   useQuery({
     queryKey: ['projectGroups', projectId],
-    queryFn: () => api.projectGroups(projectId!),
+    queryFn: () => api.projectGroups(projectId!, { priority: 0 }),
     enabled: !!projectId,
     staleTime: STALE,
   })
@@ -489,7 +526,7 @@ export const useGroupMembers = (
 ): UseQueryResult<GroupMember[]> =>
   useQuery({
     queryKey: ['groupMembers', hubId, groupId],
-    queryFn: () => api.groupMembers(hubId!, groupId!),
+    queryFn: () => api.groupMembers(hubId!, groupId!, { priority: 0 }),
     enabled: enabled && !!hubId && !!groupId,
     staleTime: STALE,
     retry: false,
@@ -499,10 +536,11 @@ export const useItemLocation = (
   hubId: string | null,
   itemId: string | undefined,
   enabled: boolean,
+  opts?: PriorityOpts,
 ): UseQueryResult<Location> =>
   useQuery({
     queryKey: ['location', hubId, itemId],
-    queryFn: () => api.itemLocation(hubId!, itemId!),
+    queryFn: () => api.itemLocation(hubId!, itemId!, { priority: opts?.priority ?? 0 }),
     enabled: enabled && !!hubId && !!itemId,
     staleTime: STALE,
   })
@@ -516,7 +554,7 @@ export const useDesignActivity = (
 ): UseQueryResult<ActivityReport> =>
   useQuery({
     queryKey: ['designActivity', hubId, itemId],
-    queryFn: () => api.designActivity({ hubId: hubId!, itemId: itemId!, bucket: 'day' }),
+    queryFn: () => api.designActivity({ hubId: hubId!, itemId: itemId!, bucket: 'day' }, { priority: 0 }),
     enabled: !!hubId && !!itemId,
     staleTime: STALE,
   })
@@ -532,10 +570,12 @@ export const useRollupActivity = (
   itemId: string | null | undefined,
   childItemIds: string[],
   enabled: boolean,
+  opts?: PriorityOpts,
 ): UseQueryResult<ActivityReport> =>
   useQuery({
     queryKey: ['rollupActivity', hubId, itemId, [...childItemIds].sort().join(',')],
-    queryFn: () => api.rollupActivity({ hubId: hubId!, itemId: itemId!, childItemIds }),
+    queryFn: () =>
+      api.rollupActivity({ hubId: hubId!, itemId: itemId!, childItemIds }, { priority: opts?.priority ?? 2 }),
     enabled: enabled && !!hubId && !!itemId,
     staleTime: 0,
   })
@@ -553,10 +593,10 @@ export const usePins = (hubId: string | null): UseQueryResult<Pin[]> =>
 // treat like the other browsing data (STALE), so it persists across reloads.
 // The key intentionally avoids the volatile chat/task/prod prefixes so it does
 // persist (it is hub-level aggregate browsing state, not per-user realtime).
-export const useHubOverview = (hubId: string | null): UseQueryResult<HubOverview> =>
+export const useHubOverview = (hubId: string | null, opts?: PriorityOpts): UseQueryResult<HubOverview> =>
   useQuery({
     queryKey: ['hubOverview', hubId],
-    queryFn: () => api.hubOverview(),
+    queryFn: () => api.hubOverview({ priority: opts?.priority ?? 2 }),
     enabled: !!hubId,
     staleTime: STALE,
   })
@@ -596,6 +636,7 @@ export const useChatChannels = (
 ): UseQueryResult<ChatChannelList> =>
   useQuery({
     queryKey: ['chatChannels', projectId],
+    refetchOnReconnect: true,
     queryFn: () => api.chatChannels(projectId!),
     enabled: active && !!projectId,
     staleTime: 0,
@@ -610,6 +651,7 @@ export const useChatMessages = (
 ): UseQueryResult<ChatMessageList> =>
   useQuery({
     queryKey: ['chatMessages', projectId, channelId],
+    refetchOnReconnect: true,
     queryFn: () => api.chatMessages(projectId!, channelId!),
     enabled: active && !!projectId && !!channelId,
     staleTime: 0,
@@ -625,6 +667,7 @@ export const useChatThread = (
 ): UseQueryResult<ChatMessageList> =>
   useQuery({
     queryKey: ['chatThread', projectId, channelId, rootSeq],
+    refetchOnReconnect: true,
     queryFn: () => api.chatThread(projectId!, channelId!, rootSeq!),
     enabled: active && !!projectId && !!channelId && rootSeq !== null,
     staleTime: 0,
@@ -709,6 +752,7 @@ export const useChatMembers = (
 ): UseQueryResult<ChatMember[]> =>
   useQuery({
     queryKey: ['chatMembers', projectId],
+    refetchOnReconnect: true,
     queryFn: () => api.chatMembers(projectId!),
     enabled: enabled && !!projectId,
     staleTime: 60_000,
@@ -757,6 +801,7 @@ export const useChatUnreads = (
 ): UseQueryResult<ChatUnreadList> =>
   useQuery({
     queryKey: ['chatUnreads', projectId],
+    refetchOnReconnect: true,
     queryFn: () => api.chatUnreads(projectId!),
     enabled: !!projectId,
     staleTime: 0,
@@ -788,6 +833,7 @@ export const useTasks = (
 ): UseQueryResult<TaskList> =>
   useQuery({
     queryKey: ['tasks', projectId],
+    refetchOnReconnect: true,
     queryFn: () => api.tasks(projectId!),
     enabled: active && !!projectId,
     staleTime: 10_000,
@@ -802,6 +848,7 @@ export const useTask = (
 ): UseQueryResult<Task> =>
   useQuery({
     queryKey: ['task', projectId, taskId],
+    refetchOnReconnect: true,
     queryFn: () => api.taskGet(projectId!, taskId!),
     enabled: !!projectId && !!taskId,
     staleTime: 30_000,
@@ -813,6 +860,7 @@ export const useTask = (
 export const useMyTasks = (active: boolean): UseQueryResult<MyTasks> =>
   useQuery({
     queryKey: ['tasksMine'],
+    refetchOnReconnect: true,
     queryFn: () => api.myTasks(),
     enabled: active,
     staleTime: 10_000,
@@ -872,6 +920,7 @@ export const useJobs = (
 ): UseQueryResult<JobList> =>
   useQuery({
     queryKey: ['prodJobs', projectId],
+    refetchOnReconnect: true,
     queryFn: () => api.prodJobs(projectId!),
     enabled: active && !!projectId,
     staleTime: 10_000,
@@ -883,6 +932,7 @@ export const useJobs = (
 export const useMyProduction = (active: boolean): UseQueryResult<MyProduction> =>
   useQuery({
     queryKey: ['prodMine'],
+    refetchOnReconnect: true,
     queryFn: () => api.myProduction(),
     enabled: active,
     staleTime: 10_000,
@@ -896,6 +946,7 @@ export const useJob = (
 ): UseQueryResult<Job> =>
   useQuery({
     queryKey: ['prodJob', projectId, jobId],
+    refetchOnReconnect: true,
     queryFn: () => api.prodJob(projectId!, jobId!),
     enabled: active && !!projectId && !!jobId,
     staleTime: 10_000,
@@ -903,6 +954,24 @@ export const useJob = (
     retry: (failureCount, err) =>
       // A deleted job's 404 is terminal, not a blip.
       !(err instanceof ApiError && err.status === 404) && failureCount < 2,
+  })
+
+// useJobCard is the fls:job / fls:batch card's read of the shared job query:
+// same key, so it rides on whatever the open Production tab already fetched,
+// but no polling of its own — polling belongs to the open tab, not to a link
+// preview (a chat page with a dozen job cards used to poll a dozen times every
+// 15 s) — and gated on `enabled` (the card being near the viewport).
+export const useJobCard = (
+  projectId: string | null,
+  jobId: string | null,
+  enabled: boolean,
+): UseQueryResult<Job> =>
+  useQuery({
+    queryKey: ['prodJob', projectId, jobId],
+    queryFn: () => api.prodJob(projectId!, jobId!),
+    enabled: enabled && !!projectId && !!jobId,
+    staleTime: 30_000,
+    retry: (failureCount, err) => !(err instanceof ApiError && err.status === 404) && failureCount < 2,
   })
 
 // useProductionMutations bundles the write paths for one project's jobs. The
@@ -1097,6 +1166,7 @@ export const useWhiteboards = (
 ): UseQueryResult<WhiteboardList> =>
   useQuery({
     queryKey: ['whiteboards', projectId],
+    refetchOnReconnect: true,
     queryFn: () => api.whiteboards(projectId!),
     enabled: active && !!projectId,
     staleTime: 10_000,
@@ -1118,6 +1188,7 @@ export const useWhiteboard = (
 ): UseQueryResult<{ board: Whiteboard | null; canWrite: boolean }> =>
   useQuery({
     queryKey: ['whiteboards', projectId],
+    refetchOnReconnect: true,
     queryFn: () => api.whiteboards(projectId!),
     enabled: enabled && !!projectId,
     staleTime: 30_000,
@@ -1271,6 +1342,7 @@ export function useWikiRename(hubId: string | null, dmProjectId: string | null |
 export const useNotifications = (enabled: boolean): UseQueryResult<NotificationList> =>
   useQuery({
     queryKey: ['notifs'],
+    refetchOnReconnect: true,
     queryFn: () => api.notifications(),
     enabled,
     // The interval is the FLOOR on how stale the bell can get, not how it

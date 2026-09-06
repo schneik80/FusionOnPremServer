@@ -221,5 +221,9 @@
     "pdfFailed": "This PDF could not be rendered.",
     "tooLarge": "This file is too large to preview.",
     "loadFailed": "Failed to load file"
+  },
+  "quota": {
+    "slowMode": "Autodesk API busy — loading more slowly.",
+    "resumesIn": "Resumes in {{seconds}} s"
   }
 }

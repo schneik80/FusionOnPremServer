@@ -108,6 +108,17 @@ Navigation state is mirrored into the URL: the address bar is a shareable
 permalink to the current project/folder/document (and details tab), and
 back/forward work as expected.
 
+### Slow mode
+
+Autodesk meters the app's API use per minute, and every user of the server
+shares that budget. The server schedules its calls so that what you clicked
+goes first and background work (dashboard aggregates, thumbnails for rows you
+have not reached) waits or is skipped; when the budget is spent it cools down
+rather than failing. While that is happening a thin banner under the app bar
+says **Autodesk API busy — loading more slowly**, with a countdown when there
+is one. It clears itself. Nothing is lost: a call the server had to refuse is
+retried once the wait it named has passed.
+
 ## Browsing designs
 
 The **Projects** column lists the hub's projects. Drilling in, the **Contents**
@@ -145,8 +156,12 @@ Drawings** are clickable — selecting one navigates the browser straight to
 that document.
 
 Thumbnails and physical properties are generated asynchronously by APS; the UI
-polls until each settles. Thumbnails are cached server-side and streamed
-same-origin, so repeat views are instant.
+polls until each settles (a bounded number of times — a render that never
+finishes stops being asked about). Thumbnails are cached server-side and
+streamed same-origin, so repeat views are instant. In **Uses / Where Used**
+the graph draws thumbnails for the first 24 documents and offers **Load all**
+for the rest; the Drawings list loads each row's preview as it scrolls into
+view.
 
 ## Project apps
 
@@ -263,6 +278,9 @@ Compact pseudo-URL tokens — `fls:doc`, `fls:task`, `fls:job`, `fls:batch` —
 can live inline in chat messages, wiki pages, and task bodies. At render time
 each token unfurls into a rich card (thumbnail, title, status) that links to
 the thing it names. The same cards are what whiteboards place on the canvas.
+A card hydrates when it scrolls into view — a long chat page or a wiki page
+with many document cards costs only what you can see — and shows the names
+captured in the token until then.
 
 Selecting a card reveals its action bar. A document card carries **Navigate**
 (the location arrow — move the browser to it), **Details** (the card turns over
