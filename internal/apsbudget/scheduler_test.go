@@ -305,3 +305,61 @@ func TestScheduler_ReleaseCorrectsAndObserves(t *testing.T) {
 		t.Fatal("actual cost must be observed")
 	}
 }
+
+// TestScheduler_QueuedAheadCountsAndRefusesBeforeDeadline: with the bucket
+// nearly empty, a second P0 sees the first one's cost in its expected wait;
+// and a queued P0 whose wait outgrows its deadline is refused with a typed
+// countdown before the context itself expires.
+func TestScheduler_QueuedAheadCountsAndRefusesBeforeDeadline(t *testing.T) {
+	clk := &fakeClock{t: time.Now()}
+	cfg := testConfig(clk)
+	cfg.MaxInFlight = 8
+	s := New(cfg, nil)
+	defer s.Close()
+	ctx := context.Background()
+
+	// Drain to ~0 of 800.
+	rel, err := s.Acquire(ctx, Request{Priority: P0, Cost: 800})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rel(0)
+	// First P0 needs 300 → 3 s of refill: admissible under a 10 s deadline.
+	d1, cancel1 := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel1()
+	rc1, ec1 := acquireAsync(s, d1, Request{Priority: P0, Cost: 300})
+	time.Sleep(20 * time.Millisecond)
+	// Second P0 needs 300 more → 6 s including the one ahead: refused at once
+	// against a 4 s deadline, with the honest countdown.
+	d2, cancel2 := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel2()
+	_, err = s.Acquire(d2, Request{Priority: P0, Cost: 300})
+	var rl *RateLimitError
+	if !errors.As(err, &rl) || !rl.Queued || rl.RetryAfter < 5*time.Second {
+		t.Fatalf("second P0 must be refused with the queued-ahead wait, got %v", err)
+	}
+	// A third P0 that fits its deadline at enqueue time but is then starved
+	// (the clock never advances → no refill) is refused just BEFORE its
+	// deadline, as a typed error, not as context.DeadlineExceeded.
+	d3, cancel3 := context.WithTimeout(ctx, 600*time.Millisecond)
+	defer cancel3()
+	start := time.Now()
+	_, err = s.Acquire(d3, Request{Priority: P1, Cost: 1})
+	if !errors.As(err, &rl) || !rl.Queued {
+		t.Fatalf("starved waiter: %v (after %s)", err, time.Since(start))
+	}
+	if errors.Is(err, context.DeadlineExceeded) || time.Since(start) >= 600*time.Millisecond {
+		t.Fatalf("must refuse before the deadline: %v after %s", err, time.Since(start))
+	}
+	// Let the first one through by refilling.
+	clk.add(5 * time.Second)
+	s.tick(LaneGraphQL)
+	select {
+	case r := <-rc1:
+		r(0)
+	case err := <-ec1:
+		t.Fatal(err)
+	case <-time.After(time.Second):
+		t.Fatal("first P0 not dispatched")
+	}
+}

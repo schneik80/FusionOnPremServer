@@ -185,7 +185,8 @@
       "archiveGenericFailure": "A Autodesk não retornou o arquivo."
     },
     "archiveGone": "Este arquivo não está mais disponível — gere-o novamente",
-    "activityChildrenCapped": "{{included}} de {{total}} documentos filhos consolidados."
+    "activityChildrenCapped": "{{included}} de {{total}} documentos filhos consolidados.",
+    "localRefsUnavailable": "Não foi possível carregar as fontes locais: {{reason}}"
   },
   "permissions": {
     "selectDocument": "Selecione um documento dentro de um projeto para ver o acesso",

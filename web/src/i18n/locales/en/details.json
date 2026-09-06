@@ -185,7 +185,8 @@
       "archiveGenericFailure": "Autodesk did not return the archive."
     },
     "archiveGone": "This archive is no longer available — generate it again",
-    "activityChildrenCapped": "Rolled up {{included}} of {{total}} child documents."
+    "activityChildrenCapped": "Rolled up {{included}} of {{total}} child documents.",
+    "localRefsUnavailable": "Local sources could not be loaded: {{reason}}"
   },
   "permissions": {
     "selectDocument": "Select a document within a project to see access",

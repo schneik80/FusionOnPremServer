@@ -185,7 +185,8 @@
       "archiveGenericFailure": "Autodesk no devolvió el archivo."
     },
     "archiveGone": "Este archivo ya no está disponible: vuelva a generarlo",
-    "activityChildrenCapped": "Se han consolidado {{included}} de {{total}} documentos secundarios."
+    "activityChildrenCapped": "Se han consolidado {{included}} de {{total}} documentos secundarios.",
+    "localRefsUnavailable": "No se pudieron cargar las fuentes locales: {{reason}}"
   },
   "permissions": {
     "selectDocument": "Seleccione un documento dentro de un proyecto para ver el acceso",

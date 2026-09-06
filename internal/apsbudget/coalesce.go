@@ -91,7 +91,17 @@ func (c *Cache[V]) Do(ctx context.Context, key string, ttl time.Duration, fetch 
 	leader := false
 	ch := c.sf.DoChan(key, func() (any, error) {
 		leader = true
-		lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		// Detached from the caller's cancellation, but not from its deadline:
+		// a walk's later pages must be admitted against the time the request
+		// has left, or the handler answers 504 while the leader keeps spending
+		// points for nobody.
+		lt := 30 * time.Second
+		if dl, ok := ctx.Deadline(); ok {
+			if rem := time.Until(dl); rem < lt {
+				lt = rem
+			}
+		}
+		lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), lt)
 		defer cancel()
 		v, err := fetch(lctx)
 		if err == nil {

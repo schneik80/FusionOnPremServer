@@ -968,6 +968,13 @@ function WhereUsedTab({ item, hubId, cvId, active }: { item: Item; hubId: string
           />
         ))}
         {localQ.isFetching ? <CircularProgress size={14} /> : null}
+        {localQ.error ? (
+          // A failed local scan must not read as "nothing references this":
+          // say it could not be loaded (a rate limit is the usual reason).
+          <Typography variant="caption" color="warning.main">
+            {t('details.localRefsUnavailable', { reason: localizeApiError(t, localQ.error as Error) })}
+          </Typography>
+        ) : null}
       </Box>
       {relations.length === 0 ? (
         // With local sources switched on the tab is no longer only about

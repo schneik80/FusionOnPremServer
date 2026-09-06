@@ -13,6 +13,11 @@ func TestParseQuotaMessage(t *testing.T) {
 	if !ok || pv != 231 || rem != 69 {
 		t.Fatalf("got (%d,%d,%v), want (231,69,true)", pv, rem, ok)
 	}
+	// The phrasing seen in production on 2026-09-05.
+	pv, rem, ok = ParseQuotaMessage(`{"errors":[{"message":"Query point value per minute quota exceeded with point value of 26 and remaining quota 20. Please try again later."}]}`)
+	if !ok || pv != 26 || rem != 20 {
+		t.Fatalf("'point value of N' form: got (%d,%d,%v)", pv, rem, ok)
+	}
 	if _, _, ok := ParseQuotaMessage(`{"developerMessage":"Quota limit exceeded."}`); ok {
 		t.Fatal("non-MDM body must not parse")
 	}

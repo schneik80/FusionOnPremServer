@@ -19,8 +19,9 @@ func TestRequestPriority(t *testing.T) {
 	}{
 		{"/api/projects/contents", "", "", apsbudget.P0},
 		{"/api/items/classify", "", "", apsbudget.P1},
-		{"/api/activity/rollup", "", "", apsbudget.P1},
+		{"/api/activity/rollup", "", "", apsbudget.P0},
 		{"/api/activity/rollup", "2", "", apsbudget.P2},
+		{"/api/items/local-refs", "", "", apsbudget.P0},
 		{"/api/items/classify", "0", "", apsbudget.P0},
 		{"/api/items/thumbnail/image", "", "2", apsbudget.P2},
 		{"/api/items/thumbnail/image", "bogus", "x", apsbudget.P1},
@@ -115,7 +116,7 @@ func TestQuotaDTO(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &d); err != nil {
 		t.Fatal(err)
 	}
-	if !d.Enabled || d.Level != "cooldown" || !d.Throttled || d.CooldownUntil == "" || d.RetryAfterMs <= 0 || d.Trips != 1 || d.Capacity != 4800 {
+	if !d.Enabled || d.Level != "cooldown" || !d.Throttled || d.CooldownUntil == "" || d.RetryAfterMs <= 0 || d.Trips != 1 || d.Capacity != 6000 {
 		t.Errorf("dto = %+v", d)
 	}
 	if rec.Header().Get("Cache-Control") != "no-store" {

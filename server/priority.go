@@ -27,19 +27,16 @@ const (
 // routePriority classifies routes the table knows; anything unlisted is P0,
 // so a forgotten route is never demoted behind background work.
 var routePriority = map[string]apsbudget.Priority{
-	// Per-row probes for what is on screen.
+	// Per-row probes for what is on screen. Everything else — including the
+	// aggregates (hub overview, roll-up, descendants, the dashboard's
+	// permissions path) — is P0 unless the SPA says otherwise in the header,
+	// which it does for exactly the calls it knows are not what the user is
+	// waiting on (api/queries.ts). A tab's own content (local-refs on Where
+	// Used, the activity report) must never sit in the P1 lane's 10 s window.
 	"/api/items/classify":        apsbudget.P1,
 	"/api/items/thumbnail":       apsbudget.P1,
 	"/api/items/thumbnail/image": apsbudget.P1,
 	"/api/items/drawing/preview": apsbudget.P1,
-	// Heavy or aggregate work the user did ask for, but which must never
-	// starve a click: the SPA demotes these further via the header when they
-	// are prefetch.
-	"/api/hub/overview":      apsbudget.P1,
-	"/api/items/local-refs":  apsbudget.P1,
-	"/api/activity/report":   apsbudget.P1,
-	"/api/items/descendants": apsbudget.P1,
-	"/api/activity/rollup":   apsbudget.P1,
 }
 
 // requestPriority reads the header, else the route table, else P0.

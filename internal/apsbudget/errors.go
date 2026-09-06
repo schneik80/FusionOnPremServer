@@ -94,7 +94,9 @@ func (e *QueryTooComplexError) Error() string {
 // exact: the point value is the cost of the rejected query, the remaining quota
 // is the bucket level the gateway saw. Together they are the only budget
 // telemetry MDM exposes today.
-var quotaMessageRe = regexp.MustCompile(`point value (\d+) and remaining quota (\d+)`)
+// The gateway has been seen phrasing it both "point value 231" and "point
+// value of 26" (server.log, 2026-09-05), so the "of" is optional.
+var quotaMessageRe = regexp.MustCompile(`point value (?:of )?(\d+) and remaining quota (\d+)`)
 
 // ParseQuotaMessage extracts point value and remaining quota from an MDM 429
 // message. ok is false when the sentence is absent.

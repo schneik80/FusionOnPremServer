@@ -111,7 +111,9 @@ export default function RelationGraph({
   // parent at once. The cap is visible and liftable — never silent.
   const [loadAll, setLoadAll] = useState(false)
   useEffect(() => setLoadAll(false), [focus.itemId, focus.cvId, direction])
-  const hasThumb = thumbSlots(relations.length, THUMB_CAP, loadAll)
+  // Stable per (count, loadAll): it feeds the placement memo, and a fresh
+  // function every render would re-place (and re-fit) the graph each time.
+  const hasThumb = useMemo(() => thumbSlots(relations.length, THUMB_CAP, loadAll), [relations.length, loadAll])
   const hidden = thumbsHidden(relations.length, THUMB_CAP, loadAll)
 
   // --- layout (depth-1: focus centred, relations fanned into rows) ---

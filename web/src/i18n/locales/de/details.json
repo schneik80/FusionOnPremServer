@@ -185,7 +185,8 @@
       "archiveGenericFailure": "Autodesk hat das Archiv nicht zurückgegeben."
     },
     "archiveGone": "Dieses Archiv ist nicht mehr verfügbar – erstellen Sie es erneut",
-    "activityChildrenCapped": "{{included}} von {{total}} untergeordneten Dokumenten zusammengefasst."
+    "activityChildrenCapped": "{{included}} von {{total}} untergeordneten Dokumenten zusammengefasst.",
+    "localRefsUnavailable": "Lokale Quellen konnten nicht geladen werden: {{reason}}"
   },
   "permissions": {
     "selectDocument": "Wählen Sie ein Dokument in einem Projekt, um den Zugriff zu sehen",

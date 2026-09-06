@@ -17,7 +17,8 @@ on the traffic it already makes and shows one banner.
   form a separate lane.
 - **A 429 body** is a GraphQL error whose message reads
   `Query point value per minute quota exceeded with point value 231 and
-  remaining quota 69`. Both numbers are exact and are the only budget
+  remaining quota 69` (also seen as `point value of 26`; the parser accepts
+  both). Both numbers are exact and are the only budget
   telemetry MDM exposes today; `extensions.pointValue` (already on the AEC
   Data Model) is read opportunistically when it arrives. Platform 429s may
   carry `Retry-After`.
@@ -36,10 +37,12 @@ on the traffic it already makes and shows one banner.
 
 ## Design (`internal/apsbudget`)
 
-- **Bucket** (`bucket.go`): capacity 4800 points (80 % of 6000), refilled
-  continuously at 80/s. May go negative after an under-estimate. Resynced
-  *downwards only* from the `remaining quota` a 429 reports (minus the 1200
-  headroom we never model as ours).
+- **Bucket** (`bucket.go`): capacity 6000 points — the whole quota, refilled
+  continuously at 100/s. It started at 80 %, and a conservative bucket on
+  top of conservative estimates starved user-blocking calls into 504s in the
+  first real run; headroom for background work comes from the reserve
+  floors instead. May go negative after an under-estimate. Resynced
+  *downwards only* from the `remaining quota` a 429 reports.
 - **Scheduler** (`scheduler.go`): strict priority heap, FIFO within a
   class. `P0` user-blocking (navigation, details, tab opens), `P1`
   in-viewport per-row work (classify, thumbnail), `P2` background
@@ -47,9 +50,13 @@ on the traffic it already makes and shows one banner.
   6 REST. **Reserve floors** P0 0 %, P1 10 %, P2 35 % of capacity must
   remain *after* a take, so a click always finds something left. **Maximum
   queue wait** P0 = the request's own deadline, P1 10 s, P2 2 s; a request
-  whose expected wait exceeds that is refused *immediately* with a typed
-  `RateLimitError{Queued:true, RetryAfter}` — a real countdown — instead of
-  parking until a 504. A slot is held for exactly one HTTP round trip.
+  whose expected wait (cooldown, or the refill its cost needs **after the
+  work already queued ahead of it at its priority or higher**) exceeds that
+  is refused *immediately* with a typed `RateLimitError{Queued:true,
+  RetryAfter}` — a real countdown — and one that is starved while queued is
+  refused the same way just *before* its deadline, so the client sees a 429
+  with Retry-After and never a 504. A slot is held for exactly one HTTP
+  round trip; a paginated walk takes one per page.
 - **Cooldown**: a real 429 puts its lane into cooldown for `Retry-After`,
   else 20 s, escalating ×1.5 on a repeat within a minute up to 60 s. A P0
   waits it out (bounded by its deadline); P1/P2 are refused with the
@@ -93,11 +100,12 @@ on the traffic it already makes and shows one banner.
 | debug | `GET /api/debug/quota-costs` (`-v`) | Every registered op: estimate, measured, what the gateway charged. |
 
 Route defaults: everything is P0 unless listed — P1 for
-`items/classify`, `items/thumbnail[/image]`, `items/drawing/preview`,
-`hub/overview`, `items/local-refs`, `activity/report`,
-`items/descendants`, `activity/rollup`; P2 for `/api/debug/*` and the
-background jobs (`uploads.go`, `archives.go`, thumbnail warm), which set it
-on their own contexts.
+`items/classify`, `items/thumbnail[/image]`, `items/drawing/preview`; P2
+for `/api/debug/*` and the background jobs (`uploads.go`, `archives.go`,
+thumbnail warm), which set it on their own contexts. The SPA demotes the
+aggregates it is not waiting on (hub overview, roll-up, descendants, the
+dashboard's permissions path) through the header; a tab's own content is
+never demoted by route.
 
 ## Calibrating
 

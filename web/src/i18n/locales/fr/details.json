@@ -185,7 +185,8 @@
       "archiveGenericFailure": "Autodesk n’a pas renvoyé l’archive."
     },
     "archiveGone": "Cette archive n’est plus disponible — générez-la à nouveau",
-    "activityChildrenCapped": "{{included}} documents enfants sur {{total}} consolidés."
+    "activityChildrenCapped": "{{included}} documents enfants sur {{total}} consolidés.",
+    "localRefsUnavailable": "Les sources locales n'ont pas pu être chargées : {{reason}}"
   },
   "permissions": {
     "selectDocument": "Sélectionnez un document dans un projet pour voir les accès",

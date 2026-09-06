@@ -50,8 +50,13 @@ type Config struct {
 // DefaultConfig returns the production tuning.
 func DefaultConfig() Config {
 	return Config{
-		FullQuota:       6000,
-		Capacity:        4800,
+		FullQuota: 6000,
+		// The whole quota, not a share of it: the static estimates are only
+		// calibrated at the drawings query, and a conservative bucket on top
+		// of conservative estimates starved user-blocking calls into 504s in
+		// the first real run. Headroom for background work comes from the
+		// reserve floors; a real 429 resyncs the bucket to the truth.
+		Capacity:        6000,
 		MaxInFlight:     12,
 		MaxInFlightREST: 6,
 		ReserveFloor:    [numPriorities]float64{0, 0.10, 0.35},
@@ -68,7 +73,7 @@ func (c Config) normalized() Config {
 		c.FullQuota = 6000
 	}
 	if c.Capacity <= 0 {
-		c.Capacity = c.FullQuota * 0.8
+		c.Capacity = c.FullQuota
 	}
 	if c.RefillPerSec <= 0 {
 		c.RefillPerSec = c.Capacity / 60
@@ -244,9 +249,17 @@ func (s *Scheduler) Acquire(ctx context.Context, r Request) (Release, error) {
 	s.kickLocked(r.Lane, now)
 	s.mu.Unlock()
 
+	// The timeout fires a little BEFORE the caller's deadline, so a request
+	// that could not be served in time is refused with a typed countdown
+	// (HTTP 429 + Retry-After) rather than dying as a 504 when its context
+	// expires a moment later.
 	var timeout <-chan time.Time
 	if allowed > 0 {
-		t := time.NewTimer(allowed)
+		margin := allowed / 10
+		if margin > time.Second {
+			margin = time.Second
+		}
+		t := time.NewTimer(allowed - margin)
 		defer t.Stop()
 		timeout = t.C
 	}
@@ -313,9 +326,10 @@ func (s *Scheduler) releaseFor(w *waiter) Release {
 }
 
 // expectedWaitLocked estimates how long r would wait if enqueued now: the
-// lane cooldown, or the bucket refill needed to clear its reserve floor.
-// Queued work ahead of it is not modelled — this is a coarse refusal gate,
-// the queue itself is exact.
+// lane cooldown, or the bucket refill needed to clear its reserve floor
+// AFTER everything already queued at its priority or higher has taken its
+// points. Without the queued-ahead term a burst of P0s each looked
+// admissible and the last of them outlived its deadline into a 504.
 func (s *Scheduler) expectedWaitLocked(now time.Time, r Request) time.Duration {
 	ln := &s.lanes[r.Lane]
 	wait := time.Duration(0)
@@ -323,7 +337,13 @@ func (s *Scheduler) expectedWaitLocked(now time.Time, r Request) time.Duration {
 		wait = ln.cooldownUntil.Sub(now)
 	}
 	if r.Lane == LaneGraphQL {
-		want := float64(r.Cost) + s.cfg.ReserveFloor[r.Priority]*s.cfg.Capacity
+		ahead := 0
+		for _, w := range ln.queue {
+			if !w.cancelled && !w.dispatched && w.req.Priority <= r.Priority {
+				ahead += w.req.Cost
+			}
+		}
+		want := float64(r.Cost+ahead) + s.cfg.ReserveFloor[r.Priority]*s.cfg.Capacity
 		if d := s.bucket.deficitWait(want); d > wait {
 			wait = d
 		}
