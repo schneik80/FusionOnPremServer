@@ -189,6 +189,8 @@
   "permissions": {
     "selectDocument": "Wählen Sie ein Dokument in einem Projekt, um den Zugriff zu sehen",
     "noAccessInfo": "Keine Zugriffsinformationen für dieses Dokument",
+    "layerUnavailable_one": "{{count}} Ebene dieses Pfads konnte nicht geladen werden; ihre Berechtigungen sind unbekannt, nicht leer.",
+    "layerUnavailable_other": "{{count}} Ebenen dieses Pfads konnten nicht geladen werden; ihre Berechtigungen sind unbekannt, nicht leer.",
     "member": "Mitglied",
     "layerProject": "Projekt",
     "layerFolder": "Ordner",

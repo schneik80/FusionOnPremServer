@@ -189,6 +189,8 @@
   "permissions": {
     "selectDocument": "Seleccione un documento dentro de un proyecto para ver el acceso",
     "noAccessInfo": "No hay información de acceso para este documento",
+    "layerUnavailable_one": "No se pudo cargar {{count}} nivel de esta ruta; sus permisos son desconocidos, no están vacíos.",
+    "layerUnavailable_other": "No se pudieron cargar {{count}} niveles de esta ruta; sus permisos son desconocidos, no están vacíos.",
     "member": "Miembro",
     "layerProject": "Proyecto",
     "layerFolder": "Carpeta",

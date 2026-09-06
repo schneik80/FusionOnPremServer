@@ -189,6 +189,8 @@
   "permissions": {
     "selectDocument": "Sélectionnez un document dans un projet pour voir les accès",
     "noAccessInfo": "Aucune information d'accès pour ce document",
+    "layerUnavailable_one": "{{count}} niveau de ce chemin n'a pas pu être chargé ; ses droits sont inconnus, pas vides.",
+    "layerUnavailable_other": "{{count}} niveaux de ce chemin n'ont pas pu être chargés ; leurs droits sont inconnus, pas vides.",
     "member": "Membre",
     "layerProject": "Projet",
     "layerFolder": "Dossier",

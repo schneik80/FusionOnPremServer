@@ -240,6 +240,11 @@ func (s *Server) runUpload(job *uploadJob, sess *Session) {
 		return
 	}
 	job.finish(uploadDone, "", itemID, versionID)
+	// The folder listing this user cached seconds ago no longer has the new
+	// item; drop their coalesced answers so the next fetch shows it.
+	if sess != nil && sess.Profile.Sub != "" {
+		api.InvalidateSubject(sess.Profile.Sub)
+	}
 	s.logger.Info("upload complete", "file", job.FileName, "job", job.ID, "item", itemID)
 }
 

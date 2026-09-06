@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -138,7 +139,6 @@ func GetAllDescendants(ctx context.Context, token, rootCvID string) ([]Component
 		// full; they only guard against a pathological/runaway tree.
 		maxDescendantNodes = 20000
 		maxDescendantDepth = 256
-		descendantFanout   = 12
 	)
 	visited := make(map[string]struct{})
 	frontier := []string{rootCvID}
@@ -148,18 +148,31 @@ func GetAllDescendants(ctx context.Context, token, rootCvID string) ([]Component
 		if err := ctx.Err(); err != nil {
 			return out, err
 		}
-		// Fetch this level's occurrences concurrently (bounded).
+		// Fetch this level's occurrences concurrently, bounded by the shared
+		// fan-out semaphore. A rate limit aborts the walk: a silently shorter
+		// tree would be a cap nobody can see, and every further node would
+		// spend a quota that is already gone.
 		levelRefs := make([][]ComponentRef, len(frontier))
 		var wg sync.WaitGroup
-		sem := make(chan struct{}, descendantFanout)
+		var limited atomic.Pointer[error]
 		for i, cv := range frontier {
 			wg.Add(1)
 			go func(i int, cv string) {
 				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
+				if limited.Load() != nil {
+					return
+				}
+				release, err := acquireFanout(ctx)
+				if err != nil {
+					return
+				}
+				defer release()
 				refs, err := GetOccurrences(ctx, token, cv)
 				if err != nil {
+					if IsRateLimited(err) {
+						limited.CompareAndSwap(nil, &err)
+						return
+					}
 					dbgLog("descendants: occurrences(%s) failed: %v", cv, err)
 					return
 				}
@@ -167,6 +180,9 @@ func GetAllDescendants(ctx context.Context, token, rootCvID string) ([]Component
 			}(i, cv)
 		}
 		wg.Wait()
+		if errp := limited.Load(); errp != nil {
+			return out, fmt.Errorf("descendants: %w", *errp)
+		}
 
 		var next []string
 		for _, refs := range levelRefs {

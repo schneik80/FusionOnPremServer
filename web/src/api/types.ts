@@ -438,6 +438,9 @@ export interface PermLayer {
   name?: string
   groups: ProjectGroup[]
   members: PermMember[]
+  // True when the server could not fetch this layer (an upstream failure);
+  // an empty layer with error unset genuinely has no grants.
+  error?: boolean
 }
 
 export interface FolderRef {

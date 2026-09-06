@@ -6,34 +6,20 @@ import (
 	"fmt"
 )
 
-// classifySem caps concurrent in-flight assembly-classification calls so
-// the gateway isn't hammered when the contents column lands on a folder
-// with dozens of designs. 8 is empirically a good balance between
-// wall-clock throughput and gateway-side cost — see cmd/probe-assembly
-// for the latency-vs-parallelism data.
-var classifySem = make(chan struct{}, 8)
-
 // ClassifyAssembly reports whether the design rooted at the given
 // component-version id has at least one direct sub-component. The query
 // asks the occurrences relationship for a single result; an empty
 // response means the design is a part, any result means an assembly.
 //
-// The call blocks on a package-level semaphore so concurrent fan-out
-// from a single contents-loaded message stays bounded. Callers should
-// pair the returned bool with the originating item id and a generation
+// Concurrency is bounded by the budget scheduler's P1 lane (the route is a
+// per-row probe), which sees every session at once; a package semaphore on
+// top of it only lowered throughput. Callers should pair the returned bool with the originating item id and a generation
 // counter so late-arriving refinements after a folder change can be
 // dropped on the floor.
 func ClassifyAssembly(ctx context.Context, token, componentVersionID string) (bool, error) {
 	if componentVersionID == "" {
 		return false, fmt.Errorf("classify: empty componentVersionID")
 	}
-	select {
-	case classifySem <- struct{}{}:
-	case <-ctx.Done():
-		return false, ctx.Err()
-	}
-	defer func() { <-classifySem }()
-
 	const q = `
 		query ClassifyAssembly($cv: ID!) {
 			componentVersion(componentVersionId: $cv) {

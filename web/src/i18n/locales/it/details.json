@@ -189,6 +189,8 @@
   "permissions": {
     "selectDocument": "Seleziona un documento in un progetto per vederne gli accessi",
     "noAccessInfo": "Nessuna informazione di accesso per questo documento",
+    "layerUnavailable_one": "{{count}} livello di questo percorso non è stato caricato; le sue autorizzazioni sono sconosciute, non vuote.",
+    "layerUnavailable_other": "{{count}} livelli di questo percorso non sono stati caricati; le loro autorizzazioni sono sconosciute, non vuote.",
     "member": "Membro",
     "layerProject": "Progetto",
     "layerFolder": "Cartella",

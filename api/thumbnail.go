@@ -84,13 +84,6 @@ func ClassifyAndThumbnail(ctx context.Context, token, componentVersionID string)
 	if componentVersionID == "" {
 		return false, "", "", fmt.Errorf("classify+thumbnail: empty componentVersionID")
 	}
-	select {
-	case classifySem <- struct{}{}:
-	case <-ctx.Done():
-		return false, "", "", ctx.Err()
-	}
-	defer func() { <-classifySem }()
-
 	const q = `
 		query ClassifyAndThumbnail($cv: ID!) {
 			componentVersion(componentVersionId: $cv) {

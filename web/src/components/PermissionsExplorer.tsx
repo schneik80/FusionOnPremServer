@@ -380,8 +380,16 @@ function LayersViz({ layers, item, active, theme }: { layers: PermLayer[]; item:
     })),
     { type: item.kind, idx: 'DOC', name: item.name, role: active ? active.leafRole : null, kind: 'selected' as const },
   ]
+  const failed = layers.filter((l) => l.error)
   return (
     <Box sx={{ overflowX: 'auto', py: 1 }}>
+      {failed.length > 0 ? (
+        // A layer the server could not fetch is flagged, never shown as an
+        // empty grant list — "nobody has access here" would be a lie.
+        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mb: 0.5 }}>
+          {t('permissions.layerUnavailable', { count: failed.length })}
+        </Typography>
+      ) : null}
       <Stack direction="row" alignItems="stretch" sx={{ minWidth: 'min-content' }}>
         {nodes.map((n, i) => {
           const deny = n.kind === 'denied'

@@ -189,6 +189,8 @@
   "permissions": {
     "selectDocument": "Select a document within a project to see access",
     "noAccessInfo": "No access information for this document",
+    "layerUnavailable_one": "{{count}} layer of this path could not be loaded; its grants are unknown, not empty.",
+    "layerUnavailable_other": "{{count}} layers of this path could not be loaded; their grants are unknown, not empty.",
     "member": "Member",
     "layerProject": "Project",
     "layerFolder": "Folder",

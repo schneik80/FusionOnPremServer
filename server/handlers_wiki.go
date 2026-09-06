@@ -156,6 +156,7 @@ func (s *Server) handleWikiRestore(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	s.invalidateUpstream(r)
 	writeJSON(w, http.StatusOK, WikiRestoreResult{Page: wikiPageDTO(page), Markdown: md})
 }
 
@@ -201,6 +202,7 @@ func (s *Server) handleWikiPublish(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	s.invalidateUpstream(r)
 	writeJSON(w, http.StatusOK, wikiPageDTO(page))
 }
 
@@ -240,6 +242,7 @@ func (s *Server) handleWikiRename(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	s.invalidateUpstream(r)
 	writeJSON(w, http.StatusOK, wikiPageDTO(api.WikiPage{ItemID: req.ItemID, Name: req.NewSlug + ".md"}))
 }
 
@@ -298,6 +301,7 @@ func (s *Server) handleWikiImageUpload(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	s.invalidateUpstream(r)
 	writeJSON(w, http.StatusOK, WikiImageResult{ItemID: itemID, Name: name})
 }
 

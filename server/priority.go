@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/schneik80/fusionlocalserver/api"
+
 	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 )
 
@@ -101,5 +103,16 @@ func setThrottleHeaders(w http.ResponseWriter) {
 		w.Header().Set(throttleUntilHeader, itoa64(snap.CooldownUntil.UnixMilli()))
 	} else if snap.Throttled && !snap.RESTCooldownUntil.IsZero() {
 		w.Header().Set(throttleUntilHeader, itoa64(snap.RESTCooldownUntil.UnixMilli()))
+	}
+}
+
+// invalidateUpstream drops the caller's coalesced GraphQL answers after one
+// of our own writes changed what APS will list (a wiki publish, an upload):
+// the author sees their write on the next fetch; other users within the
+// cache's seconds-long TTL.
+func (s *Server) invalidateUpstream(r *http.Request) {
+	sess, _ := sessionFromCtx(r.Context())
+	if bc := budgetContext(r, sess); bc.subject != "" {
+		api.InvalidateSubject(bc.subject)
 	}
 }

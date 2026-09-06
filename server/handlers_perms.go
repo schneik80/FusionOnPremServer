@@ -1,6 +1,8 @@
 package server
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -24,7 +26,17 @@ type PermLayerDTO struct {
 	Name    string            `json:"name,omitempty"`
 	Groups  []ProjectGroupDTO `json:"groups"`
 	Members []MemberDTO       `json:"members"`
+	// Error is true when this layer could not be fetched (an upstream
+	// failure other than a rate limit, which fails the whole request). An
+	// empty layer with Error=false genuinely has no grants; the explorer
+	// must never present a failed fetch as "nobody has access".
+	Error bool `json:"error,omitempty"`
 }
+
+// maxPermissionsPathDepth caps the repeated folderId parameter: a real
+// ancestry is a handful deep, and each layer costs two paginated APS calls,
+// so an unbounded list was an authenticated quota amplifier.
+const maxPermissionsPathDepth = 16
 
 func groupDTOs(gs []api.ProjectGroup) []ProjectGroupDTO {
 	out := make([]ProjectGroupDTO, 0, len(gs))
@@ -58,6 +70,11 @@ func (s *Server) handlePermissionsPath(w http.ResponseWriter, r *http.Request) {
 	}
 	folderIDs := q["folderId"]
 	folderNames := q["folderName"]
+	if len(folderIDs) > maxPermissionsPathDepth {
+		writeErrorCode(w, http.StatusBadRequest, "path_too_deep",
+			fmt.Sprintf("at most %d folderId values (got %d)", maxPermissionsPathDepth, len(folderIDs)))
+		return
+	}
 
 	ctx, cancel := s.reqCtx(r)
 	defer cancel()
@@ -67,42 +84,67 @@ func (s *Server) handlePermissionsPath(w http.ResponseWriter, r *http.Request) {
 	}
 
 	layers := make([]PermLayerDTO, 1+len(folderIDs))
+	errs := make([]error, 1+len(folderIDs))
 	var wg sync.WaitGroup
 
-	// Project layer: groups + folder-level project members.
-	wg.Add(1)
-	go func() {
+	// fetchLayer runs the layer's two fetches through the shared fan-out
+	// bound and records the first error. An error empties the layer AND
+	// flags it, so the explorer shows "could not be loaded" rather than an
+	// empty (wrong) grant list.
+	fetchLayer := func(i int, groups func() ([]api.ProjectGroup, error), members func() ([]api.Member, error), build func([]api.ProjectGroup, []api.Member) PermLayerDTO) {
 		defer wg.Done()
 		var g []api.ProjectGroup
 		var m []api.Member
+		var gErr, mErr error
 		var w2 sync.WaitGroup
 		w2.Add(2)
-		go func() { defer w2.Done(); g, _ = api.GetProjectGroups(ctx, token, projectID) }()
-		go func() { defer w2.Done(); m, _ = api.GetProjectMembers(ctx, token, projectID) }()
+		go func() { defer w2.Done(); g, gErr = api.WithFanout(ctx, groups) }()
+		go func() { defer w2.Done(); m, mErr = api.WithFanout(ctx, members) }()
 		w2.Wait()
-		layers[0] = PermLayerDTO{Type: "project", ID: projectID, Name: q.Get("projectName"), Groups: groupDTOs(g), Members: memberDTOs(m)}
-	}()
+		layers[i] = build(g, m)
+		if gErr != nil || mErr != nil {
+			errs[i] = errors.Join(gErr, mErr)
+			layers[i].Error = true
+			layers[i].Groups, layers[i].Members = []ProjectGroupDTO{}, []MemberDTO{}
+		}
+	}
+
+	// Project layer: groups + folder-level project members.
+	wg.Add(1)
+	go fetchLayer(0,
+		func() ([]api.ProjectGroup, error) { return api.GetProjectGroups(ctx, token, projectID) },
+		func() ([]api.Member, error) { return api.GetProjectMembers(ctx, token, projectID) },
+		func(g []api.ProjectGroup, m []api.Member) PermLayerDTO {
+			return PermLayerDTO{Type: "project", ID: projectID, Name: q.Get("projectName"), Groups: groupDTOs(g), Members: memberDTOs(m)}
+		})
 
 	// Folder layers: members + groups.
 	for i, fid := range folderIDs {
+		name := ""
+		if i < len(folderNames) {
+			name = folderNames[i]
+		}
 		wg.Add(1)
-		go func(i int, fid string) {
-			defer wg.Done()
-			var g []api.ProjectGroup
-			var m []api.Member
-			var w2 sync.WaitGroup
-			w2.Add(2)
-			go func() { defer w2.Done(); g, _ = api.GetFolderGroups(ctx, token, hubID, fid) }()
-			go func() { defer w2.Done(); m, _ = api.GetFolderMembers(ctx, token, hubID, fid) }()
-			w2.Wait()
-			name := ""
-			if i < len(folderNames) {
-				name = folderNames[i]
-			}
-			layers[i+1] = PermLayerDTO{Type: "folder", ID: fid, Name: name, Groups: groupDTOs(g), Members: memberDTOs(m)}
-		}(i, fid)
+		go fetchLayer(i+1,
+			func() ([]api.ProjectGroup, error) { return api.GetFolderGroups(ctx, token, hubID, fid) },
+			func() ([]api.Member, error) { return api.GetFolderMembers(ctx, token, hubID, fid) },
+			func(g []api.ProjectGroup, m []api.Member) PermLayerDTO {
+				return PermLayerDTO{Type: "folder", ID: fid, Name: name, Groups: groupDTOs(g), Members: memberDTOs(m)}
+			})
 	}
 	wg.Wait()
+
+	// A rate limit anywhere fails the whole request: the SPA then shows the
+	// slow-mode state with a real countdown instead of a half-empty path.
+	for i, err := range errs {
+		if err != nil {
+			if api.IsRateLimited(err) {
+				s.fail(w, r, err)
+				return
+			}
+			s.logger.Debug("permissions layer failed", "layer", i, "err", err)
+		}
+	}
 	writeJSON(w, http.StatusOK, layers)
 }
 

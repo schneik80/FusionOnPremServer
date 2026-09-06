@@ -189,6 +189,8 @@
   "permissions": {
     "selectDocument": "Selecione um documento dentro de um projeto para ver o acesso",
     "noAccessInfo": "Sem informação de acesso para este documento",
+    "layerUnavailable_one": "{{count}} nível deste caminho não pôde ser carregado; suas permissões são desconhecidas, não vazias.",
+    "layerUnavailable_other": "{{count}} níveis deste caminho não puderam ser carregados; suas permissões são desconhecidas, não vazias.",
     "member": "Membro",
     "layerProject": "Projeto",
     "layerFolder": "Pasta",
