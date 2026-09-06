@@ -335,10 +335,11 @@ The SPA (React 18 + Vite + TypeScript + MUI v6 + TanStack Query) is a single sta
 A few targeted optimizations keep navigation snappy on large hubs:
 
 - **Thumbnail cache + image proxy** — the shared in-memory `thumbCache` (bounded, with TTL) holds thumbnail status/URL and PNG bytes keyed by component-version id, warmed in the background off the classify probe. A second viewer of the same design is served from cache.
+- **One APS budget** — every GraphQL and Data Management round trip goes through `internal/apsbudget`: a points token bucket sized to 80 % of the app's 6000/min quota, a strict-priority queue (user-blocking → in-viewport rows → background) with reserve floors and bounded waits, a cooldown after real 429s, and a seconds-only coalescing cache keyed by user. The SPA declares priority (`X-FLS-Priority`) and reads the throttle level back on every response. See [`docs/quota/STATUS.md`](quota/STATUS.md).
 - **Viewport-gated per-row calls** — APS calls are quota'd (a per-minute cost budget answered with 429s), so nothing fans out per row eagerly: per-item probes wait for the row to near the viewport (`components/useInView.ts`), and per-container work is capped with a visible "Load all".
 - **Inline classifier input** — the hierarchy items queries pull `tipRootComponentVersion.id` inline for designs, so the assembly/part classifier needs one extra call per row rather than a details round-trip first.
 - **Parallel project-contents fetch** — the project-contents handler issues `foldersByProject` and `itemsByProject` concurrently; wall-clock latency drops to roughly the slower of the two queries.
-- **Bounded-parallelism classifier** — at most 8 occurrence probes in flight against the gateway at once (`classifySem`).
+- **Bounded fan-out** — the descendants walk, the activity roll-up and the permissions path share one 12-slot semaphore (`api/fanout.go`) across every request, and abort on a rate limit rather than returning a silently shorter result.
 - **Client-side caching** — TanStack Query memoizes per-item details and relationship queries; realtime/per-user keys (`chat*`, `task*`, `prod*`) are excluded from localStorage persistence.
 
 ---
@@ -350,7 +351,7 @@ The APS Manufacturing Data Model GraphQL gateway (`/mfg/graphql`) intermittently
 - Transport errors and HTTP `408` / `5xx` (network / transient gateway).
 - Path-less GraphQL `errors[]` carrying `extensions.errorType: "UNKNOWN"` (the gateway's marker for intermittent upstream faults).
 
-HTTP **429 is deliberately not retried** — it signals the per-minute, cost-based query-point quota, which a retry cannot replenish; the error (with `Retry-After` when present) surfaces to the handler and the UI. HTTP `401` and concrete-typed GraphQL errors (`VALIDATION`, `BAD_USER_INPUT`, …) are surfaced immediately. Total worst-case added latency is ~2 s. See [`docs/api.md`](api.md#error-handling-and-retry) for the decision tree.
+HTTP **429 is deliberately not retried** — it signals the per-minute, cost-based query-point quota, which a retry cannot replenish; it surfaces as the typed `apsbudget.RateLimitError` (carrying `Retry-After` and the exact point value / remaining quota from the message), puts the lane into cooldown, and reaches the UI as HTTP 429 + `Retry-After` + `retryAfterMs`. HTTP `401` and concrete-typed GraphQL errors (`VALIDATION`, `BAD_USER_INPUT`, …) are surfaced immediately. Total worst-case added latency is ~2 s. See [`docs/api.md`](api.md#error-handling-and-retry) for the decision tree.
 
 ---
 

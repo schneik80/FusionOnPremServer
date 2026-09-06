@@ -45,6 +45,16 @@ flowchart TD
 
 ---
 
+## Quota budget and priorities
+
+Every query passes through `gqlQueryAt` and every REST call through `dmDo`, and both acquire a slot from the process-wide scheduler in `internal/apsbudget` before touching the network (see [`docs/quota/STATUS.md`](quota/STATUS.md)). What that means for a query you add:
+
+- **Register it in `api/cost.go`** by operation name (`query GetX …`). The registry carries the calibrated cost (`10×Roots + Fixed + (RowFields+1)×Limit`), an optional measured value, the coalescing TTL, and whether the answer is `Shared` across users. An unregistered query is charged a flat fallback and never cached.
+- **Never `Shared` unless ACL-free.** The coalescing key carries the caller's OIDC subject; `Shared` drops it and is only right for a fact of the hub the session is locked to (a thumbnail's status, the DM id). Listings, details and members are per-subject.
+- **A 429 is typed.** `apsbudget.RateLimitError` (with `Retry-After`, point value, remaining quota) trips the lane's cooldown; `QueryTooComplexError` is the per-query 1000-point cap — a code bug, fix the selection or the page size.
+- **Fan-outs go through `api/fanout.go`** and abort on a rate limit; a silently shorter result is never acceptable.
+- Priority comes from the request context (`apsbudget.WithPriority`): the auth middleware sets it from `X-FLS-Priority` or the route table in `server/priority.go`; a background job sets `P2` on its own context.
+
 ## Pagination Strategy
 
 The APS GraphQL API uses **cursor-based pagination**. A page returns a cursor string; passing that cursor in the next request fetches the following page. An empty cursor means the last page has been reached.
