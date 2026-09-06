@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 )
 
 // errorResponse is the uniform error envelope every failing endpoint returns.
@@ -14,6 +16,10 @@ import (
 type errorResponse struct {
 	Error string `json:"error"`
 	Code  string `json:"code,omitempty"`
+	// RetryAfterMs accompanies code=rate_limited: how long the client should
+	// wait before retrying (mirrors the Retry-After header for callers that
+	// cannot read headers). Zero/absent otherwise.
+	RetryAfterMs int64 `json:"retryAfterMs,omitempty"`
 }
 
 // writeJSON serialises v as JSON with the given status code. Encoding happens
@@ -85,6 +91,12 @@ func statusForError(err error) int {
 	case errors.Is(err, context.Canceled):
 		// Client went away; no useful status, but 499-style isn't standard.
 		return http.StatusGatewayTimeout
+	case isRateLimited(err):
+		return http.StatusTooManyRequests
+	case isTooComplex(err):
+		// A query over the per-query point cap is our bug, not the client's,
+		// and not load: an upstream failure the log line names precisely.
+		return http.StatusBadGateway
 	case strings.Contains(err.Error(), "HTTP 401"), strings.Contains(err.Error(), "unauthorized"):
 		return http.StatusUnauthorized
 	case strings.Contains(err.Error(), "HTTP 429"),
@@ -98,4 +110,25 @@ func statusForError(err error) int {
 	default:
 		return http.StatusBadGateway
 	}
+}
+
+// isRateLimited reports whether err wraps the typed upstream/scheduler 429.
+func isRateLimited(err error) bool {
+	var rl *apsbudget.RateLimitError
+	return errors.As(err, &rl)
+}
+
+// isTooComplex reports whether err wraps the per-query point-cap rejection.
+func isTooComplex(err error) bool {
+	var qc *apsbudget.QueryTooComplexError
+	return errors.As(err, &qc)
+}
+
+// rateLimitFrom returns the typed 429 wrapped in err, or nil.
+func rateLimitFrom(err error) *apsbudget.RateLimitError {
+	var rl *apsbudget.RateLimitError
+	if errors.As(err, &rl) {
+		return rl
+	}
+	return nil
 }

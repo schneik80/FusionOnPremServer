@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 )
 
 // The Data Management API (data/v1) resolves an item's tip *version* URN, which
@@ -39,25 +42,45 @@ func dmEscape(s string) string { return url.QueryEscape(s) }
 // dmGet performs an authenticated GET against the Data Management API and
 // returns the response body, failing on non-2xx.
 func dmGet(ctx context.Context, token, fullURL string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	// The cap is a runaway-response guard, not a working budget: one JSON:API
+	// contents page (up to 200 entries plus their `included` versions) can top
+	// 1 MiB for a big folder, and truncating it surfaces as a baffling
+	// "unexpected end of JSON input" — so leave generous headroom.
+	return dmDo(ctx, token, http.MethodGet, fullURL, "", nil, 8<<20)
+}
+
+// dmDo is the one Data Management / OSS round trip every REST helper shares.
+// It sends the bearer token (and a content type when there is a body), reads
+// at most limit bytes, and turns a 429 into the typed RateLimitError on the
+// REST lane so handlers answer with Retry-After. DM/OSS meter requests per
+// minute per endpoint, not query points, so the REST lane cools down on its
+// own without touching the GraphQL budget.
+func dmDo(ctx context.Context, token, method, fullURL, contentType string, body []byte, limit int64) ([]byte, error) {
+	var rdr io.Reader
+	if body != nil {
+		rdr = bytes.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, rdr)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	// The cap is a runaway-response guard, not a working budget: one JSON:API
-	// contents page (up to 200 entries plus their `included` versions) can top
-	// 1 MiB for a big folder, and truncating it surfaces as a baffling
-	// "unexpected end of JSON input" — so leave generous headroom.
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("DM GET %s -> HTTP %d: %s", trimURL(fullURL), resp.StatusCode, strings.TrimSpace(string(body)))
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, limit))
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, fmt.Errorf("DM %s %s: %w", method, trimURL(fullURL), rateLimitErrorFrom(apsbudget.LaneREST, resp.Header.Get("Retry-After"), b))
 	}
-	return body, nil
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("DM %s %s -> HTTP %d: %s", method, trimURL(fullURL), resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+	return b, nil
 }
 
 // noRedirectClient shares httpClient's connection pool but stops at the first

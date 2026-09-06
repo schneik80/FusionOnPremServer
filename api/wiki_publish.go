@@ -407,42 +407,12 @@ func createVersion(ctx context.Context, token, dmProjectID, itemID, filename, st
 // ── low-level helpers ──────────────────────────────────────────────
 
 func dmPost(ctx context.Context, token, url string, body []byte) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("DM POST %s -> HTTP %d: %s", trimURL(url), resp.StatusCode, strings.TrimSpace(string(b)))
-	}
-	return b, nil
+	return dmDo(ctx, token, http.MethodPost, url, "application/json", body, 1<<20)
 }
 
 // dmPatch performs an authenticated JSON:API PATCH (rename item/folder).
 func dmPatch(ctx context.Context, token, url string, body []byte) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/vnd.api+json")
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("DM PATCH %s -> HTTP %d: %s", trimURL(url), resp.StatusCode, strings.TrimSpace(string(b)))
-	}
-	return b, nil
+	return dmDo(ctx, token, http.MethodPatch, url, "application/vnd.api+json", body, 1<<20)
 }
 
 // dataID pulls data.id out of a JSON:API response body.

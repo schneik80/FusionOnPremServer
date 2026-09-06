@@ -2,7 +2,10 @@ package server
 
 import (
 	"context"
+	"log/slog"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -50,11 +53,32 @@ func reqParam(w http.ResponseWriter, r *http.Request, name string) (string, bool
 // never the production default. The full err is logged regardless.
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 	status := statusForError(err)
-	s.logger.Error("handler error", "path", r.URL.Path, "query", r.URL.RawQuery, "status", status, "err", err)
 	msg := safeErrorMessage(status)
 	if s.opts.Verbose {
 		msg += ": " + err.Error()
 	}
+	if rl := rateLimitFrom(err); rl != nil {
+		// A rate limit is expected behaviour in slow mode, not a fault: the
+		// scheduler refusing (Queued) logs at Info, a real upstream 429 at
+		// Warn (it is also the free calibration signal — the message carries
+		// the rejected query's exact cost). Both tell the client how long to
+		// wait, as a header and in the body.
+		level := slog.LevelWarn
+		if rl.Queued {
+			level = slog.LevelInfo
+		}
+		s.logger.Log(r.Context(), level, "rate limited", "path", r.URL.Path, "query", r.URL.RawQuery,
+			"lane", rl.Lane.String(), "queued", rl.Queued, "retryAfter", rl.RetryAfter,
+			"pointValue", rl.PointValue, "remaining", rl.Remaining)
+		secs := int64(math.Ceil(rl.RetryAfter.Seconds()))
+		if secs < 1 {
+			secs = 1
+		}
+		w.Header().Set("Retry-After", strconv.FormatInt(secs, 10))
+		writeJSON(w, status, errorResponse{Error: msg, Code: codeForStatus(status), RetryAfterMs: rl.RetryAfter.Milliseconds()})
+		return
+	}
+	s.logger.Error("handler error", "path", r.URL.Path, "query", r.URL.RawQuery, "status", status, "err", err)
 	writeError(w, status, msg)
 }
 

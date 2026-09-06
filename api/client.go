@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 )
 
 // graphqlEndpoint is a var (not const) so tests can point it at an
@@ -123,6 +125,27 @@ type gqlError struct {
 type gqlResponse struct {
 	Data   json.RawMessage `json:"data"`
 	Errors []gqlError      `json:"errors"`
+	// Extensions is where the AEC Data Model gateway already reports the
+	// query's cost (extensions.pointValue.requestedQueryPointValue) and where
+	// MDM has said it will. Read opportunistically; absent today on MDM.
+	Extensions json.RawMessage `json:"extensions"`
+}
+
+// pointValueFromExtensions returns extensions.pointValue.requestedQueryPointValue
+// when the gateway reports it, else 0.
+func pointValueFromExtensions(ext json.RawMessage) int {
+	if len(ext) == 0 {
+		return 0
+	}
+	var e struct {
+		PointValue struct {
+			Requested int `json:"requestedQueryPointValue"`
+		} `json:"pointValue"`
+	}
+	if json.Unmarshal(ext, &e) != nil {
+		return 0
+	}
+	return e.PointValue.Requested
 }
 
 // retryBackoffs is the delay before each retry attempt (the first attempt
@@ -209,16 +232,12 @@ func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars
 	}
 	// 429 = rate limited (APS's per-minute, cost-based query-point quota).
 	// Retrying inside the flakiness window cannot replenish a per-minute quota
-	// and only spends more of it — so fail fast (non-retriable) with a distinct
-	// error the handler maps to a 429. Surface Retry-After when present so the
-	// client can back off intelligently.
+	// and only spends more of it — so fail fast (non-retriable) with a typed
+	// error the handler maps to a 429 + Retry-After. The MDM message carries
+	// the rejected query's exact cost and the remaining quota; both are parsed
+	// so the budget can resync (see budget.go).
 	if resp.StatusCode == 429 {
-		retryAfter := strings.TrimSpace(resp.Header.Get("Retry-After"))
-		suffix := ""
-		if retryAfter != "" {
-			suffix = fmt.Sprintf(" (Retry-After: %s)", retryAfter)
-		}
-		return nil, fmt.Errorf("HTTP 429 rate limited%s: %s", suffix, raw), false
+		return nil, rateLimitErrorFrom(apsbudget.LaneGraphQL, resp.Header.Get("Retry-After"), raw), false
 	}
 	// 5xx/408 are transient gateway hiccups — worth a quick retry.
 	if resp.StatusCode >= 500 || resp.StatusCode == 408 {
@@ -231,6 +250,13 @@ func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars
 	}
 	hasData := len(gr.Data) > 0 && string(gr.Data) != "null"
 	if len(gr.Errors) > 0 {
+		// The per-query cap (HTTP 400, deterministic): a code bug in the query,
+		// never load. Typed so it is never retried and never trips a cooldown.
+		for _, e := range gr.Errors {
+			if pts, mx, ok := apsbudget.ParseTooComplex(e.Message); ok {
+				return nil, &apsbudget.QueryTooComplexError{Points: pts, Max: mx, Body: e.Message}, false
+			}
+		}
 		msgs := make([]string, len(gr.Errors))
 		// Retry only a path-less UNKNOWN error: that is a non-localized
 		// (gateway/root) failure where the result is unusable even when the data
@@ -259,4 +285,18 @@ func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars
 		return nil, fmt.Errorf("empty GraphQL response (HTTP %d): %s", resp.StatusCode, raw), false
 	}
 	return gr.Data, nil, false
+}
+
+// rateLimitErrorFrom builds the typed 429 from an upstream response: the
+// Retry-After header when present, and for the GraphQL lane the point value /
+// remaining quota the MDM message carries. Both are best-effort.
+func rateLimitErrorFrom(lane apsbudget.Lane, retryAfterHeader string, raw []byte) *apsbudget.RateLimitError {
+	e := &apsbudget.RateLimitError{Lane: lane, Upstream: strings.TrimSpace(string(raw))}
+	if d, ok := apsbudget.ParseRetryAfter(retryAfterHeader, time.Now()); ok {
+		e.RetryAfter = d
+	}
+	if pv, rem, ok := apsbudget.ParseQuotaMessage(string(raw)); ok {
+		e.PointValue, e.Remaining = pv, rem
+	}
+	return e
 }

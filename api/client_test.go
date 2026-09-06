@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 	"github.com/schneik80/fusionlocalserver/internal/testutil"
 )
 
@@ -291,7 +293,7 @@ func TestGqlQuery_429_FailsFast_NoRetry(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Retry-After", "42")
 		w.WriteHeader(http.StatusTooManyRequests)
-		_, _ = io.WriteString(w, `{"errors":[{"message":"Query point value per minute quota exceeded","extensions":{"code":"GRAPHQL_VALIDATION_FAILED"}}]}`)
+		_, _ = io.WriteString(w, `{"errors":[{"message":"Query point value per minute quota exceeded with point value 231 and remaining quota 69. Please try again later.","extensions":{"code":"GRAPHQL_VALIDATION_FAILED"}}]}`)
 	}))
 	t.Cleanup(srv.Close)
 	swapEndpoint(t, srv.URL)
@@ -309,6 +311,42 @@ func TestGqlQuery_429_FailsFast_NoRetry(t *testing.T) {
 	}
 	if !strings.Contains(msg, "Retry-After: 42") {
 		t.Errorf("error = %q, want it to surface Retry-After", msg)
+	}
+	// The typed form is what handlers and the budget read: header and the
+	// MDM message's exact numbers, on the GraphQL lane.
+	var rl *apsbudget.RateLimitError
+	if !errors.As(err, &rl) {
+		t.Fatalf("error %T is not a *apsbudget.RateLimitError", err)
+	}
+	if rl.RetryAfter != 42*time.Second || rl.PointValue != 231 || rl.Remaining != 69 || rl.Lane != apsbudget.LaneGraphQL || rl.Queued {
+		t.Errorf("typed 429 = %+v", rl)
+	}
+}
+
+// TestGqlQuery_TooComplex_IsTyped verifies the per-query point-cap rejection
+// (HTTP 400, deterministic) surfaces as QueryTooComplexError: never retried,
+// and distinguishable from load so it never trips a cooldown.
+func TestGqlQuery_TooComplex_IsTyped(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.WriteString(w, `{"errors":[{"message":"Query point value 1231 exceeds maximum allowed query point value 1000. To reduce point value, consider setting a lower pagination limit or reducing the number of fields requested.","extensions":{"code":"GRAPHQL_VALIDATION_FAILED"}}]}`)
+	}))
+	t.Cleanup(srv.Close)
+	swapEndpoint(t, srv.URL)
+
+	_, err := gqlQuery(context.Background(), "tok", "query Q {}", nil)
+	var qc *apsbudget.QueryTooComplexError
+	if !errors.As(err, &qc) {
+		t.Fatalf("error %v (%T) is not a QueryTooComplexError", err, err)
+	}
+	if qc.Points != 1231 || qc.Max != 1000 {
+		t.Errorf("parsed = %+v", qc)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Errorf("call count = %d, want 1", got)
 	}
 }
 

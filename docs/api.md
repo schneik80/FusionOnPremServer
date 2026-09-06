@@ -684,7 +684,8 @@ GraphQL errors are returned in a top-level `errors` array alongside `data`. Each
 
 **HTTP-level errors:**
 - `401 Unauthorized` → short-circuited before body parsing; surfaced as `"unauthorized (HTTP 401) — token may be expired or lacks scope/entitlement; body: <raw>"`. Bypassing the JSON decode avoids spurious "parsing GraphQL response" errors when APS returns a non-JSON 401 body.
-- `408 / 429 / 5xx` → retried (see below).
+- `408 / 5xx` → retried (see below).
+- `429 Too Many Requests` → **never retried**: it is the per-minute, cost-based query-point quota, which a retry cannot replenish. It surfaces as the typed `apsbudget.RateLimitError` (carrying `Retry-After` and, from the MDM message, the rejected query's point value and the remaining quota); the handler answers HTTP 429 with a `Retry-After` header and `retryAfterMs` in the error envelope. A `400` whose message says the query exceeds the per-query point cap is the typed `QueryTooComplexError` — a code bug, never retried, never a cooldown.
 - Other 4xx → response body parsed and surfaced verbatim, no retry.
 
 ### Bounded retry on transient APS gateway flakiness
