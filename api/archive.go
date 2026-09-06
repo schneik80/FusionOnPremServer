@@ -259,7 +259,7 @@ func PollDownloadJob(ctx context.Context, token, dmProjectID, jobID string) (dow
 	// The 303 is the completion signal, so it must not be followed: a followed
 	// redirect would collapse "finished" and "still working" into two 200s that
 	// differ only by payload shape.
-	resp, err := noRedirectClient.Do(req)
+	resp, err := doREST(noRedirectClient, req)
 	if err != nil {
 		return "", false, fmt.Errorf("download job: %w", err)
 	}

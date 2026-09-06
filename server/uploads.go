@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 )
 
 // Upload jobs are the server-side half of the drag-and-drop upload feature.
@@ -212,7 +213,7 @@ func (m *uploadManager) dismiss(id, sessionID string) {
 // removes it. sess is held (not just a token) so the job can refresh the APS
 // token however long the transfer takes.
 func (s *Server) runUpload(job *uploadJob, sess *Session) {
-	ctx, cancel := context.WithTimeout(context.Background(), uploadJobTimeout)
+	ctx, cancel := context.WithTimeout(apsbudget.WithPriority(context.Background(), apsbudget.P2), uploadJobTimeout)
 	job.setCancel(cancel)
 	defer cancel()
 	defer os.Remove(job.tmpPath)

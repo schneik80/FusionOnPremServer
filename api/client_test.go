@@ -385,3 +385,140 @@ func TestGqlQuery_RegionHeader(t *testing.T) {
 		})
 	}
 }
+
+// TestGqlQuery_PointValueExtensionObserved: when the gateway reports the
+// query's cost in extensions.pointValue (AEC does today, MDM "soon"), the
+// estimator learns it and the scheduler reconciles its withdrawal.
+func TestGqlQuery_PointValueExtensionObserved(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"data":{"hubs":{"results":[]}},"extensions":{"pointValue":{"requestedQueryPointValue":16}}}`)
+	}))
+	t.Cleanup(srv.Close)
+	swapEndpoint(t, srv.URL)
+
+	cfg := apsbudget.DefaultConfig()
+	cfg.FullQuota, cfg.Capacity = 1000, 800
+	sched := apsbudget.New(cfg, costs)
+	t.Cleanup(sched.Close)
+	t.Cleanup(SetBudgetForTesting(sched))
+
+	if _, err := gqlQuery(context.Background(), "tok", "query GetHubs { hubs { results { id } } }", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := costs.Points("GetHubs", 0); got != 16 {
+		t.Errorf("observed cost = %d, want 16", got)
+	}
+	snap := sched.Snapshot()
+	if snap.Available != 800-16 || snap.UsedLastMinute != 16 {
+		t.Errorf("snapshot = %+v (estimate must be reconciled to the reported 16)", snap)
+	}
+}
+
+// TestGqlQuery_Coalesced: two callers with the same subject share one
+// upstream call; a different subject does not; a subject-less ctx is never
+// coalesced.
+func TestGqlQuery_Coalesced(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"data":{"hub":{"projects":{"results":[]}}}}`)
+	}))
+	t.Cleanup(srv.Close)
+	swapEndpoint(t, srv.URL)
+
+	q := "query GetProjects($hubId: ID!) { hub(hubId: $hubId) { projects { results { id } } } }"
+	vars := map[string]any{"hubId": "h-" + t.Name()}
+	a := apsbudget.WithSubject(context.Background(), "user-a")
+	b := apsbudget.WithSubject(context.Background(), "user-b")
+	for i := 0; i < 3; i++ {
+		if _, err := gqlQuery(a, "tok", q, vars); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("same subject: %d upstream calls, want 1", calls.Load())
+	}
+	if _, err := gqlQuery(b, "tok", q, vars); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("other subject must not share: %d", calls.Load())
+	}
+	_, _ = gqlQuery(context.Background(), "tok", q, vars)
+	_, _ = gqlQuery(context.Background(), "tok", q, vars)
+	if calls.Load() != 4 {
+		t.Fatalf("subject-less ctx must never coalesce: %d", calls.Load())
+	}
+	if _, err := gqlQuery(apsbudget.WithFresh(a), "tok", q, vars); err != nil || calls.Load() != 5 {
+		t.Fatalf("fresh must refetch: calls=%d err=%v", calls.Load(), err)
+	}
+}
+
+// TestGqlQuery_SchedulerRefusesBackground: with a nearly empty budget, a P2
+// call is refused at once with a countdown while a P0 call still goes out.
+func TestGqlQuery_SchedulerRefusesBackground(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"data":{"x":1}}`)
+	}))
+	t.Cleanup(srv.Close)
+	swapEndpoint(t, srv.URL)
+
+	cfg := apsbudget.DefaultConfig()
+	cfg.FullQuota, cfg.Capacity, cfg.RefillPerSec = 100, 80, 1
+	sched := apsbudget.New(cfg, nil)
+	t.Cleanup(sched.Close)
+	t.Cleanup(SetBudgetForTesting(sched))
+
+	// Unknown op → formulaFallback (60) each. First P0 spends 60 of 80.
+	if _, err := gqlQuery(apsbudget.WithPriority(context.Background(), apsbudget.P0), "tok", "query Q {}", nil); err != nil {
+		t.Fatal(err)
+	}
+	_, err := gqlQuery(apsbudget.WithPriority(context.Background(), apsbudget.P2), "tok", "query Q {}", nil)
+	var rl *apsbudget.RateLimitError
+	if !errors.As(err, &rl) || !rl.Queued || rl.RetryAfter <= 0 {
+		t.Fatalf("P2 must be refused with a countdown, got %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("refused call must not reach upstream: %d", calls.Load())
+	}
+}
+
+// TestGqlQuery_429TripsCooldown: a real 429 puts the lane into cooldown so
+// the next background call is refused locally without spending anything.
+func TestGqlQuery_429TripsCooldown(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = io.WriteString(w, `{"errors":[{"message":"Query point value per minute quota exceeded with point value 60 and remaining quota 10. Please try again later."}]}`)
+	}))
+	t.Cleanup(srv.Close)
+	swapEndpoint(t, srv.URL)
+
+	sched := apsbudget.New(apsbudget.DefaultConfig(), nil)
+	t.Cleanup(sched.Close)
+	t.Cleanup(SetBudgetForTesting(sched))
+
+	_, err := gqlQuery(context.Background(), "tok", "query Q {}", nil)
+	var rl *apsbudget.RateLimitError
+	if !errors.As(err, &rl) || rl.Queued {
+		t.Fatalf("first call: %v", err)
+	}
+	snap := sched.Snapshot()
+	if snap.Level != "cooldown" || snap.Trips != 1 || snap.RetryAfter <= 25*time.Second {
+		t.Fatalf("snapshot = %+v", snap)
+	}
+	_, err = gqlQuery(apsbudget.WithPriority(context.Background(), apsbudget.P2), "tok", "query Q {}", nil)
+	if !errors.As(err, &rl) || !rl.Queued {
+		t.Fatalf("during cooldown: %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("cooldown must stop upstream calls: %d", calls.Load())
+	}
+}

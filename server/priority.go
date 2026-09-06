@@ -1,0 +1,105 @@
+package server
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
+)
+
+// priorityHeader lets the SPA say how urgent a request is. The route table
+// below is the default; the header exists to DEMOTE work the SPA knows is
+// prefetch (a dashboard roll-up behind another tab) and to PROMOTE a per-row
+// call the user just clicked. It is a first-party hint behind the session
+// cookie, honoured as given.
+const priorityHeader = "X-FLS-Priority"
+
+// Throttle state rides on every authenticated response so the SPA learns
+// about slow mode from traffic it already makes, error responses included.
+const (
+	throttleHeader      = "X-FLS-Throttle"       // ok | slow | cooldown
+	throttleUntilHeader = "X-FLS-Throttle-Until" // unix ms, only when not ok
+)
+
+// routePriority classifies routes the table knows; anything unlisted is P0,
+// so a forgotten route is never demoted behind background work.
+var routePriority = map[string]apsbudget.Priority{
+	// Per-row probes for what is on screen.
+	"/api/items/classify":        apsbudget.P1,
+	"/api/items/thumbnail":       apsbudget.P1,
+	"/api/items/thumbnail/image": apsbudget.P1,
+	"/api/items/drawing/preview": apsbudget.P1,
+	// Heavy or aggregate work the user did ask for, but which must never
+	// starve a click: the SPA demotes these further via the header when they
+	// are prefetch.
+	"/api/hub/overview":      apsbudget.P1,
+	"/api/items/local-refs":  apsbudget.P1,
+	"/api/activity/report":   apsbudget.P1,
+	"/api/items/descendants": apsbudget.P1,
+	"/api/activity/rollup":   apsbudget.P1,
+}
+
+// requestPriority reads the header, else the route table, else P0.
+func requestPriority(r *http.Request) apsbudget.Priority {
+	switch strings.TrimSpace(r.Header.Get(priorityHeader)) {
+	case "0":
+		return apsbudget.P0
+	case "1":
+		return apsbudget.P1
+	case "2":
+		return apsbudget.P2
+	}
+	// Images cannot carry headers; thumbnailSrc appends ?p= instead.
+	switch r.URL.Query().Get("p") {
+	case "0":
+		return apsbudget.P0
+	case "1":
+		return apsbudget.P1
+	case "2":
+		return apsbudget.P2
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/debug/") {
+		return apsbudget.P2
+	}
+	if p, ok := routePriority[r.URL.Path]; ok {
+		return p
+	}
+	return apsbudget.P0
+}
+
+// budgetContext tags ctx for the budget layer: the caller's subject (the
+// OIDC sub, falling back to the session id so an identity-less session never
+// coalesces with anyone), the request's priority and a label for -v logs.
+func budgetContext(r *http.Request, sess *Session) contextWithValues {
+	sub := ""
+	if sess != nil {
+		sub = sess.Profile.Sub
+		if sub == "" {
+			sub = "sess:" + sess.ID
+		}
+	}
+	return contextWithValues{subject: sub, priority: requestPriority(r), label: r.URL.Path}
+}
+
+type contextWithValues struct {
+	subject  string
+	priority apsbudget.Priority
+	label    string
+}
+
+// setThrottleHeaders writes the scheduler's current level onto w. Headers
+// must precede the body, so this reports state at request start — which is
+// what the SPA wants: "are we slow right now?".
+func setThrottleHeaders(w http.ResponseWriter) {
+	b := apiBudget()
+	if b == nil {
+		return
+	}
+	snap := b.Snapshot()
+	w.Header().Set(throttleHeader, snap.Level)
+	if snap.Throttled && !snap.CooldownUntil.IsZero() {
+		w.Header().Set(throttleUntilHeader, itoa64(snap.CooldownUntil.UnixMilli()))
+	} else if snap.Throttled && !snap.RESTCooldownUntil.IsZero() {
+		w.Header().Set(throttleUntilHeader, itoa64(snap.RESTCooldownUntil.UnixMilli()))
+	}
+}

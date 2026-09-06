@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 )
 
 // handleUses is polymorphic, mirroring the TUI's Uses tab:
@@ -273,7 +274,7 @@ func (s *Server) warmThumbnail(cvID, url string) {
 	}
 	go func() {
 		defer func() { <-s.warmSem }()
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(apsbudget.WithPriority(context.Background(), apsbudget.P2), 20*time.Second)
 		defer cancel()
 		png, ctype, err := api.FetchThumbnailImage(ctx, url)
 		if err != nil {

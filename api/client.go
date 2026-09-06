@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -167,32 +168,67 @@ func gqlQueryV3(ctx context.Context, token, q string, vars map[string]any) (json
 	return gqlQueryAt(ctx, graphqlEndpointV3, token, q, vars)
 }
 
+// gqlQueryAt is the one path every GraphQL query takes. It resolves the
+// operation's registered cost, coalesces identical in-flight/recent answers
+// (per subject unless the op is Shared), takes a scheduler slot per attempt,
+// reconciles the estimate with the cost the gateway reports, and records a
+// real 429 so the budget cools down. See budget.go / cost.go.
 func gqlQueryAt(ctx context.Context, endpoint, token, q string, vars map[string]any) (json.RawMessage, error) {
 	body, err := json.Marshal(gqlRequest{Query: q, Variables: vars})
 	if err != nil {
 		return nil, err
 	}
+	op, oc, known := costFor(q)
+	est := formulaFallback
+	if known {
+		est = costs.Points(op, oc.Points())
+	}
 
-	var lastErr error
-	for attempt, delay := range retryBackoffs {
-		if delay > 0 {
-			dbgLog("RETRY attempt=%d delay=%s lastErr=%v", attempt+1, delay, lastErr)
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(delay):
+	run := func(ctx context.Context) (json.RawMessage, error) {
+		var lastErr error
+		for attempt, delay := range retryBackoffs {
+			if delay > 0 {
+				dbgLog("RETRY attempt=%d delay=%s lastErr=%v", attempt+1, delay, lastErr)
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(delay):
+				}
+			}
+			rel, err := acquire(ctx, apsbudget.LaneGraphQL, op, est)
+			if err != nil {
+				return nil, err
+			}
+			data, actual, err, retriable := gqlQueryOnce(ctx, endpoint, token, body, vars)
+			rel(actual)
+			if err == nil {
+				return data, nil
+			}
+			var rl *apsbudget.RateLimitError
+			if errors.As(err, &rl) {
+				trip(rl, op)
+			}
+			lastErr = err
+			if !retriable {
+				return nil, err
 			}
 		}
-		data, err, retriable := gqlQueryOnce(ctx, endpoint, token, body, vars)
-		if err == nil {
-			return data, nil
-		}
-		lastErr = err
-		if !retriable {
-			return nil, err
+		return nil, fmt.Errorf("APS GraphQL flaky after %d attempts: %w", len(retryBackoffs), lastErr)
+	}
+
+	// Coalesce only what the registry allows, and never across subjects
+	// unless the op is Shared: a subject-less ctx (a CLI probe, a test) is
+	// not coalesced at all.
+	if known && oc.CacheTTL > 0 {
+		subject := apsbudget.SubjectFrom(ctx)
+		if oc.Shared || subject != "" {
+			if oc.Shared {
+				subject = ""
+			}
+			return gqlCache.Do(ctx, apsbudget.Key(endpoint, op, subject, vars), oc.CacheTTL, run)
 		}
 	}
-	return nil, fmt.Errorf("APS GraphQL flaky after %d attempts: %w", len(retryBackoffs), lastErr)
+	return run(ctx)
 }
 
 // gqlQueryOnce performs a single HTTP round-trip. The third return value
@@ -201,12 +237,15 @@ func gqlQueryAt(ctx context.Context, endpoint, token, q string, vars map[string]
 // extensions.errorType="UNKNOWN" (APS gateway's marker for intermittent
 // upstream failures). False for HTTP 401, parse errors, and concrete
 // GraphQL errors.
-func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars map[string]any) (json.RawMessage, error, bool) {
+//
+// actual is the cost the gateway reported in extensions.pointValue (0 when
+// it did not), so the scheduler can reconcile its estimate.
+func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars map[string]any) (data json.RawMessage, actual int, err error, retriable bool) {
 	dbgLog("REQUEST %s vars=%v\n%s", endpoint, vars, body)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return nil, err, false
+		return nil, 0, err, false
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -216,19 +255,19 @@ func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, err, true
+		return nil, 0, err, true
 	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err, true
+		return nil, 0, err, true
 	}
 
 	dbgLog("RESPONSE HTTP %d\n%s", resp.StatusCode, raw)
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, fmt.Errorf("unauthorized (HTTP 401) — token may be expired or lacks scope/entitlement; body: %s", raw), false
+		return nil, 0, fmt.Errorf("unauthorized (HTTP 401) — token may be expired or lacks scope/entitlement; body: %s", raw), false
 	}
 	// 429 = rate limited (APS's per-minute, cost-based query-point quota).
 	// Retrying inside the flakiness window cannot replenish a per-minute quota
@@ -237,24 +276,25 @@ func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars
 	// the rejected query's exact cost and the remaining quota; both are parsed
 	// so the budget can resync (see budget.go).
 	if resp.StatusCode == 429 {
-		return nil, rateLimitErrorFrom(apsbudget.LaneGraphQL, resp.Header.Get("Retry-After"), raw), false
+		return nil, 0, rateLimitErrorFrom(apsbudget.LaneGraphQL, resp.Header.Get("Retry-After"), raw), false
 	}
 	// 5xx/408 are transient gateway hiccups — worth a quick retry.
 	if resp.StatusCode >= 500 || resp.StatusCode == 408 {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, raw), true
+		return nil, 0, fmt.Errorf("HTTP %d: %s", resp.StatusCode, raw), true
 	}
 
 	var gr gqlResponse
 	if err := json.Unmarshal(raw, &gr); err != nil {
-		return nil, fmt.Errorf("parsing GraphQL response: %w", err), false
+		return nil, 0, fmt.Errorf("parsing GraphQL response: %w", err), false
 	}
 	hasData := len(gr.Data) > 0 && string(gr.Data) != "null"
+	actual = pointValueFromExtensions(gr.Extensions)
 	if len(gr.Errors) > 0 {
 		// The per-query cap (HTTP 400, deterministic): a code bug in the query,
 		// never load. Typed so it is never retried and never trips a cooldown.
 		for _, e := range gr.Errors {
 			if pts, mx, ok := apsbudget.ParseTooComplex(e.Message); ok {
-				return nil, &apsbudget.QueryTooComplexError{Points: pts, Max: mx, Body: e.Message}, false
+				return nil, 0, &apsbudget.QueryTooComplexError{Points: pts, Max: mx, Body: e.Message}, false
 			}
 		}
 		msgs := make([]string, len(gr.Errors))
@@ -277,14 +317,14 @@ func gqlQueryOnce(ctx context.Context, endpoint, token string, body []byte, vars
 		// the debug response dump above, so they are not lost.
 		if !retriable && hasData {
 			dbgLog("GraphQL partial errors (kept data): %s", strings.Join(msgs, "; "))
-			return gr.Data, nil, false
+			return gr.Data, actual, nil, false
 		}
-		return nil, fmt.Errorf("GraphQL errors: %s", strings.Join(msgs, "; ")), retriable
+		return nil, actual, fmt.Errorf("GraphQL errors: %s", strings.Join(msgs, "; ")), retriable
 	}
 	if !hasData {
-		return nil, fmt.Errorf("empty GraphQL response (HTTP %d): %s", resp.StatusCode, raw), false
+		return nil, actual, fmt.Errorf("empty GraphQL response (HTTP %d): %s", resp.StatusCode, raw), false
 	}
-	return gr.Data, nil, false
+	return gr.Data, actual, nil, false
 }
 
 // rateLimitErrorFrom builds the typed 429 from an upstream response: the

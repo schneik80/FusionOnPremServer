@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -117,7 +118,12 @@ func rankOf(e roleEntry) int {
 // NewAuthorizer returns an Authorizer with production wiring and TTLs.
 func NewAuthorizer() *Authorizer {
 	return &Authorizer{
-		fetch:  api.GetProjectMembers,
+		// The authorizer IS the roster cache (ttl/negTTL below), so its own
+		// reads bypass the GraphQL coalescing cache: a revocation must be seen
+		// the moment this cache expires, not a coalescing TTL later.
+		fetch: func(ctx context.Context, token, projectID string) ([]api.Member, error) {
+			return api.GetProjectMembers(apsbudget.WithFresh(ctx), token, projectID)
+		},
 		ttl:    60 * time.Second,
 		negTTL: 15 * time.Second,
 		now:    time.Now,

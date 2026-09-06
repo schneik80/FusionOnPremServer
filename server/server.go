@@ -25,6 +25,7 @@ import (
 	"github.com/schneik80/fusionlocalserver/api"
 	"github.com/schneik80/fusionlocalserver/chat"
 	"github.com/schneik80/fusionlocalserver/config"
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 )
 
 // Options configures a server run. Config may be nil when CfgErr is set (no
@@ -224,6 +225,9 @@ func Run(opts Options) error {
 
 	// Region is process-global; set once before any API call.
 	api.SetRegion(region)
+	// One budget for the process: APS meters the app, so every session
+	// shares it. See internal/apsbudget and docs/quota/STATUS.md.
+	api.UseBudget(apsbudget.New(apsbudget.DefaultConfig(), api.Costs()))
 
 	s := &Server{
 		opts:             opts,

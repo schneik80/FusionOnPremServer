@@ -72,6 +72,10 @@ func (s *Server) routes() http.Handler {
 
 	// Navigation.
 	mux.HandleFunc("GET /api/hubs", prot(s.handleHubs))
+	// The APS budget's state (slow mode, cooldown, points). Describes the
+	// process, not a hub, so bare prot; the SPA polls it only while the
+	// throttle headers say something other than ok.
+	mux.HandleFunc("GET /api/quota", prot(s.handleQuota))
 	mux.HandleFunc("GET /api/projects", protHub(s.handleProjects))
 	mux.HandleFunc("GET /api/projects/contents", protHub(s.handleProjectContents))
 	mux.HandleFunc("GET /api/folders/contents", protHub(s.handleFolderContents))
@@ -128,6 +132,9 @@ func (s *Server) routes() http.Handler {
 	// …and one for where the schema exposes a design's non-save history
 	// (HistoryChange rows) — the gate for the History tab's "other changes".
 	mux.HandleFunc("GET /api/debug/history-probe", protHub(s.handleDebugHistoryProbe))
+	// …and the cost registry vs what the gateway actually charged (see
+	// api/cost.go), for calibrating the budget.
+	mux.HandleFunc("GET /api/debug/quota-costs", protHub(s.handleDebugQuotaCosts))
 
 	// Chat (docs/chat/PLAN.md, phase 1). REST + client polling; the SSE
 	// event stream lands in phase 2. URN-style ids ride query params, per

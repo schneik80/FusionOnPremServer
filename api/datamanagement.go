@@ -68,14 +68,21 @@ func dmDo(ctx context.Context, token, method, fullURL, contentType string, body 
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
+	rel, err := acquire(ctx, apsbudget.LaneREST, "", 0)
+	if err != nil {
+		return nil, fmt.Errorf("DM %s %s: %w", method, trimURL(fullURL), err)
+	}
 	resp, err := httpClient.Do(req)
+	rel(0)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, limit))
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return nil, fmt.Errorf("DM %s %s: %w", method, trimURL(fullURL), rateLimitErrorFrom(apsbudget.LaneREST, resp.Header.Get("Retry-After"), b))
+		rl := rateLimitErrorFrom(apsbudget.LaneREST, resp.Header.Get("Retry-After"), b)
+		trip(rl, "")
+		return nil, fmt.Errorf("DM %s %s: %w", method, trimURL(fullURL), rl)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("DM %s %s -> HTTP %d: %s", method, trimURL(fullURL), resp.StatusCode, strings.TrimSpace(string(b)))

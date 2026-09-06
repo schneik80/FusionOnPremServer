@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 	"net/http"
 	"net/url"
 	"strings"
@@ -333,6 +334,13 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), tokenCtxKey, tok)
 		ctx = context.WithValue(ctx, sessionCtxKey, sess)
+		// The budget layer's view of this request: who (for coalescing), how
+		// urgent (route table / X-FLS-Priority), and a label for -v logs.
+		bc := budgetContext(r, sess)
+		ctx = apsbudget.WithSubject(ctx, bc.subject)
+		ctx = apsbudget.WithPriority(ctx, bc.priority)
+		ctx = apsbudget.WithLabel(ctx, bc.label)
+		setThrottleHeaders(w)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

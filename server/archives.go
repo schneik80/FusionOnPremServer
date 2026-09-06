@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/schneik80/fusionlocalserver/api"
+	"github.com/schneik80/fusionlocalserver/internal/apsbudget"
 	"github.com/schneik80/fusionlocalserver/notifications"
 )
 
@@ -303,7 +304,7 @@ var errNoArchiveFormat = errors.New("no native archive format available for this
 // version, pick a format, kick off generation, poll to completion. notif may be
 // nil (no local stores) — the job still runs, it just cannot announce itself.
 func (s *Server) runArchive(job *archiveJob, sess *Session, notif *notifications.Store) {
-	ctx, cancel := context.WithTimeout(context.Background(), archiveJobTimeout)
+	ctx, cancel := context.WithTimeout(apsbudget.WithPriority(context.Background(), apsbudget.P2), archiveJobTimeout)
 	job.setCancel(cancel)
 	defer cancel()
 
