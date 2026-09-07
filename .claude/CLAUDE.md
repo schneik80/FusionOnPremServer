@@ -49,10 +49,11 @@ make run                                 # build UI + binary, serve over HTTPS (
 
 ## Active work
 **APS quota budget** (branch `ratelimit`, `docs/quota/STATUS.md`) — Phase 1
-(server) shipped: `internal/apsbudget` + `api/cost.go` registry with the
-**calibrated** cost model (every selected field per row; the documented
-formula was 3–5× low, which is why a details query is ~656 points and ten
-`fls:doc` cards blew a minute of quota), the scheduler wired into
+(server) shipped: `internal/apsbudget` + `api/cost.go` registry with **measured** per-op
+costs from 1854 real 429s (classify 26, details 211–436, occurrences 916 a
+page; most connections are charged per returned row, hubs per requested
+page — the transport reconciles each paged call by its `results` rows), the
+scheduler wired into
 `gqlQueryAt`/`dmDo`, coalescing per subject, fan-outs bounded and aborting
 on 429, `GET /api/quota`, throttle headers, `/api/debug/quota-costs`. Phase 2
 (client) shipped: `X-FLS-Priority` plumbing (`api/priority.ts`, hook defaults

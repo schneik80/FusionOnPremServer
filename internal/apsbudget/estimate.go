@@ -17,6 +17,7 @@ import (
 type Estimator struct {
 	mu         sync.Mutex
 	registered map[string]int
+	paged      map[string]bool
 	observed   map[string]*Observation
 }
 
@@ -32,27 +33,32 @@ type OpCostRow struct {
 	Op         string       `json:"op"`
 	Registered int          `json:"registered"`
 	Effective  int          `json:"effective"`
+	Paged      bool         `json:"paged"`
 	Observed   *Observation `json:"observed,omitempty"`
 }
 
 func NewEstimator() *Estimator {
-	return &Estimator{registered: map[string]int{}, observed: map[string]*Observation{}}
+	return &Estimator{registered: map[string]int{}, paged: map[string]bool{}, observed: map[string]*Observation{}}
 }
 
-// Register records the static estimate for op (the calibrated model's value,
-// or a measured constant committed to the registry).
-func (e *Estimator) Register(op string, points int) {
+// Register records the admission estimate for op. paged says the op's cost
+// scales with the rows a page returns: an exact observation of one page is
+// then recorded for the table but does not replace the full-page estimate
+// (a short page would make the next long one under-admitted).
+func (e *Estimator) Register(op string, points int, paged bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.registered[op] = points
+	e.paged[op] = paged
 }
 
-// Points returns the effective estimate for op: the last exact observation if
-// there is one, else the registered value, else fallback.
+// Points returns the effective estimate for op: for a fixed-cost op the last
+// exact observation if there is one; else the registered value; else
+// fallback.
 func (e *Estimator) Points(op string, fallback int) int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if o, ok := e.observed[op]; ok && o.Last > 0 {
+	if o, ok := e.observed[op]; ok && o.Last > 0 && !e.paged[op] {
 		return o.Last
 	}
 	if p, ok := e.registered[op]; ok && p > 0 {
@@ -93,13 +99,14 @@ func (e *Estimator) Table() []OpCostRow {
 	}
 	rows := make([]OpCostRow, 0, len(names))
 	for op := range names {
-		row := OpCostRow{Op: op, Registered: e.registered[op]}
+		row := OpCostRow{Op: op, Registered: e.registered[op], Paged: e.paged[op]}
+		row.Effective = row.Registered
 		if o := e.observed[op]; o != nil {
 			cp := *o
 			row.Observed = &cp
-			row.Effective = o.Last
-		} else {
-			row.Effective = row.Registered
+			if !e.paged[op] {
+				row.Effective = o.Last
+			}
 		}
 		rows = append(rows, row)
 	}

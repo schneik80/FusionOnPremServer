@@ -403,10 +403,10 @@ func TestGqlQuery_PointValueExtensionObserved(t *testing.T) {
 	t.Cleanup(sched.Close)
 	t.Cleanup(SetBudgetForTesting(sched))
 
-	if _, err := gqlQuery(context.Background(), "tok", "query GetHubs { hubs { results { id } } }", nil); err != nil {
+	if _, err := gqlQuery(context.Background(), "tok", "query GetThumbnail { componentVersion { thumbnail { status } } }", nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := costs.Points("GetHubs", 0); got != 16 {
+	if got := costs.Points("GetThumbnail", 0); got != 16 {
 		t.Errorf("observed cost = %d, want 16", got)
 	}
 	snap := sched.Snapshot()

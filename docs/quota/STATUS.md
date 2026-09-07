@@ -22,16 +22,41 @@ on the traffic it already makes and shows one banner.
   telemetry MDM exposes today; `extensions.pointValue` (already on the AEC
   Data Model) is read opportunistically when it arrives. Platform 429s may
   carry `Retry-After`.
-- **Cost model — calibrated, not documented.** The docs say "1 per object
-  field × page size". Three real measurements for `GetDrawingsForDesign`
-  (`api/refs.go`: 50×50 = 23066, 10×10 = 1026, 10×5 ≈ 510) are 3–5× higher.
-  The model in `api/cost.go` — every selected field costs 1 per row it is
-  evaluated on, plus 1 per row, nested pages charged again per parent row —
-  reproduces all three within 0.01 %:
-  `Estimate = 10×Roots + Fixed + (RowFields+1)×Limit`. Under it
-  `GetItemDetails` is ~656 points, a design opened on History ≈ 1100, ten
-  `fls:doc` cards ≈ 7000 (more than a minute of quota). That is why the
-  429s happened.
+- **Costs — measured, per route.** 1854 real 429s in the server log (to
+  2026-09-07) name the rejected query's exact cost. `api/cost.go` carries
+  those as `Measured`; the static model (`10×Roots + Fixed +
+  (RowFields+1)×Limit`, calibrated on the drawings query) is only the
+  fallback for an op that has never been rejected. What the numbers show:
+
+  | route | op | measured |
+  |---|---|---|
+  | items/classify | ClassifyAndThumbnail | 26 |
+  | items/thumbnail | GetThumbnail | 20 |
+  | activity/report (50 versions) | DesignActivity | 122 |
+  | folders/contents | GetItems | 261 |
+  | projects | GetProjects | 366 |
+  | hubs (a list of 4) | GetHubs | 311 |
+  | items/uses (50 rows) | GetOccurrences | 916 |
+  | items/where-used (50 rows) | GetWhereUsed | 666 |
+  | items/drawings | GetDrawingsForDesign | 576 |
+  | items/bom | AllOccurrences | 266 |
+  | items/details | GetItemDetails | 211 (short history) – 436 |
+  | items/location | LocateItem | 11–14 |
+  | items/properties | GetPhysicalProperties | 28 |
+  | custom-properties | GetCustomProperties | 15 |
+  | a 7-member roster | PM | 66 |
+  | wiki (hub DM id) | HubDMID | 11 |
+
+  Two rules fall out. **Most connections are charged per returned row**
+  (an activity report with 50 versions is 122, not the 633 the model gave;
+  details is 211 with a short history and 436 with a long one), so the
+  transport reconciles every paged call by the `results` rows it actually
+  carried (`OpCost.ActualForRows`, `countResults`) and the bucket is only
+  charged what the gateway charges. **A few are charged on the requested
+  page** — four hubs cost 311 every time — and are flagged `ByLimit`. A
+  paged op's 429 observation is recorded but never replaces its full-page
+  admission estimate (one short page says nothing about the next long one);
+  a fixed op's observation wins outright.
 - Since 2026-08-17 MDM points are metered and billed, so points are money
   as well as throttle.
 

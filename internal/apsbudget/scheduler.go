@@ -315,9 +315,6 @@ func (s *Scheduler) releaseFor(w *waiter) Release {
 				s.bucket.correct(w.req.Cost, actual)
 				if actual > 0 {
 					s.spend.add(now, actual-w.req.Cost)
-					if s.est != nil {
-						s.est.Observe(w.req.Op, actual, "pointValue", now)
-					}
 				}
 			}
 			s.kickLocked(w.req.Lane, now)

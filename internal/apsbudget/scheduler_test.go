@@ -74,17 +74,24 @@ func TestEstimator(t *testing.T) {
 	if e.Points("X", 7) != 7 {
 		t.Fatal("fallback")
 	}
-	e.Register("X", 120)
+	e.Register("X", 120, false)
 	if e.Points("X", 7) != 120 {
 		t.Fatal("registered")
 	}
 	e.Observe("X", 231, "429", time.Unix(0, 0))
 	if e.Points("X", 7) != 231 {
-		t.Fatal("observation must win")
+		t.Fatal("observation must win for a fixed-cost op")
 	}
 	e.Observe("X", 0, "429", time.Unix(0, 0)) // ignored
+	// A paged op keeps its full-page estimate: one short page's exact cost
+	// says nothing about the next long one.
+	e.Register("P", 666, true)
+	e.Observe("P", 120, "429", time.Unix(0, 0))
+	if e.Points("P", 7) != 666 {
+		t.Fatal("paged op must keep the registered estimate")
+	}
 	rows := e.Table()
-	if len(rows) != 1 || rows[0].Observed == nil || rows[0].Observed.N != 1 || rows[0].Effective != 231 {
+	if len(rows) != 2 || rows[0].Op != "P" || rows[0].Effective != 666 || !rows[0].Paged || rows[1].Observed == nil || rows[1].Observed.N != 1 || rows[1].Effective != 231 {
 		t.Fatalf("table = %+v", rows)
 	}
 	if OperationName("query GetHubs($x: ID) { hubs }") != "GetHubs" || OperationName("{ hubs }") != "" {
@@ -301,8 +308,8 @@ func TestScheduler_ReleaseCorrectsAndObserves(t *testing.T) {
 	if snap.Available != 760 || snap.UsedLastMinute != 40 || snap.InFlight != 0 {
 		t.Fatalf("snapshot = %+v", snap)
 	}
-	if est.Points("GetX", 0) != 40 {
-		t.Fatal("actual cost must be observed")
+	if est.Points("GetX", 0) != 0 {
+		t.Fatal("the scheduler reconciles the bucket; observing is the transport's job")
 	}
 }
 

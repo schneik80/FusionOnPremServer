@@ -200,6 +200,14 @@ func gqlQueryAt(ctx context.Context, endpoint, token, q string, vars map[string]
 				return nil, err
 			}
 			data, actual, err, retriable := gqlQueryOnce(ctx, endpoint, token, body, vars)
+			if actual > 0 {
+				// The gateway said what it charged: the only exact source.
+				costs.Observe(op, actual, "pointValue", time.Now())
+			} else if err == nil && known && oc.Limit > 0 {
+				// Most connections are charged per returned row (see cost.go);
+				// a short page must not drain the bucket by a full one.
+				actual = oc.ActualForRows(countResults(data))
+			}
 			rel(actual)
 			if err == nil {
 				return data, nil

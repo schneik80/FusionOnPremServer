@@ -30,7 +30,9 @@ type RateLimitError = apsbudget.RateLimitError
 
 func init() {
 	for op, c := range opCosts {
-		costs.Register(op, c.Points())
+		// A paged op's cost depends on the rows a page returns, so a 429's
+		// exact value for one page must not become its admission estimate.
+		costs.Register(op, c.Points(), c.Limit > 0 && !c.ByLimit)
 	}
 }
 
