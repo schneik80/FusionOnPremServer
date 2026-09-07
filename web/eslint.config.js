@@ -1,7 +1,8 @@
 // Lint config exists for ONE job: the i18n ratchet. `no-literal-string`
-// fails on user-facing string literals in JSX so extracted folders can't
-// regress to hardcoded English. Folders join `RATCHETED` as their
-// extraction pass lands; when all of src/ is listed, collapse the globs.
+// fails on user-facing string literals in JSX so the app can't regress to
+// hardcoded English. Every folder's extraction pass has landed, so the
+// ratchet now covers all of src/ — a new folder is covered the day it is
+// created, not when someone remembers to list it.
 //
 // react-hooks is registered but not enabled: the codebase carries
 // `eslint-disable-next-line react-hooks/exhaustive-deps` comments (written
@@ -11,15 +12,7 @@ import tseslint from 'typescript-eslint'
 import i18next from 'eslint-plugin-i18next'
 import reactHooks from 'eslint-plugin-react-hooks'
 
-const RATCHETED = [
-  'src/components/**/*.tsx',
-  'src/tasks/**/*.tsx',
-  'src/chat/**/*.tsx',
-  'src/wiki/**/*.tsx',
-  'src/production/**/*.tsx',
-  'src/whiteboards/**/*.tsx',
-  'src/embed/**/*.tsx',
-]
+const RATCHETED = ['src/**/*.tsx']
 
 export default tseslint.config({
   files: RATCHETED,

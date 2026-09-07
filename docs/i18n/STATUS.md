@@ -43,9 +43,11 @@ per-hub, unlike theme settings).
   from the `errors` catalog deliberately fall back to the server's English
   detail message rather than flattening it into a generic sentence.
 - **The eslint ratchet** (`npm run lint:i18n`, config in
-  `web/eslint.config.js`) fails on literal strings in the extracted
-  folders via `i18next/no-literal-string`. New UI code cannot reintroduce
-  hardcoded English.
+  `web/eslint.config.js`) fails on literal strings in JSX via
+  `i18next/no-literal-string`. Since 2026-09-05 it covers **all of
+  `src/**/*.tsx`** (the last unlisted files — `App.tsx`, `main.tsx`,
+  `state/` — were already clean), so a new folder is ratcheted the day it
+  is created. New UI code cannot reintroduce hardcoded English.
 - **Unicode-safe text handling.** Grapheme-aware helpers live in
   `web/src/fmt/graphemes.ts` (Intl.Segmenter with an Array.from
   fallback) — never `.slice()` user text or take `s[0]` for initials; CJK
@@ -60,8 +62,12 @@ per-hub, unlike theme settings).
    match the existing formal register).
 3. Render it with `useTranslation('<namespace>')`; the ratchet fails the
    lint if you skip extraction.
-4. `web/src/i18n/catalogs.test.ts` asserts catalog shape parity across
-   locales — a key present in `en` but missing elsewhere fails the suite.
+4. `web/src/i18n/catalogs.test.ts` asserts catalog parity in **both
+   directions** — a key present in `en` but missing from any other locale
+   fails the suite (that is the untranslated-string guard; before
+   2026-09-05 only the reverse, "no orphan keys", was checked), as does a
+   key with no `en` counterpart, an empty value, or a `{{placeholder}}`
+   set that differs from English.
 
 ## Known gaps / follow-ups
 

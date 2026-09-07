@@ -64,6 +64,24 @@ describe('i18n catalogs', () => {
     }
   })
 
+  // The other direction is what keeps translations current: a key added to en
+  // without its five siblings would silently render English in every other
+  // locale (i18next falls back to en), and nobody would notice until a user
+  // did. Every locale must carry every en namespace, and every key in it.
+  it('every English key exists in every other locale', () => {
+    const locales = [...new Set(catalogs.map((c) => c.locale))].filter((l) => l !== 'en')
+    expect(locales.length).toBeGreaterThan(0)
+    for (const [ns, en] of enByNs) {
+      for (const locale of locales) {
+        const c = catalogs.find((x) => x.locale === locale && x.ns === ns)
+        expect(c, `${locale} has no ${ns} catalog`).toBeDefined()
+        for (const key of en.keys()) {
+          expect(c!.keys.has(key), `${locale}/${ns}:${key} is missing (untranslated)`).toBe(true)
+        }
+      }
+    }
+  })
+
   it('interpolation placeholders match English', () => {
     const vars = (s: string) => [...s.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort()
     for (const c of catalogs) {
